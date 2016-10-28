@@ -1,2 +1,2 @@
-# SpeechReconition
+# SpeechRecognition
 ASR Lab
