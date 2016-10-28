@@ -7,6 +7,7 @@
 #include "SignalAnalysis.hpp"
 
 #include <algorithm>
+#include <assert.h>
 #include <cmath>
 #include <fstream>
 #include <functional>
@@ -233,7 +234,46 @@ void SignalAnalysis::abs_spectrum() {
 /*****************************************************************************/
 
 void SignalAnalysis::calc_mel_filterbanks() {
-  // TODO: implement
+	// only calculate the mel filterbank ranges once
+	static bool first_pass_mel_filterbanks = true;
+	static std::vector<float> left_boundaries = std::vector<float>(n_mel_filters);
+	static std::vector<float> right_boundaries = std::vector<float>(n_mel_filters);
+
+	if (first_pass_mel_filterbanks) {
+		// the maximum representable frequency given by nyquist's theorem
+		float max_frequency = sample_rate / 2;
+		float max_mel_frequency = 2595 * log10(1 + max_frequency / 700);
+
+		// initialize some variables before the for-loop
+		float mel_boundary_position_distance = max_mel_frequency / (n_mel_filters+1);
+		float mel_center_frequency = mel_boundary_position_distance;
+		float mel_left_frequency, left_frequency;
+		float mel_right_frequency, right_frequency;
+		for (unsigned i = 0; i < n_mel_filters; i++) {
+			// calculate left and right boundaries of the triangle in mel-space
+			mel_left_frequency = mel_center_frequency - mel_boundary_position_distance;
+			mel_right_frequency = mel_center_frequency + mel_boundary_position_distance;
+
+			// map back to the normal spectrum
+			left_frequency = (pow(10, mel_left_frequency / 2595) - 1) * 700;
+			right_frequency = (pow(10, mel_right_frequency / 2595) - 1) * 700;
+
+			left_boundaries[i] = left_frequency;
+			right_boundaries[i] = right_frequency;
+			//std::cout << "boundaries: " << left_frequency << " " << right_frequency << std::endl;
+
+			// update center position
+			mel_center_frequency += mel_boundary_position_distance;
+		}
+
+		// make some assertions for the correctness of the extraction
+		assert(left_boundaries[0] - 0.0 < pow(10, -3));
+		assert(right_boundaries[n_mel_filters-1] - max_frequency < pow(10, -3));
+
+		first_pass_mel_filterbanks = false;
+	}
+
+
 }
 
 /*****************************************************************************/
