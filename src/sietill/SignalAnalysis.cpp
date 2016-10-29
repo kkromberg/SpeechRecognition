@@ -236,20 +236,20 @@ void SignalAnalysis::abs_spectrum() {
 void SignalAnalysis::calc_mel_filterbanks() {
 	// only calculate the mel filterbank ranges once
 	static bool first_pass_mel_filterbanks = true;
-	static std::vector<float> left_boundaries = std::vector<float>(n_mel_filters);
-	static std::vector<float> right_boundaries = std::vector<float>(n_mel_filters);
+	static std::vector<double> left_boundaries = std::vector<double>(n_mel_filters);
+	static std::vector<double> right_boundaries = std::vector<double>(n_mel_filters);
 
 	if (first_pass_mel_filterbanks) {
 		// the maximum representable frequency given by nyquist's theorem
-		float max_frequency = sample_rate / 2;
-		float max_mel_frequency = 2595 * log10(1 + max_frequency / 700);
+		const double max_frequency = sample_rate / 2;
+		const double max_mel_frequency = 2595 * log10(1 + max_frequency / 700);
 
 		// initialize some variables before the for-loop
-		float mel_boundary_position_distance = max_mel_frequency / (n_mel_filters+1);
-		float mel_center_frequency = mel_boundary_position_distance;
-		float mel_left_frequency, left_frequency;
-		float mel_right_frequency, right_frequency;
-		for (unsigned i = 0; i < n_mel_filters; i++) {
+		const double mel_boundary_position_distance = max_mel_frequency / (n_mel_filters+1);
+		double mel_center_frequency = mel_boundary_position_distance;
+		double mel_left_frequency, left_frequency;
+		double mel_right_frequency, right_frequency;
+		for (size_t i = 0; i < n_mel_filters; i++) {
 			// calculate left and right boundaries of the triangle in mel-space
 			mel_left_frequency = mel_center_frequency - mel_boundary_position_distance;
 			mel_right_frequency = mel_center_frequency + mel_boundary_position_distance;
@@ -273,7 +273,24 @@ void SignalAnalysis::calc_mel_filterbanks() {
 		first_pass_mel_filterbanks = false;
 	}
 
-
+	// Parse through the whole spectrum and check if the frequency is in the pre-defined spectrum
+  mel_filterbanks_ = std::vector<double>(n_mel_filters, 0.0);
+  for (size_t i = 0; i < spectrum_.size(); i++) {
+  	for (size_t j = 0; j < n_mel_filters; j++) {
+  		// Check if the spectrum is within the window
+  		// Note that the equals in this check might cause problems, depending on the definition of bins
+  		if (left_boundaries[j] <= spectrum_[i]) {
+  			if (spectrum_[i] <= right_boundaries[j]) {
+  				// This implementation corresponds to Slide nr. 68 of the ASR slides
+  				mel_filterbanks_[j] += fabs(fft_real_[i]);
+  			} else {
+  				continue;
+  			}
+  		} else {
+  			continue;
+  		}
+  	}
+  }
 }
 
 /*****************************************************************************/
