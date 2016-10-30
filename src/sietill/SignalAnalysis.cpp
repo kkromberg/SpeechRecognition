@@ -84,7 +84,9 @@ void SignalAnalysis::process(std::string const& input_path, std::string const& o
 
   pre_emphasis(samples);
   std::string filename_log_spectrum = "logSpectrum.txt";
+  // delete previous file
   std::remove(filename_log_spectrum.c_str());
+  std::remove("spectralEnerg.txt");
   for (size_t start = 0u; start < samples.size(); start += window_shift) {
     apply_window(samples, start);
     fft(windowed_signal_, NULL, fft_real_, fft_imag_);
@@ -100,6 +102,7 @@ void SignalAnalysis::process(std::string const& input_path, std::string const& o
 
     num_obs_++;
   }
+  // create pgm from file
   create_pgm(filename_log_spectrum, "logSpectrum.pgm");
 
   add_deltas();

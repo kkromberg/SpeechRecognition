@@ -134,18 +134,27 @@ void create_pgm(std::string const& input_file, std::string const& output_file){
   pgm_file << pgm_header;
 
   std::ofstream tmp_file;
-  tmp_file.open("tmp_file.txt");
-  tmp_file << pgm_header;
-
+  tmp_file.open("dataForPlot.dat");
   // iterate through all the vectors and write them to file
-  for (int row = 0; row < value_counter -1; row++) {
+  for (int row = 0; row < value_counter; row++) {
     std::string line = "";
+    std::string tmp_line = "";
+    tmp_line = std::to_string(row) + " ";
     for (int column = 0; column < vector_counter; column++) {
+      if (column == 24 || column == 104 || column == 409) {
+        tmp_line += std::to_string(all_values[column][row]) + " ";
+      }
       int scaled_value = (int)((255) * (all_values[column][row] - min))/(max-min);
-        line += std::to_string(scaled_value) + " ";
+      line += std::to_string(scaled_value) + " ";
     }
-      pgm_file << line + "\n";
+    pgm_file << line + "\n";
+    if (!line.empty()){
+      std::cout << "I am here";
+      tmp_file << tmp_line + "\n";
+    }
+
   }
   pgm_file.close();
+  tmp_file.close();
 
 }
