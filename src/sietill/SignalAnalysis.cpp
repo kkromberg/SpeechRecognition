@@ -83,6 +83,8 @@ void SignalAnalysis::process(std::string const& input_path, std::string const& o
   feature_seq_.resize(num_frames * n_features_total);
 
   pre_emphasis(samples);
+  std::string filename_log_spectrum = "logSpectrum.txt";
+  std::remove(filename_log_spectrum.c_str());
   for (size_t start = 0u; start < samples.size(); start += window_shift) {
     apply_window(samples, start);
     fft(windowed_signal_, NULL, fft_real_, fft_imag_);
@@ -93,9 +95,13 @@ void SignalAnalysis::process(std::string const& input_path, std::string const& o
     calc_cepstrum();
     std::copy(cepstrum_.begin(), cepstrum_.end(), feature_seq_.begin() + (start / window_shift) * n_features_total);
     write_floats_to_file(features_out, cepstrum_);
+    write_logspcetrum_to_file(filename_log_spectrum, spectrum_);
+    calculate_energy("spectralEnergy.txt", spectrum_);
+
     num_obs_++;
   }
-  
+  create_pgm(filename_log_spectrum, "logSpectrum.pgm");
+
   add_deltas();
 
   // mean-variance normalization
