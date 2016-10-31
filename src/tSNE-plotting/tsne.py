@@ -163,28 +163,27 @@ def tsne(X = Math.array([]), no_dims = 2, initial_dims = 50, perplexity = 30.0):
 
 	# Return solution
 	return Y;
-
-
-def load_bin_floats(file, n_floats_per_feature=14):
-	from bitstring import ConstBitStream, ReadError
-	from copy import copy
 	
+def load_bin_floats(file, n_floats_per_feature=25):
+	from copy import copy
+	import struct
+		
 	with open(file, 'rb') as f:
-		raw_data = ConstBitStream(f)
 		buffer = []
 		features = []
 		try:
 			while (1):
-				float_num = raw_data.read('floatne:32')
+				float_num = struct.unpack('<f', f.read(4))[0] # read 4 bytes in litte-endian
 				buffer.append(float_num)
 				if len(buffer) == n_floats_per_feature:
 					features.append(copy(buffer))
 					buffer = []
 					
-		except ReadError:
-			print "end reached"
+		except struct.error:
+			print struct.error
 			assert len(buffer) == 0
 			
+
 	return Math.array(features)
 	
 if __name__ == "__main__":
