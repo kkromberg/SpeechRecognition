@@ -109,7 +109,7 @@ def tsne(X = Math.array([]), no_dims = 2, initial_dims = 50, perplexity = 30.0):
 	# Initialize variables
 	X = pca(X, initial_dims).real;
 	(n, d) = X.shape;
-	max_iter = 10;
+	max_iter = 1000;
 	initial_momentum = 0.5;
 	final_momentum = 0.8;
 	eta = 500;
@@ -201,4 +201,7 @@ if __name__ == "__main__":
 	Plot.scatter(Y[:,0], Y[:,1], 20);
 	Plot.xlabel("non-linear transformation phi_1(x)");
 	Plot.ylabel("non-linear transformation phi_2(x)");
+	fig1 = Plot.gcf()
 	Plot.show();
+	Plot.draw();
+	fig1.savefig("tSNE.png");
