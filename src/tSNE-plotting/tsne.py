@@ -109,7 +109,7 @@ def tsne(X = Math.array([]), no_dims = 2, initial_dims = 50, perplexity = 30.0):
 	# Initialize variables
 	X = pca(X, initial_dims).real;
 	(n, d) = X.shape;
-	max_iter = 1000;
+	max_iter = 10;
 	initial_momentum = 0.5;
 	final_momentum = 0.8;
 	eta = 500;
@@ -180,7 +180,6 @@ def load_bin_floats(file, n_floats_per_feature=25):
 					buffer = []
 					
 		except struct.error:
-			print struct.error
 			assert len(buffer) == 0
 			
 
@@ -200,4 +199,6 @@ if __name__ == "__main__":
 	print "Shape of input data: ", X.shape
 	Y = tsne(X, 2, 50, 20.0);
 	Plot.scatter(Y[:,0], Y[:,1], 20);
+	Plot.xlabel("non-linear transformation phi_1(x)");
+	Plot.ylabel("non-linear transformation phi_2(x)");
 	Plot.show();
