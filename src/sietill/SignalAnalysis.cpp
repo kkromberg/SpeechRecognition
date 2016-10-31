@@ -98,7 +98,7 @@ void SignalAnalysis::process(std::string const& input_path, std::string const& o
     std::copy(cepstrum_.begin(), cepstrum_.end(), feature_seq_.begin() + (start / window_shift) * n_features_total);
     write_floats_to_file(features_out, cepstrum_);
     write_logspcetrum_to_file(filename_log_spectrum, spectrum_);
-    calculate_energy("spectralEnergy.txt", spectrum_);
+    calculate_energy("spectralEnergy.txt", spectrum_, num_obs_);
 
     num_obs_++;
   }

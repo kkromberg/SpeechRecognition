@@ -79,14 +79,16 @@ void write_logspcetrum_to_file(std::string const& filename, std::vector<double> 
   file.close();
 }
 
-void calculate_energy(std::string const& filename, std::vector<double> const& vec){
+void calculate_energy(std::string const& filename, std::vector<double> const& vec, int row){
   std::ofstream file;
   file.open(filename.c_str(), std::ios_base::app);
   double energy = 0;
   for (auto i = vec.begin(); i != vec.end(); ++i) {
     energy += log10(*i);
   }
-  file << energy << "\n";
+
+  std::string counter = std::to_string(row) + " ";
+  file << counter << energy << "\n";
   file.close();
 
 }
@@ -149,7 +151,6 @@ void create_pgm(std::string const& input_file, std::string const& output_file){
     }
     pgm_file << line + "\n";
     if (!line.empty()){
-      std::cout << "I am here";
       tmp_file << tmp_line + "\n";
     }
 
