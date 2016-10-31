@@ -82,6 +82,9 @@ public:
            bool inverse=false);
   void abs_spectrum();
   void calc_mel_filterbanks();
+  double triangle_window_function(const double mel_frequency_center,
+  		const double mel_distance,
+  		double mel_frequency);
   void calc_cepstrum();
   void add_deltas();
   void energy_max_normalization();

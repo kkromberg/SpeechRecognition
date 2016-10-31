@@ -234,63 +234,70 @@ void SignalAnalysis::abs_spectrum() {
 /*****************************************************************************/
 
 void SignalAnalysis::calc_mel_filterbanks() {
+
 	// only calculate the mel filterbank ranges once
 	static bool first_pass_mel_filterbanks = true;
-	static std::vector<double> left_boundaries = std::vector<double>(n_mel_filters);
-	static std::vector<double> right_boundaries = std::vector<double>(n_mel_filters);
+	static std::vector<double> bank_center_positions = std::vector<double>(n_mel_filters);
+	static std::vector<double> mel_frequencies = std::vector<double>(spectrum_.size());
+	static double mel_boundary_position_distance = 0.0;
+
+	// Re-set the filter banks
+	mel_filterbanks_ = std::vector<double>(n_mel_filters);
 
 	if (first_pass_mel_filterbanks) {
 		// the maximum representable frequency given by nyquist's theorem
+		// TODO: check if this is correct, because there is no mention of it in the ASR slides.
 		const double max_frequency = sample_rate / 2;
 		const double max_mel_frequency = 2595 * log10(1 + max_frequency / 700);
 
-		// initialize some variables before the for-loop
-		const double mel_boundary_position_distance = max_mel_frequency / (n_mel_filters+1);
 		double mel_center_frequency = mel_boundary_position_distance;
-		double mel_left_frequency, left_frequency;
-		double mel_right_frequency, right_frequency;
+	  mel_boundary_position_distance = max_mel_frequency / (n_mel_filters+1);
 		for (size_t i = 0; i < n_mel_filters; i++) {
-			// calculate left and right boundaries of the triangle in mel-space
-			mel_left_frequency = mel_center_frequency - mel_boundary_position_distance;
-			mel_right_frequency = mel_center_frequency + mel_boundary_position_distance;
-
-			// map back to the normal spectrum
-			left_frequency = (pow(10, mel_left_frequency / 2595) - 1) * 700;
-			right_frequency = (pow(10, mel_right_frequency / 2595) - 1) * 700;
-
-			left_boundaries[i] = left_frequency;
-			right_boundaries[i] = right_frequency;
-			//std::cout << "boundaries: " << left_frequency << " " << right_frequency << std::endl;
-
+			// Save position of the middle of the triangle in mel-space
+			bank_center_positions[i] = mel_center_frequency;
 			// update center position
 			mel_center_frequency += mel_boundary_position_distance;
 		}
 
-		// make some assertions for the correctness of the extraction
-		assert(left_boundaries[0] - 0.0 < pow(10, -3));
-		assert(right_boundaries[n_mel_filters-1] - max_frequency < pow(10, -3));
+		// Map the frequency spectrum to mel frequencies once
+		// Only map frequencies that will actually be used later on
+		const double frequency_step = max_frequency / spectrum_.size();
+		double frequency = frequency_step; // Begin at 0 maybe? Makes little sense because the maximum frequency would not be mapped
+		for (size_t k = 0; k < spectrum_.size(); k++) {
+			mel_frequencies[k] = 2595 * log10(1 + frequency / 700);
+			frequency += frequency_step;
+		}
 
 		first_pass_mel_filterbanks = false;
 	}
 
 	// Parse through the whole spectrum and check if the frequency is in the pre-defined spectrum
-  mel_filterbanks_ = std::vector<double>(n_mel_filters, 0.0);
-  for (size_t i = 0; i < spectrum_.size(); i++) {
-  	for (size_t j = 0; j < n_mel_filters; j++) {
+  for (size_t i = 0; i < n_mel_filters; i++) {
+  	for (size_t k = 0; k < spectrum_.size(); k++) {
   		// Check if the spectrum is within the window
-  		// Note that the equals in this check might cause problems, depending on the definition of bins
-  		if (left_boundaries[j] <= spectrum_[i]) {
-  			if (spectrum_[i] <= right_boundaries[j]) {
-  				// This implementation corresponds to Slide nr. 68 of the ASR slides
-  				mel_filterbanks_[j] += fabs(fft_real_[i]);
-  			} else {
-  				continue;
-  			}
-  		} else {
-  			continue;
-  		}
+			// This implementation corresponds to Slide nr. 68 of the ASR slides
+  		// TODO: Implement the triangle function as a table if training is too slow.
+  		mel_filterbanks_[i] += fabs(spectrum_[k]) * triangle_window_function(bank_center_positions[i],
+  									mel_boundary_position_distance, mel_frequencies[k]);
   	}
   }
+
+}
+
+double SignalAnalysis::triangle_window_function(const double mel_frequency_center,
+		const double mel_distance,
+		double mel_frequency) {
+	// Shift positions for a simple calculation of triangle function
+	mel_frequency -= mel_frequency_center;
+	mel_frequency = fabs(mel_frequency);
+
+	// early check to avoid computation
+	if (mel_frequency >= mel_distance) {
+		return 0.0;
+	}
+
+	double value = 1 - mel_frequency / mel_distance;
+	return value;
 }
 
 /*****************************************************************************/
