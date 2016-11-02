@@ -301,7 +301,7 @@ void SignalAnalysis::calc_cepstrum() {
 	size_t I=n_features_in_file;
 	for (size_t m = 0; m < I; m++) {
 		for (size_t i = 0; i < I; i++) {
-			cepstrum_[m] += cos(M_PI*m*(i+0.5)/I)*log(mel_filterbanks_[i]);
+			cepstrum_[m] += cos(M_PI*m*(i+0.5)/I)*log_mel_filterbanks_[i];
 		}
 	}
 }
