@@ -20,7 +20,7 @@ def Hbeta(D = Math.array([]), beta = 1.0):
 
 	# Compute P-row and corresponding perplexity
 	P = Math.exp(-D.copy() * beta);
-	sumP = sum(P);
+	sumP = sum(P) + 1e-10;
 	H = Math.log(sumP) + beta * Math.sum(D * P) / sumP;
 	P = P / sumP;
 	return H, P;
@@ -109,7 +109,7 @@ def tsne(X = Math.array([]), no_dims = 2, initial_dims = 50, perplexity = 30.0):
 	# Initialize variables
 	X = pca(X, initial_dims).real;
 	(n, d) = X.shape;
-	max_iter = 1000;
+	max_iter = 500;
 	initial_momentum = 0.5;
 	final_momentum = 0.8;
 	eta = 500;
@@ -179,16 +179,36 @@ def load_bin_floats(file, n_floats_per_feature=25):
 					features.append(copy(buffer))
 					buffer = []
 					
+			
+					
 		except struct.error:
 			assert len(buffer) == 0
 			
 
 	return Math.array(features)
 	
+def generateGaussianData():
+	n_samples = 600
+	n_dims = 12 
+	n_gaussians = 2
+
+	X_train = Math.ndarray((n_samples * n_gaussians, n_dims))
+	for i in range(0, n_gaussians):
+		C = Math.random.rand(n_dims,n_dims)
+
+		gaussian = Math.random.randn(n_samples, n_dims) + Math.array(Math.random.randn(n_dims))
+		print gaussian.shape, C.shape
+		stretched_gaussian = Math.dot(gaussian, C)
+
+		# concatenate the two datasets into the final training set
+		X_train[i*n_samples : (i+1)*n_samples, :] = stretched_gaussian 
+
+	return X_train
+
 if __name__ == "__main__":
 	import argparse	
 	parser = argparse.ArgumentParser()
-	parser.add_argument("--n_floats_per_vector", type=int, default=25,
+	parser.add_argument("--n_floats_per_vector", type=int, default=12,
 		                help="Number of entries in a feature vector.")
 	parser.add_argument("--feature_file", type=str, default='example-wsj-1.mm2',
 		                help="Path to the file with binary features")
@@ -196,6 +216,7 @@ if __name__ == "__main__":
 
 	print "Run Y = tsne.tsne(X, no_dims, perplexity) to perform t-SNE on your dataset."
 	X = load_bin_floats(args.feature_file, args.n_floats_per_vector)
+	#X = generateGaussianData()
 	print "Shape of input data: ", X.shape
 	Y = tsne(X, 2, 50, 20.0);
 	Plot.scatter(Y[:,0], Y[:,1], 20);
