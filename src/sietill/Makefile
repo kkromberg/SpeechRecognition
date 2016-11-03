@@ -22,7 +22,7 @@ CXX       = g++
 CXXFLAGS += -Wall -O2 --std=c++11 -pedantic -msse -msse2 -msse3
 DFLAGS    = -g #-fsanitize=address -fno-omit-frame-pointer #-fno-inline
 IFLAGS    = -Irapidjson/include/
-LIBS      = -lm -lrt -lgsl -lblas
+LIBS      = -B/usr/lib/x86_64-linux-gnu -lm -lrt -lgsl -lblas
 SOURCES   = $(wildcard *.cpp)
 HEADERS   = $(wildcard *.hpp)
 
