@@ -129,7 +129,7 @@ void create_pgm(std::string const& input_file, std::string const& output_file){
   //std::cout << "Current max: " << max << "\n Current min: " << min << "\n";
 
   // create pgm header
-  std::string pgm_header = "P2\n" + std::to_string(vector_counter) + " " + std::to_string(value_counter-1) + " 255\n";
+  std::string pgm_header = "P2\n" + std::to_string(vector_counter) + " " + std::to_string(value_counter) + " 255\n";
   //std::cout << pgm_header;
   std::ofstream pgm_file;
   pgm_file.open(output_file.c_str());
