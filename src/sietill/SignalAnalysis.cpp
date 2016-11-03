@@ -271,7 +271,7 @@ void SignalAnalysis::calc_mel_filterbanks() {
 		// Map the frequency spectrum to mel frequencies once
 		// Only map frequencies that will actually be used later on
 		const double frequency_step = max_frequency / spectrum_.size();
-		double frequency = frequency_step; // Begin at 0 maybe? Makes little sense because the maximum frequency would not be mapped
+		double frequency = 0.0; 
 		for (size_t k = 0; k < spectrum_.size(); k++) {
 			mel_frequencies[k] = 2595 * log10(1 + frequency / 700);
 			frequency += frequency_step;
