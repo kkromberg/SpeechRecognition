@@ -138,7 +138,7 @@ void create_pgm(std::string const& input_file, std::string const& output_file){
   std::ofstream tmp_file;
   tmp_file.open("dataForPlot.dat");
   // iterate through all the vectors and write them to file
-  for (int row = 0; row < value_counter; row++) {
+  for (int row = value_counter; row >= 0; row--) {
     std::string line = "";
     std::string tmp_line = "";
     tmp_line = std::to_string(row) + " ";
