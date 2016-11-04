@@ -313,12 +313,23 @@ double SignalAnalysis::triangle_window_function(const double mel_frequency_cente
 /*****************************************************************************/
 
 void SignalAnalysis::calc_cepstrum() {
-  // TODO: implement
-  cepstrum_ = std::vector<double>(n_features_in_file, 0.0);
+  	// TODO: implement
+	//cosine elements calculated only once
+ 	static bool first_pass_calc_cepstrum = true;
+	static std::vector<double> cosine = std::vector<double>(mel_filterbanks_.size());
+	cepstrum_ = std::vector<double>(n_features_in_file, 0.0);
 	size_t I=mel_filterbanks_.size();
+	if (first_pass_calc_cepstrum) {	
+		for (size_t m = 0; m < n_features_in_file; m++) {
+			for (size_t i = 0; i < I; i++) {
+				cosine[i]=cos(M_PI*m*(i+0.5)/I);
+			}
+		}
+	first_pass_calc_cepstrum = false;
+	}
 	for (size_t m = 0; m < n_features_in_file; m++) {
 		for (size_t i = 0; i < I; i++) {
-			cepstrum_[m] += cos(M_PI*m*(i+0.5)/I)*log_mel_filterbanks_[i];
+			cepstrum_[m] += cosine[i]*log_mel_filterbanks_[i];
 		}
 	}
 }
