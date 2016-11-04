@@ -249,9 +249,10 @@ void SignalAnalysis::calc_mel_filterbanks() {
 	static std::vector<double> bank_center_positions = std::vector<double>(n_mel_filters);
 	static std::vector<double> mel_frequencies = std::vector<double>(spectrum_.size());
 	static double mel_boundary_position_distance = 0.0;
+    static double floor_mel_filterbank_value = 1e-10;
 
 	// Re-set the filter banks
-	mel_filterbanks_ = std::vector<double>(n_mel_filters);
+	mel_filterbanks_ = std::vector<double>(n_mel_filters, floor_mel_filterbank_value);
 
 	if (first_pass_mel_filterbanks) {
 		// the maximum representable frequency given by nyquist's theorem
