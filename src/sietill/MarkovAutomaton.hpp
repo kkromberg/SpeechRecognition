@@ -55,13 +55,11 @@ struct MarkovAutomaton {
   	MarkovAutomaton result;
     //TODO: implement
     // iterate through automata
-    unsigned int state_counter = 0;
     for (std::vector<MarkovAutomaton>::size_type i = 0; i != automata.size(); i++) {
     	// iterate through all states of the current automaton and append them to the result
     	for (std::size_t j = 0; j < ((MarkovAutomaton)*automata[i]).num_states(); j++) {
     		// append each state
-    		result.states[state_counter] = ((MarkovAutomaton)*automata[i])[j];
-    		state_counter++;
+    		result.states.push_back(((MarkovAutomaton)*automata[i])[j]);
     	}
     }
     return result;
