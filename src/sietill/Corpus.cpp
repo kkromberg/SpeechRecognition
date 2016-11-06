@@ -94,7 +94,7 @@ void Corpus::read(CorpusDescription const& corpus_description, std::string const
     std::string file = feature_path + segment_iter->name + std::string(".mm2");
     files_.push_back(file);
 
-    orths_.insert(orths_.begin(), segment_iter->orth.begin(), segment_iter->orth.end());
+    orths_.insert(orths_.end(), segment_iter->orth.begin(), segment_iter->orth.end());
     orth_offsets_.push_back(orths_.size());
 
     buffer.push_back(read_feature_file(file));
