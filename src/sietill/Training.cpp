@@ -233,30 +233,23 @@ std::pair<size_t, size_t> Trainer::linear_segmentation(MarkovAutomaton const& au
                                                        FeatureIter   feature_begin, FeatureIter   feature_end,
                                                        AlignmentIter align_begin,   AlignmentIter align_end) const {
   std::pair<size_t, size_t> boundaries;
-
-  std::cerr << "in linear_segmentation" << std::endl;
   CostMatrix costs_matrix;
   BackpropagationMatrix backprop_matrix;
   size_t K = 4; // For n segments, we have n+1 boundaries. The first and last are trivial
   size_t N = feature_end - feature_begin;
-  std::cerr << "# of features: " << N << std::endl;
 
-
-  std::cerr << "initialize DP matrices" << std::endl;
   // initialize DP matrices
   for (size_t k = 0; k < K; k++) {
   	costs_matrix.push_back(std::vector<float>(N, 1e10));
   	backprop_matrix.push_back(std::vector<size_t>(N, 0));
   }
 
-  std::cerr << "initialize mean value matrices" << std::endl;
   // pre-compute mean values of segments
   CostMatrix segment_means;
   for (size_t n = 0; n < N; n++) {
   	segment_means.push_back(std::vector<float>(N, 0));
   }
 
-  std::cerr << "compute mean value matrices" << std::endl;
   // calculate the mean of every segment that will be considered
   size_t n_prime = 0, n = 0;
   for (FeatureIter feature_iterator_n_prime = feature_begin;
@@ -282,11 +275,9 @@ std::pair<size_t, size_t> Trainer::linear_segmentation(MarkovAutomaton const& au
   // last value of the means
   segment_means[N-1][N-1] = **feature_end;
 
-  std::cerr << "ensure cost matrix position" << std::endl;
   // to ensure that the first position is always taken, its costs are set to 0.0
   costs_matrix[0][0] = 0.0;
 
-  std::cerr << "start algorithm" << std::endl;
   // begin filling each entry H(k, n)
   for (size_t k = 1; k < K; k++) {
 
@@ -295,7 +286,6 @@ std::pair<size_t, size_t> Trainer::linear_segmentation(MarkovAutomaton const& au
   			feature_iterator_n != feature_end;
   			feature_iterator_n++, n++) {
 
-  		std::cerr << k << " " << n << std::endl;
   		size_t n_prime = 0;
   		// Check for the minimum value (at n') for the boundary position before n
   		for (FeatureIter feature_iterator_n_prime = feature_begin;
@@ -309,7 +299,6 @@ std::pair<size_t, size_t> Trainer::linear_segmentation(MarkovAutomaton const& au
   					local_cost_iterator != feature_iterator_n;
   					local_cost_iterator++) {
   				costs = **local_cost_iterator - segment_means[n_prime+1][n];
-  				//std::cerr << "costs: " << costs << std::endl;
   				local_costs += costs * costs;
   			}
 
@@ -323,13 +312,11 @@ std::pair<size_t, size_t> Trainer::linear_segmentation(MarkovAutomaton const& au
   	} // for (FeatureIter feature_iterator_n ...)
   } // for (size_t k ...)
 
-  std::cerr << "extract boundaries" << std::endl;
   // Boundaries are extracted from the backpointer matrix
   // Here we hard-code it to get only 2 boundaries
   boundaries.first = backprop_matrix[K-1][N-1];
   boundaries.second = backprop_matrix[K-2][ boundaries.first ];
 
-  std::cerr << "done" << std::endl;
   return boundaries;
 }
 
