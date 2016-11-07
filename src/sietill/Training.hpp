@@ -17,6 +17,11 @@
 
 class Trainer {
 public:
+
+	// Data structures for a 2D dynamic programming problem
+	typedef std::vector< std::vector<float> >    CostMatrix;
+	typedef std::vector< std::vector<size_t> > 	 BackpropagationMatrix;
+
   static const ParameterUInt paramMinObs;
   static const ParameterUInt paramNumSplits;
   static const ParameterUInt paramNumAligns;

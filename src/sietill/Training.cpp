@@ -233,7 +233,103 @@ std::pair<size_t, size_t> Trainer::linear_segmentation(MarkovAutomaton const& au
                                                        FeatureIter   feature_begin, FeatureIter   feature_end,
                                                        AlignmentIter align_begin,   AlignmentIter align_end) const {
   std::pair<size_t, size_t> boundaries;
-  //TODO: implement
+
+  std::cerr << "in linear_segmentation" << std::endl;
+  CostMatrix costs_matrix;
+  BackpropagationMatrix backprop_matrix;
+  size_t K = 4; // For n segments, we have n+1 boundaries. The first and last are trivial
+  size_t N = feature_end - feature_begin;
+  std::cerr << "# of features: " << N << std::endl;
+
+
+  std::cerr << "initialize DP matrices" << std::endl;
+  // initialize DP matrices
+  for (size_t k = 0; k < K; k++) {
+  	costs_matrix.push_back(std::vector<float>(N, 1e10));
+  	backprop_matrix.push_back(std::vector<size_t>(N, 0));
+  }
+
+  std::cerr << "initialize mean value matrices" << std::endl;
+  // pre-compute mean values of segments
+  CostMatrix segment_means;
+  for (size_t n = 0; n < N; n++) {
+  	segment_means.push_back(std::vector<float>(N, 0));
+  }
+
+  std::cerr << "compute mean value matrices" << std::endl;
+  // calculate the mean of every segment that will be considered
+  size_t n_prime = 0, n = 0;
+  for (FeatureIter feature_iterator_n_prime = feature_begin;
+    			feature_iterator_n_prime != feature_end - 1;
+    			feature_iterator_n_prime++, n_prime++) {
+
+  	float segment_cost = 0.0;
+		n = n_prime + 1;
+
+		// accumulate energies
+		for (FeatureIter feature_iterator_n = feature_iterator_n_prime + 1;
+				feature_iterator_n != feature_end;
+				feature_iterator_n++, n++) {
+
+			segment_cost += **feature_iterator_n;
+
+			// calculate mean
+			segment_means[n_prime][n] = segment_cost / (n - n_prime);
+			segment_means[n][n_prime] = segment_means[n_prime][n];
+		}
+		segment_means[n_prime][n_prime] = **feature_iterator_n_prime;
+	}
+  // last value of the means
+  segment_means[N-1][N-1] = **feature_end;
+
+  std::cerr << "ensure cost matrix position" << std::endl;
+  // to ensure that the first position is always taken, its costs are set to 0.0
+  costs_matrix[0][0] = 0.0;
+
+  std::cerr << "start algorithm" << std::endl;
+  // begin filling each entry H(k, n)
+  for (size_t k = 1; k < K; k++) {
+
+  	size_t n = 1;
+  	for (FeatureIter feature_iterator_n = feature_begin + 1; // There is already a boundary at n = 0
+  			feature_iterator_n != feature_end;
+  			feature_iterator_n++, n++) {
+
+  		std::cerr << k << " " << n << std::endl;
+  		size_t n_prime = 0;
+  		// Check for the minimum value (at n') for the boundary position before n
+  		for (FeatureIter feature_iterator_n_prime = feature_begin;
+  				feature_iterator_n_prime != feature_iterator_n - 1;
+  				feature_iterator_n_prime++, n_prime++) {
+
+  			// Compute local costs from n'+1 to n
+  			// This is the (un-normalized) variance of the energies in the segment w.r.t. the boundary energy
+  			double local_costs = 0.0, costs = 0.0;
+  			for (FeatureIter local_cost_iterator = feature_iterator_n_prime + 1;
+  					local_cost_iterator != feature_iterator_n;
+  					local_cost_iterator++) {
+  				costs = **local_cost_iterator - segment_means[n_prime+1][n];
+  				//std::cerr << "costs: " << costs << std::endl;
+  				local_costs += costs * costs;
+  			}
+
+  			// Update cost matrix and backpointers if the new boundary has better costs
+  			if (costs_matrix[k][n] > costs_matrix[k-1][n_prime] + local_costs) {
+  				backprop_matrix[k][n] = n_prime;
+  				costs_matrix[k][n] = costs_matrix[k-1][n_prime] + local_costs;
+  			}
+
+  		} // for (FeatureIter feature_iterator_n_prime ...)
+  	} // for (FeatureIter feature_iterator_n ...)
+  } // for (size_t k ...)
+
+  std::cerr << "extract boundaries" << std::endl;
+  // Boundaries are extracted from the backpointer matrix
+  // Here we hard-code it to get only 2 boundaries
+  boundaries.first = backprop_matrix[K-1][N-1];
+  boundaries.second = backprop_matrix[K-2][ boundaries.first ];
+
+  std::cerr << "done" << std::endl;
   return boundaries;
 }
 
