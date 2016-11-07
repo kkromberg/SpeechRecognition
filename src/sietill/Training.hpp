@@ -56,6 +56,9 @@ public:
   std::pair<size_t, size_t> linear_segmentation(MarkovAutomaton const& automaton,
                                                 FeatureIter   feature_begin, FeatureIter   feature_end,
                                                 AlignmentIter align_begin,   AlignmentIter align_end) const;
+  std::pair<size_t, size_t> linear_segmentation_running_sums(MarkovAutomaton const& automaton,
+                                                FeatureIter   feature_begin, FeatureIter   feature_end,
+                                                AlignmentIter align_begin,   AlignmentIter align_end) const;
 
   MixtureModel const& get_mixtures() const {
     return mixtures_;

@@ -34,6 +34,6 @@ plt.ylabel('log(energy)')
 plt.legend()
 
 plt.grid(True)
-plt.savefig(args.file + ".png")
+plt.savefig("test.png")
 plt.show()
 

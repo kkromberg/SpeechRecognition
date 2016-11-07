@@ -77,7 +77,7 @@ void Trainer::train(Corpus const& corpus) {
   for (SegmentIdx s = 0u; s < corpus.get_corpus_size(); s++) {
     std::pair<FeatureIter, FeatureIter> features = corpus.get_feature_sequence(s);
     align_timer.tick();
-    std::pair<size_t, size_t> boundaries = linear_segmentation(
+    std::pair<size_t, size_t> boundaries = linear_segmentation_running_sums(
         segment_automata[s],
         features.first,
         features.second,
@@ -255,10 +255,9 @@ std::pair<size_t, size_t> Trainer::linear_segmentation(MarkovAutomaton const& au
   for (FeatureIter feature_iterator_n_prime = feature_begin;
     			feature_iterator_n_prime != feature_end - 1;
     			feature_iterator_n_prime++, n_prime++) {
-
-  	float segment_cost = 0.0;
 		n = n_prime + 1;
 
+		float segment_cost = **feature_iterator_n_prime;
 		// accumulate energies
 		for (FeatureIter feature_iterator_n = feature_iterator_n_prime + 1;
 				feature_iterator_n != feature_end;
@@ -267,7 +266,7 @@ std::pair<size_t, size_t> Trainer::linear_segmentation(MarkovAutomaton const& au
 			segment_cost += **feature_iterator_n;
 
 			// calculate mean
-			segment_means[n_prime][n] = segment_cost / (n - n_prime);
+			segment_means[n_prime][n] = segment_cost / (n - n_prime + 1);
 			segment_means[n][n_prime] = segment_means[n_prime][n];
 		}
 		segment_means[n_prime][n_prime] = **feature_iterator_n_prime;
@@ -281,26 +280,100 @@ std::pair<size_t, size_t> Trainer::linear_segmentation(MarkovAutomaton const& au
   // begin filling each entry H(k, n)
   for (size_t k = 1; k < K; k++) {
 
-  	size_t n = 1;
-  	for (FeatureIter feature_iterator_n = feature_begin + 1; // There is already a boundary at n = 0
+  	size_t n = 0;
+  	for (FeatureIter feature_iterator_n = feature_begin; // There is already a boundary at n = 0
   			feature_iterator_n != feature_end;
   			feature_iterator_n++, n++) {
 
   		size_t n_prime = 0;
   		// Check for the minimum value (at n') for the boundary position before n
   		for (FeatureIter feature_iterator_n_prime = feature_begin;
-  				feature_iterator_n_prime != feature_iterator_n - 1;
+  				feature_iterator_n_prime != feature_iterator_n;
   				feature_iterator_n_prime++, n_prime++) {
 
   			// Compute local costs from n'+1 to n
   			// This is the (un-normalized) variance of the energies in the segment w.r.t. the boundary energy
   			double local_costs = 0.0, costs = 0.0;
   			for (FeatureIter local_cost_iterator = feature_iterator_n_prime + 1;
-  					local_cost_iterator != feature_iterator_n;
+  					local_cost_iterator != feature_iterator_n + 1;
   					local_cost_iterator++) {
   				costs = **local_cost_iterator - segment_means[n_prime+1][n];
   				local_costs += costs * costs;
   			}
+
+  			// Update cost matrix and backpointers if the new boundary has better costs
+  			if (costs_matrix[k][n] > costs_matrix[k-1][n_prime] + local_costs) {
+  				backprop_matrix[k][n] = n_prime;
+  				costs_matrix[k][n] = costs_matrix[k-1][n_prime] + local_costs;
+  			}
+
+  		} // for (FeatureIter feature_iterator_n_prime ...)
+  	} // for (FeatureIter feature_iterator_n ...)
+  } // for (size_t k ...)
+
+  // Boundaries are extracted from the backpointer matrix
+  // Here we hard-code it to get only 2 boundaries
+  boundaries.first = backprop_matrix[K-1][N-1];
+  boundaries.second = backprop_matrix[K-2][ boundaries.first ];
+
+  return boundaries;
+}
+
+std::pair<size_t, size_t> Trainer::linear_segmentation_running_sums(MarkovAutomaton const& automaton,
+                                                       FeatureIter   feature_begin, FeatureIter   feature_end,
+                                                       AlignmentIter align_begin,   AlignmentIter align_end) const {
+  std::pair<size_t, size_t> boundaries;
+  CostMatrix costs_matrix;
+  BackpropagationMatrix backprop_matrix;
+  size_t K = 4; // For n segments, we have n+1 boundaries. The first and last are trivial
+  size_t N = feature_end - feature_begin;
+
+  // initialize DP matrices
+  for (size_t k = 0; k < K; k++) {
+  	costs_matrix.push_back(std::vector<float>(N, 1e10));
+  	backprop_matrix.push_back(std::vector<size_t>(N, 0));
+  }
+
+  // Pre-compute running sums
+  std::vector<float> cost_sum = std::vector<float>(N, 0.0);
+  std::vector<float> square_cost_sum = std::vector<float>(N, 0.0);
+  size_t n = 0;
+  for (FeatureIter feature_iterator_n = feature_begin;
+    			feature_iterator_n != feature_end;
+    			feature_iterator_n++, n++) {
+
+  		// accumulate new values
+			cost_sum[n] = **feature_iterator_n;
+			square_cost_sum[n] = **feature_iterator_n * **feature_iterator_n;
+
+			// re-use old values
+			if (n > 0) {
+				cost_sum[n] += cost_sum[n-1];
+				square_cost_sum[n] += square_cost_sum[n-1];
+			}
+  }
+
+  // to ensure that the first position is always taken, its costs are set to 0.0
+  costs_matrix[0][0] = 0.0;
+
+  // begin filling each entry H(k, n)
+  for (size_t k = 1; k < K; k++) {
+
+  	size_t n = 0;
+  	for (FeatureIter feature_iterator_n = feature_begin;
+  			feature_iterator_n != feature_end;
+  			feature_iterator_n++, n++) {
+
+  		size_t n_prime = 0;
+  		// Check for the minimum value (at n') for the boundary position before n
+  		for (FeatureIter feature_iterator_n_prime = feature_begin;
+  				feature_iterator_n_prime != feature_iterator_n;
+  				feature_iterator_n_prime++, n_prime++) {
+
+  			// Compute local costs from n'+1 to n
+  			double temp_value  = cost_sum[n] - cost_sum[n_prime];
+  			double local_costs = square_cost_sum[n] - square_cost_sum[n_prime];
+  			local_costs -= (temp_value * temp_value) / (n - n_prime) ;
 
   			// Update cost matrix and backpointers if the new boundary has better costs
   			if (costs_matrix[k][n] > costs_matrix[k-1][n_prime] + local_costs) {
