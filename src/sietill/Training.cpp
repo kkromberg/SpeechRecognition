@@ -398,10 +398,8 @@ std::pair<size_t, size_t> Trainer::linear_segmentation_approximation(MarkovAutom
                                                        FeatureIter   feature_begin, FeatureIter   feature_end,
                                                        AlignmentIter align_begin,   AlignmentIter align_end) const {
   std::pair<size_t, size_t> boundaries;
-  CostMatrix costs_matrix;
-  BackpropagationMatrix backprop_matrix;
-  size_t K = 4; // For n segments, we have n+1 boundaries. The first and last are trivial
   size_t N = feature_end - feature_begin;
+  //std::cerr << "# features: " << N << std::endl;
 
   // Pre-compute running sums
   std::vector<float> cost_sum = std::vector<float>(N, 0.0);
@@ -423,81 +421,69 @@ std::pair<size_t, size_t> Trainer::linear_segmentation_approximation(MarkovAutom
   }
 
   // uniform boundary initialization 
-  boundaries.first = N / 3;
-  boundaries.second = 2 * N / 3;
+  boundaries.first = N / 2;
+  boundaries.second = N / 2;
 
   size_t n_iterations = 3;
-  for (size_t iteration_counter = 0; iteration_counter < n_iterations; iterations_counter++) {
+  for (size_t iteration_counter = 0; iteration_counter < n_iterations; iteration_counter++) {
+
     // Optimize first boundary
-    size_t n = 0;
-    float first_segment_costs = 0.0;
-    float second_segment_costs = 0.0;
+    float best_costs = 1e10;
     size_t new_boundary = boundaries.first;
-    for (FeatureIter feature_iterator_n = feature_begin;
-  			feature_iterator_n != feature_end;
+
+    assert(feature_begin + boundaries.second != feature_end);
+    size_t n = 1;
+    for (FeatureIter feature_iterator_n = feature_begin + 1;
+  			feature_iterator_n != feature_begin + boundaries.second - 1;
   			feature_iterator_n++, n++) {
 
-        // Compute local costs from 0 to n (2nd boundary position)
-  			double temp_value  = cost_sum[n] - cost_sum[n_prime];
-  			first_segment_costs = square_cost_sum[n];
-  			first_segment_costs -= (temp_value * temp_value) / (n+1) ;
+    	  double new_costs = calculate_score_of_segment(cost_sum, square_cost_sum, 1, n) +
+    	  									 calculate_score_of_segment(cost_sum, square_cost_sum, n+1, boundaries.second);
 
-        // Compute local costs from n+1 to a_2 (3rd boundary position)
-  			temp_value  = cost_sum[boundaries.second] - cost_sum[n];
-  			second_segment_costs = square_cost_sum[boundaries.second] - square_cost_sum[n];
-  			second_segment_costs -= (temp_value * temp_value) / (boundaries.second - n) ;
+    	  //std::cerr << calculate_score_of_segment(cost_sum, square_cost_sum, 1, n) << " + "
+    	  //					<< calculate_score_of_segment(cost_sum, square_cost_sum, n+1, boundaries.second) << " = "
+    	  //					<< new_costs << std::endl;
+        if (new_costs < best_costs) {
+        	new_boundary = n;
+        	best_costs   = new_costs;
+        }
+    }
 
-        if (first_segment_costs + second_segment_costs < old_best_
+    boundaries.first = new_boundary;
 
-    }    
+    // Optimize second boundary
+    best_costs = 1e10;
+    new_boundary = boundaries.second;
+    n = boundaries.first+1;
+    for (FeatureIter feature_iterator_n = feature_begin + boundaries.first + 1;
+  			feature_iterator_n != feature_end - 1;
+  			feature_iterator_n++, n++) {
+
+    	  double new_costs = calculate_score_of_segment(cost_sum, square_cost_sum, boundaries.first+1, n) +
+    	  									 calculate_score_of_segment(cost_sum, square_cost_sum, n+1, N-1);
+
+        if (new_costs < best_costs) {
+        	new_boundary = n;
+        	best_costs   = new_costs;
+        }
+    }
+
+    boundaries.second = new_boundary;
+
+    //std::cerr << "new boundaries: " <<  boundaries.first << " " <<  boundaries.second << std::endl;
   }
 
-  // to ensure that the first position is always taken, its costs are set to 0.0
-  costs_matrix[0][0] = 0.0;
-
-  // begin filling each entry H(k, n)
-  for (size_t k = 1; k < K; k++) {
-
-  	size_t n = 0;
-  	for (FeatureIter feature_iterator_n = feature_begin;
-  			feature_iterator_n != feature_end;
-  			feature_iterator_n++, n++) {
-
-  		size_t n_prime = 0;
-  		// Check for the minimum value (at n') for the boundary position before n
-  		for (FeatureIter feature_iterator_n_prime = feature_begin;
-  				feature_iterator_n_prime != feature_iterator_n;
-  				feature_iterator_n_prime++, n_prime++) {
-
-  			// Compute local costs from n'+1 to n
-  			double temp_value  = cost_sum[n] - cost_sum[n_prime];
-  			double local_costs = square_cost_sum[n] - square_cost_sum[n_prime];
-  			local_costs -= (temp_value * temp_value) / (n - n_prime) ;
-
-  			// Update cost matrix and backpointers if the new boundary has better costs
-  			if (costs_matrix[k][n] > costs_matrix[k-1][n_prime] + local_costs) {
-  				backprop_matrix[k][n] = n_prime;
-  				costs_matrix[k][n] = costs_matrix[k-1][n_prime] + local_costs;
-  			}
-
-  		} // for (FeatureIter feature_iterator_n_prime ...)
-  	} // for (FeatureIter feature_iterator_n ...)
-  } // for (size_t k ...)
-
-  // Boundaries are extracted from the backpointer matrix
-  // Here we hard-code it to get only 2 boundaries
-  boundaries.first = backprop_matrix[K-1][N-1];
-  boundaries.second = backprop_matrix[K-2][ boundaries.first ];
 
   return boundaries;    
 }
 
 
-Cost Trainer::calculate_score_of_segment(std::vector<float>& sum_costs, std::vector<float>& square_sum_costs,
+double Trainer::calculate_score_of_segment(std::vector<float>& sum_costs, std::vector<float>& square_sum_costs,
                                          size_t segment_begin, size_t segment_end) const {
-  double temp_value = sum_costs[segment_end] - sum_costs[segment_begin];
-  double score = square_sum_costs[segment_end] - quare_sum_costs[segment_begin];
-  score -= (temp_value * temp_value) / (segment_end - segment_begin);
+	assert(segment_begin != 0);
+	double temp_value = sum_costs[segment_end] - sum_costs[segment_begin-1];
+	double score = square_sum_costs[segment_end] - square_sum_costs[segment_begin-1];
+	score -= (temp_value * temp_value) / (segment_end - segment_begin + 1);
 
   return score;
   
