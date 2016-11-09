@@ -17,6 +17,11 @@
 
 class Trainer {
 public:
+
+	// Data structures for a 2D dynamic programming problem
+	typedef std::vector< std::vector<float> >    CostMatrix;
+	typedef std::vector< std::vector<size_t> > 	 BackpropagationMatrix;
+
   static const ParameterUInt paramMinObs;
   static const ParameterUInt paramNumSplits;
   static const ParameterUInt paramNumAligns;
@@ -51,6 +56,12 @@ public:
   std::pair<size_t, size_t> linear_segmentation(MarkovAutomaton const& automaton,
                                                 FeatureIter   feature_begin, FeatureIter   feature_end,
                                                 AlignmentIter align_begin,   AlignmentIter align_end) const;
+  std::pair<size_t, size_t> linear_segmentation_running_sums(MarkovAutomaton const& automaton,
+                                                FeatureIter   feature_begin, FeatureIter   feature_end,
+                                                AlignmentIter align_begin,   AlignmentIter align_end) const;
+  std::pair<size_t, size_t> linear_segmentation_approximation(MarkovAutomaton const& automaton,
+                                                FeatureIter   feature_begin, FeatureIter   feature_end,
+                                                AlignmentIter align_begin,   AlignmentIter align_end) const;
 
   MixtureModel const& get_mixtures() const {
     return mixtures_;
@@ -82,6 +93,9 @@ private:
                                  FeatureIter feature_begin, FeatureIter feature_end) const;
 
   double calc_am_score(Corpus const& corpus, Alignment const& alignment) const;
+
+  double calculate_score_of_segment(std::vector<float>& sum_costs, std::vector<float>& square_sum_costs,
+                                           size_t segment_begin, size_t segment_end) const;
 };
 
 #endif /* __TRAINING_HPP__ */
