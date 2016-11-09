@@ -52,8 +52,16 @@ struct MarkovAutomaton {
   }
 
   static MarkovAutomaton concat(std::vector<MarkovAutomaton const*> automata) {
-    MarkovAutomaton result;
+  	MarkovAutomaton result;
     //TODO: implement
+    // iterate through automata
+    for (std::vector<MarkovAutomaton>::size_type i = 0; i != automata.size(); i++) {
+    	// iterate through all states of the current automaton and append them to the result
+    	for (std::size_t j = 0; j < ((MarkovAutomaton)*automata[i]).num_states(); j++) {
+    		// append each state
+    		result.states.push_back(((MarkovAutomaton)*automata[i])[j]);
+    	}
+    }
     return result;
   }
 };
