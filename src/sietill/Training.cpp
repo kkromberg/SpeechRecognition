@@ -75,9 +75,10 @@ void Trainer::train(Corpus const& corpus) {
   alignment.resize(total_frames * num_max_aligns_);
 
   for (SegmentIdx s = 0u; s < corpus.get_corpus_size(); s++) {
+  	//std::cerr << corpus.get_file_name(s) << std::endl;
     std::pair<FeatureIter, FeatureIter> features = corpus.get_feature_sequence(s);
     align_timer.tick();
-    std::pair<size_t, size_t> boundaries = linear_segmentation_running_sums(
+    std::pair<size_t, size_t> boundaries = linear_segmentation_approximation(
         segment_automata[s],
         features.first,
         features.second,
@@ -313,8 +314,8 @@ std::pair<size_t, size_t> Trainer::linear_segmentation(MarkovAutomaton const& au
 
   // Boundaries are extracted from the backpointer matrix
   // Here we hard-code it to get only 2 boundaries
-  boundaries.first = backprop_matrix[K-1][N-1];
-  boundaries.second = backprop_matrix[K-2][ boundaries.first ];
+  boundaries.second = backprop_matrix[K-1][N-1];
+  boundaries.first = backprop_matrix[K-2][ boundaries.second ];
 
   return boundaries;
 }
@@ -387,8 +388,8 @@ std::pair<size_t, size_t> Trainer::linear_segmentation_running_sums(MarkovAutoma
 
   // Boundaries are extracted from the backpointer matrix
   // Here we hard-code it to get only 2 boundaries
-  boundaries.first = backprop_matrix[K-1][N-1];
-  boundaries.second = backprop_matrix[K-2][ boundaries.first ];
+  boundaries.second = backprop_matrix[K-1][N-1];
+  boundaries.first = backprop_matrix[K-2][ boundaries.second ];
 
   return boundaries;
 }
@@ -421,8 +422,8 @@ std::pair<size_t, size_t> Trainer::linear_segmentation_approximation(MarkovAutom
   }
 
   // uniform boundary initialization 
-  boundaries.first = N / 2;
-  boundaries.second = N / 2;
+  boundaries.first = N / 3;
+  boundaries.second = 2* N / 3;
 
   size_t n_iterations = 3;
   for (size_t iteration_counter = 0; iteration_counter < n_iterations; iteration_counter++) {
