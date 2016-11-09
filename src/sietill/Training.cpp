@@ -227,17 +227,15 @@ MarkovAutomaton Trainer::build_segment_automaton(WordIter segment_begin, WordIte
   //TODO: implement
 	// iterate through the given word sequence given by segment_begin and segment end
 	std::vector<MarkovAutomaton const*> automata;
-	for (size_t i = 0; &segment_begin[i] != &segment_end[0];i++) {
-		// add silence automaton before word ?
+	for (WordIter iter = segment_begin; iter != segment_end; iter++) {
+		//add silence automaton before word
 		automata.push_back(&lexicon_.get_silence_automaton());
 
 		// add automaton for word
-		automata.push_back(&lexicon_.get_automaton_for_word(segment_begin[i]));
+		automata.push_back(&lexicon_.get_automaton_for_word(*iter));
 	}
-	// add silence automaton after word
+	//add silence automaton before word
 	automata.push_back(&lexicon_.get_silence_automaton());
-
-	//MarkovAutomaton().concat(automata);
   return MarkovAutomaton().concat(automata);
 }
 
