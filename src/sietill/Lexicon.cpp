@@ -70,17 +70,17 @@ WordIdx Lexicon::operator[](std::string const& orth) const {
 Lexicon build_sietill_lexicon() {
   Lexicon result;
   result.add_word("[silence]",  1, 1, true);
-  result.add_word(     "eins", 18, 2);
-  result.add_word(     "zwei", 18, 2);
-  result.add_word(     "drei", 18, 2);
-  result.add_word(     "vier", 18, 2);
-  result.add_word(    "fuenf", 18, 2);
-  result.add_word(    "sechs", 18, 2);
-  result.add_word(   "sieben", 18, 2);
-  result.add_word(     "acht", 18, 2);
-  result.add_word(     "neun", 18, 2);
-  result.add_word(     "null", 18, 2);
-  result.add_word(      "zwo", 18, 2);
+  result.add_word(     "eins", 4, 6);
+  result.add_word(     "zwei", 4, 6);
+  result.add_word(     "drei", 4, 6);
+  result.add_word(     "vier", 3, 6);
+  result.add_word(    "fuenf", 4, 6);
+  result.add_word(    "sechs", 3, 6);
+  result.add_word(   "sieben", 4, 6);
+  result.add_word(     "acht", 3, 6);
+  result.add_word(     "neun", 3, 6);
+  result.add_word(     "null", 3, 6);
+  result.add_word(      "zwo", 3, 6);
   return result;
 }
 
