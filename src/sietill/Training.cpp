@@ -330,6 +330,28 @@ std::pair<size_t, size_t> Trainer::linear_segmentation(MarkovAutomaton const& au
   boundaries.second = backprop_matrix[K-1][N-1];
   boundaries.first = backprop_matrix[K-2][ boundaries.second ];
 
+  // Map the features vectors to the state of the markov automaton linearly
+ 	double states_per_vector = ((float)automaton.num_states()) / N;
+	n = 0;
+	int state_idx;
+
+	// Assign each vector a state. Note that it is possible for vectors to be aligned to the same state and vice-versa
+	// depending on the size of both sequences
+	for (AlignmentIter it = align_begin; it != align_end; it++, n++) {
+
+		// calculate the index of the state we are going to map to
+		state_idx = states_per_vector * n;
+
+		// catch the case where the state_index is out of bounds for automaton array
+		if ((uint16_t)state_idx == automaton.num_states()) {
+			state_idx = automaton.num_states() - 1;
+		}
+
+		// set the mapping
+		StateIdx current_state = automaton[state_idx];
+		(*it)->state = current_state;
+	}
+
   return boundaries;
 }
 
@@ -403,6 +425,28 @@ std::pair<size_t, size_t> Trainer::linear_segmentation_running_sums(MarkovAutoma
   // Here we hard-code it to get only 2 boundaries
   boundaries.second = backprop_matrix[K-1][N-1];
   boundaries.first = backprop_matrix[K-2][ boundaries.second ];
+
+  // Map the features vectors to the state of the markov automaton linearly
+ 	double states_per_vector = ((float)automaton.num_states()) / N;
+	n = 0;
+	int state_idx;
+
+	// Assign each vector a state. Note that it is possible for vectors to be aligned to the same state and vice-versa
+	// depending on the size of both sequences
+	for (AlignmentIter it = align_begin; it != align_end; it++, n++) {
+
+		// calculate the index of the state we are going to map to
+		state_idx = states_per_vector * n;
+
+		// catch the case where the state_index is out of bounds for automaton array
+		if ((uint16_t)state_idx == automaton.num_states()) {
+			state_idx = automaton.num_states() - 1;
+		}
+
+		// set the mapping
+		StateIdx current_state = automaton[state_idx];
+		(*it)->state = current_state;
+	}
 
   return boundaries;
 }
@@ -488,7 +532,29 @@ std::pair<size_t, size_t> Trainer::linear_segmentation_approximation(MarkovAutom
   }
 
 
-  return boundaries;    
+  // Map the features vectors to the state of the markov automaton linearly
+ 	double states_per_vector = ((float)automaton.num_states()) / N;
+	n = 0;
+	int state_idx;
+
+	// Assign each vector a state. Note that it is possible for vectors to be aligned to the same state and vice-versa
+	// depending on the size of both sequences
+	for (AlignmentIter it = align_begin; it != align_end; it++, n++) {
+
+		// calculate the index of the state we are going to map to
+		state_idx = states_per_vector * n;
+
+		// catch the case where the state_index is out of bounds for automaton array
+		if ((uint16_t)state_idx == automaton.num_states()) {
+			state_idx = automaton.num_states() - 1;
+		}
+
+		// set the mapping
+		StateIdx current_state = automaton[state_idx];
+		(*it)->state = current_state;
+	}
+
+  return boundaries;
 }
 
 
