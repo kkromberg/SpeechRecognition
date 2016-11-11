@@ -67,6 +67,11 @@ public:
     return mixtures_;
   }
 
+protected:
+  void linear_segmentation_alignment_mapping(const MarkovAutomaton& automaton,
+      const std::pair<size_t, size_t>& boundaries,
+      const AlignmentIter& align_begin, const AlignmentIter& align_end) const;
+
 private:
   const unsigned min_obs_;
   const unsigned num_splits_;
