@@ -111,12 +111,51 @@ MixtureModel::MixtureModel(Configuration const& config, size_t dimension, size_t
               max_approx_    (max_approx),
               mixtures_(num_mixtures) {
   // TODO: implement
+	std::cout << "Dimension: " << dimension << std::endl;
+	std::cout << "Num: " << num_mixtures << std::endl;
+	std::cerr << var_model << std::endl;
+	//std::cerr << config.get-value("min-obs") << std::endl;
+
+	// create a mean and variance for each feature/dimension
+	for (size_t feature_counter = 0; feature_counter < dimension; feature_counter++) {
+		// one mean and variance for each feature
+		means_.push_back(0.0);
+		vars_.push_back(0.0);
+
+		mean_accumulators_.push_back(0.0);
+		mean_weight_accumulators_.push_back(0.0);
+
+		var_accumulators_.push_back(0.0);
+		var_weight_accumulators_.push_back(0.0);
+	}
+
+	// create num_mixtures many mixtures (amount of words/automata)
+	for (size_t mixture_counter = 0; mixture_counter < num_mixtures; mixture_counter++) {
+		unsigned int current_start = mixture_counter * dimension;
+		mean_refs_.push_back(0ul);
+		var_refs_.push_back(0ul);
+		// initialize means and vars depending on amount of features (dimension)
+
+		//
+		Mixture mixture;
+		MixtureDensity mixture_density(means_.size() + current_start, vars_.size() + current_start);
+		mixture.push_back(mixture_density);
+
+		mixtures_.push_back(mixture);
+	}
+
+
 }
 
 /*****************************************************************************/
 
 void MixtureModel::reset_accumulators() {
   // TODO: implement
+	// reset accumulation vectors
+	std::fill(mean_accumulators_.begin(), mean_accumulators_.end(), 0.0);
+	std::fill(mean_weight_accumulators_.begin(), mean_weight_accumulators_.end(), 0.0);
+	std::fill(var_accumulators_.begin(), var_accumulators_.end(), 0.0);
+	std::fill(var_weight_accumulators_.begin(), var_weight_accumulators_.end(), 0.0);
 }
 
 /*****************************************************************************/
