@@ -98,6 +98,8 @@ namespace {
 /*****************************************************************************/
 
 const ParameterString MixtureModel::paramLoadMixturesFrom("load-mixtures-from", "");
+const ParameterString MixtureModel::paramVerbosity			 ("verbosity", "");
+
 
 const char     MixtureModel::magic[8] = {'M', 'I', 'X', 'S', 'E', 'T', 0, 0};
 const uint32_t MixtureModel::version = 2u;
@@ -109,7 +111,8 @@ MixtureModel::MixtureModel(Configuration const& config, size_t dimension, size_t
             : dimension(dimension),
               var_model(var_model),
               max_approx_    (max_approx),
-              mixtures_(num_mixtures) {
+              mixtures_(num_mixtures),
+              verbosity_(get_verbosity_from_string(paramVerbosity(config))) {
   // TODO: implement
 	std::cout << "Dimension: " << dimension << std::endl;
 	std::cout << "Num: " << num_mixtures << std::endl;
@@ -194,9 +197,54 @@ size_t MixtureModel::num_densities() const {
 
 // computes the score (probability in negative log space) for a feature vector
 // given a mixture density
+// Miguel: Here we do not need the membership probabilities of the density in the mixture
+// 				 These are passed to the sum_score function, but not to this one.
 double MixtureModel::density_score(FeatureIter const& iter, StateIdx mixture_idx, DensityIdx density_idx) const {
-  // TODO: implement
-  return 0.0;
+	if (verbosity_ > noLog) {
+		std::cerr << "In function MixtureModel::density_score(...)" << std::endl;
+	}
+
+	double score = 0.0;
+	bool static first_pass_density_score = true;
+	static double dimensionality_factor = 0.0;
+
+	// Precompute a constant factor for each density scoring
+	if (first_pass_density_score) {
+		dimensionality_factor = pow(2 * M_PI, ((float)dimension / 2));
+		first_pass_density_score = false;
+	}
+
+	// Positions of beginning of the mean / variance of the density in the flat array
+	double mean_index = mixtures_[mixture_idx][density_idx].mean_idx;
+	double variance_index = mixtures_[mixture_idx][density_idx].mean_idx;
+
+	double variance_factor = dimensionality_factor;
+	double distance_factor = 0.0;
+	double distance_from_mean = 0.0;
+	for (size_t feature_idx = 0; feature_idx < dimension; feature_idx++) {
+
+		// update the mean term
+		distance_from_mean = *iter[feature_idx] - means_[mean_index + feature_idx];
+		distance_factor += pow(distance_from_mean, 2) / vars_[variance_index + feature_idx];
+
+		// Update the variance term
+		variance_factor *= vars_[variance_index + feature_idx];
+	}
+
+	// apply operations on the end product of the terms
+	variance_factor = sqrt(variance_factor);
+	distance_factor /= 2;
+
+	score = variance_factor + distance_factor;
+
+	if (verbosity_ > noLog) {
+		std::cerr << "Score of density: " << score
+							<< "Mixture idx:      " << mixture_idx
+							<< "Density idx:      " << density_idx
+							<< std::endl;
+	}
+
+  return score;
 }
 
 /*****************************************************************************/

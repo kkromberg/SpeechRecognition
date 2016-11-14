@@ -24,6 +24,7 @@ public:
   };
 
   static const ParameterString paramLoadMixturesFrom;
+  static const ParameterString paramVerbosity;
 
   const size_t dimension;
   const VarianceModel var_model;
@@ -71,6 +72,8 @@ private:
   std::vector<double> norm_;
 
   std::vector<Mixture> mixtures_;
+
+  Verbosity verbosity_;
 };
 
 #endif /* __MIXTURES_HPP__ */
