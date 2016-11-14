@@ -125,6 +125,24 @@ void MixtureModel::accumulate(ConstAlignmentIter alignment_begin, ConstAlignment
                               FeatureIter        feature_begin,   FeatureIter        feature_end,
                               bool first_pass, bool max_approx) {
   // TODO: implement
+  if(!first_pass){
+        size_t n = 0;
+        size_t N = feature_end - feature_begin;
+        std::vector<double>sum = std::vector<double>(mixtures_.size(), 0.0);
+        //double cur=0;
+        for (ConstAlignmentIter it1 = alignment_begin; it1 != alignment_end; it1++) {
+            for (FeatureIter feature_iterator_n = feature_begin; feature_iterator_n != feature_end;feature_iterator_n++, n++) {
+                for (ConstAlignmentIter it2 = alignment_begin; it2 != alignment_end; it2++) {
+                        sum[(*it2)->state]+=mean_weights_[(*it2)->state]*min_score(feature_iterator_n,(*it2)->state).first;
+
+                    }
+                mean_weights_[(*it1)->state]+=(mean_weights_[(*it1)->state]*min_score(feature_iterator_n,(*it1)->state).first)/sum[n];
+            }
+            mean_weights_[(*it1)->state]=mean_weights_[(*it1)->state]/N;
+        }
+
+
+    }
 }
 
 /*****************************************************************************/
