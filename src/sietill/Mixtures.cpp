@@ -251,8 +251,8 @@ double MixtureModel::density_score(FeatureIter const& iter, StateIdx mixture_idx
 std::pair<double, DensityIdx> MixtureModel::min_score(FeatureIter const& iter, StateIdx mixture_idx) const {
   size_t     n_densities = mixtures_[mixture_idx].size();
   DensityIdx min_idx = 0;
-  double    min_score = 1e10;
-  double    new_score = 0.0;
+  double     min_score = 1e10;
+  double     new_score = 0.0;
 
   for (size_t density_idx = 0; density_idx < n_densities; density_idx++) {
     new_score = density_score(iter, mixture_idx, density_idx);
@@ -272,8 +272,24 @@ std::pair<double, DensityIdx> MixtureModel::min_score(FeatureIter const& iter, S
 // compute the 'full' score of a feature vector for a given mixture. The weights
 // of each density are stored in weights and should sum up to 1.0
 double MixtureModel::sum_score(FeatureIter const& iter, StateIdx mixture_idx, std::vector<double>* weights) const {
-  // TODO: implement
-  return 0.0;
+
+	assert(weights != NULL);
+	if (verbosity_ > debugLog) {
+		double sum = 0.0;
+		for (size_t i = 0; i < weights->size(); i++) {
+			sum += weights->at(i);
+		}
+		std::cerr << "Sum of weights in MixtureModel::sum_score " << sum << std::endl;
+	}
+
+  size_t     n_densities = mixtures_[mixture_idx].size();
+  double     score = 0.0;
+
+  for (size_t density_idx = 0; density_idx < n_densities; density_idx++) {
+  	score += (*weights)[density_idx] * density_score(iter, mixture_idx, density_idx);
+  }
+
+  return score;
 }
 
 /*****************************************************************************/
@@ -288,7 +304,16 @@ double MixtureModel::score(FeatureIter const& iter, StateIdx mixture_idx) const 
     return min_score(iter, mixture_idx).first;
   }
   else {
-    return sum_score(iter, mixture_idx, NULL);
+  	std::vector<double> weights;
+  	size_t						  n_densities = mixtures_[mixture_idx].size();
+  	size_t							weight_idx = 0;
+
+  	for (size_t density_idx = 0; density_idx < n_densities; density_idx++) {
+  		weight_idx = mixtures_[mixture_idx][density_idx].mean_idx;
+  		weights.push_back(mean_weights_[weight_idx]);
+  	}
+
+    return sum_score(iter, mixture_idx, &weights);
   }
 }
 
