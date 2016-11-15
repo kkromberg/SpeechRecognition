@@ -567,8 +567,32 @@ void Trainer::write_linear_segmentation(std::string const& feature_path,
 /*****************************************************************************/
 
 double Trainer::calc_am_score(Corpus const& corpus, Alignment const& alignment) const {
-  // TODO: implement
-  return 0.0;
+  std::vector<size_t> segment_offsets;
+  size_t              total_frames = 0;
+  double             total_score = 0.0;
+
+  for (SegmentIdx s = 0u; s < corpus.get_corpus_size(); s++) {
+    std::pair<FeatureIter, FeatureIter> features = corpus.get_feature_sequence(s);
+    total_frames += features.second - features.first;
+    segment_offsets.push_back(total_frames);
+
+    AlignmentIter alignment_iter  = AlignmentIter(&*(alignment.begin() + segment_offsets[s     ] * num_max_aligns_), num_max_aligns_);
+    AlignmentIter alignment_end   = AlignmentIter(&*(alignment.begin() + segment_offsets[s + 1u] * num_max_aligns_), num_max_aligns_);
+
+    for (FeatureIter feature_iter = features.first;
+         feature_iter != features.second;
+         feature_iter++, alignment_iter++) {
+
+      // The mixture index is given by the state index (there is exactly one mixture per state)
+      StateIdx mixture_idx = (*alignment_iter)->state;
+
+      total_score += mixtures_.score(feature_iter, mixture_idx);
+    }
+
+    assert(alignment_iter == alignment_end);
+  }
+
+  return total_score / total_frames;
 }
 
 /*****************************************************************************/
