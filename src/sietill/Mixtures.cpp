@@ -252,8 +252,22 @@ double MixtureModel::density_score(FeatureIter const& iter, StateIdx mixture_idx
 // this function returns the density with the lowest score (=highest probability)
 // for the given feature vector
 std::pair<double, DensityIdx> MixtureModel::min_score(FeatureIter const& iter, StateIdx mixture_idx) const {
-  // TODO: implement
-  return std::make_pair(0.0, 0u);
+  size_t     n_densities = mixtures_[mixture_idx].size();
+  DensityIdx min_idx = 0;
+  double    min_score = 1e10;
+  double    new_score = 0.0;
+
+  for (size_t density_idx = 0; density_idx < n_densities; density_idx++) {
+    new_score = density_score(iter, mixture_idx, density_idx);
+
+    // update density
+    if (new_score < min_score) {
+      min_idx   = density_idx;
+      min_score = new_score;
+    }
+  }
+
+  return std::make_pair(min_score, min_idx);
 }
 
 /*****************************************************************************/
