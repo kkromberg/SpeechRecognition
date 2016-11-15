@@ -112,13 +112,11 @@ MixtureModel::MixtureModel(Configuration const& config, size_t dimension, size_t
               mixtures_(num_mixtures) {
 
   // TODO: implement
-	std::cout << "Amount of mixtures: " << mixtures_.size() << std::endl;
-	std::cout << "Given dimension: " << dimension << std::endl;
 
 	for (size_t mixture_counter = 0; mixture_counter < num_mixtures; mixture_counter++) {
 
-		mean_refs_.push_back(0ul);
-		var_refs_.push_back(0ul);
+		mean_refs_.push_back(1);
+		var_refs_.push_back(1);
 
 		// create a mean and variance for each feature/dimension per mixture
 		for (size_t feature_counter = 0; feature_counter < dimension; feature_counter++) {
@@ -133,11 +131,12 @@ MixtureModel::MixtureModel(Configuration const& config, size_t dimension, size_t
 		mean_weight_accumulators_.push_back(0.0);
 		var_weight_accumulators_.push_back(0.0);
 
+		mean_weights_.push_back(0.0);
 		norm_.push_back(0.0);
 
 		Mixture mixture;
 		// create one mixture density for each mixture
-		MixtureDensity mixture_density(means_.size() * mixture_counter, vars_.size() * mixture_counter);
+		MixtureDensity mixture_density(num_densities(), num_densities());
 		mixture.push_back(mixture_density);
 
 		mixtures_[mixture_counter] = mixture;
@@ -176,12 +175,83 @@ void MixtureModel::finalize() {
 
 void MixtureModel::split(size_t min_obs) {
   // TODO: implement
+	unsigned int mean_ref, var_ref;
+	double mean_plus, mean_minus, abs_var;
+	for (unsigned int mixture = 0; mixture < mixtures_.size(); mixture++) {// loop mixtures
+
+		for (unsigned int density = 0; density < mixtures_[mixture].size(); density++) {		// loop densities
+			mean_ref = mixtures_[mixture][density].mean_idx;
+			var_ref  = mixtures_[mixture][density].var_idx;
+			// if accumulated weight > min_obs we have to split density
+			if (mean_weights_[mean_ref] >= min_obs) { // or weight acc?
+
+				// extend the mixture model by one more density
+				extend_mixture_model();
+				// create a new density
+				MixtureDensity new_md(num_densities(), num_densities());
+
+				abs_var = std::sqrt(std::pow(var_weight_accumulators_[var_ref], 2));
+				// calculate new means
+				mean_plus = mean_weight_accumulators_[mean_ref] + abs_var;
+				mean_minus = mean_weight_accumulators_[mean_ref] - abs_var;
+				// update only the mean
+				mean_weight_accumulators_[mean_ref] = mean_plus;
+				mean_weight_accumulators_[new_md.mean_idx] = mean_minus;
+
+				mixtures_[mixture].push_back(new_md);
+			}
+		}
+	}
+}
+
+/*****************************************************************************/
+
+void MixtureModel::extend_mixture_model() {
+	/**
+	 * extend the given memory structure before splitting density
+	 */
+	for (unsigned int i = 0; i < dimension; i++) {
+		means_.push_back(0.0);
+		vars_.push_back(0.0);
+	}
+	mean_refs_.push_back(1);
+	var_refs_.push_back(1);
+
+	mean_accumulators_.push_back(0.0);
+	var_accumulators_.push_back(0.0);
+
+	mean_weight_accumulators_.push_back(0.0);
+	var_weight_accumulators_.push_back(0.0);
+
+	mean_weights_.push_back(0.0);
+	norm_.push_back(0.0);
+
 }
 
 /*****************************************************************************/
 
 void MixtureModel::eliminate(double min_obs) {
   // TODO: implement
+	unsigned int mean_ref, var_ref;
+
+	//loop mixtures
+	for (unsigned int mixture = 0; mixture < mixtures_.size(); mixture++) {
+		// loop densities
+		for (unsigned int density = 0; density < mixtures_[mixture].size(); density++) {
+
+			mean_ref = mixtures_[mixture][density].mean_idx;
+			var_ref  = mixtures_[mixture][density].var_idx;
+
+			// remove density if mean weight < min obs
+			if (mean_weights_[mean_ref] < min_obs) {
+				mixtures_[mixture].erase(mixtures_[mixture].begin() + density);
+
+				// set refs to 0
+				mean_refs_[mean_ref] = 0ul;
+				var_refs_[var_ref]   = 0ul;
+			}
+		}
+	}
 }
 
 /*****************************************************************************/
