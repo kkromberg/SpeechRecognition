@@ -98,6 +98,8 @@ namespace {
 /*****************************************************************************/
 
 const ParameterString MixtureModel::paramLoadMixturesFrom("load-mixtures-from", "");
+const ParameterString MixtureModel::paramVerbosity			 ("verbosity", "");
+
 
 const char     MixtureModel::magic[8] = {'M', 'I', 'X', 'S', 'E', 'T', 0, 0};
 const uint32_t MixtureModel::version = 2u;
@@ -109,8 +111,8 @@ MixtureModel::MixtureModel(Configuration const& config, size_t dimension, size_t
             : dimension(dimension),
               var_model(var_model),
               max_approx_    (max_approx),
-              mixtures_(num_mixtures) {
-
+              mixtures_(num_mixtures),
+              verbosity_(get_verbosity_from_string(paramVerbosity(config))) {
   // TODO: implement
 
 	for (size_t mixture_counter = 0; mixture_counter < num_mixtures; mixture_counter++) {
@@ -163,12 +165,87 @@ void MixtureModel::accumulate(ConstAlignmentIter alignment_begin, ConstAlignment
                               FeatureIter        feature_begin,   FeatureIter        feature_end,
                               bool first_pass, bool max_approx) {
   // TODO: implement
+  std::cout<<"Estimation step"<<std::endl;
+	int count=0;
+
+	//Maximum approximation case
+	if(max_approx){
+		ConstAlignmentIter alignment_iterator = alignment_begin;
+		for (FeatureIter feature_iterator = feature_begin;
+			 feature_iterator != feature_end;
+			 feature_iterator++, alignment_iterator++, count++) {
+
+			//iterate through all features and states
+			std::cout<<"Assigning feature vector # "<<count<<std::endl;
+			StateIdx   mixture_counter = (*alignment_iterator)->state;
+			DensityIdx density_counter;
+
+			//at the first pass we have only one density
+			if(first_pass) density_counter=0;
+
+			//choose the density with the minimum density score = hard assignment = maximum approximation
+			else density_counter = min_score(feature_iterator, mixture_counter).second;
+
+			//density weight is set to one for the mean index which corresponds to this density
+			mean_weights_[mixtures_[mixture_counter][density_counter].mean_idx]=1;
+
+			//accumulating weights for each density = counting observations (for max case)
+			mean_weight_accumulators_[mixtures_[mixture_counter][density_counter].mean_idx]+=1;
+
+			if(density_counter==0)
+
+				//if it is the first density in the mixture var weight accumulator is incremented
+				var_weight_accumulators_[mixtures_[mixture_counter][density_counter].var_idx]+=1;
+			else
+
+				//if it is not the first density, var weight accumulator is shared with the first density (pooling)
+				var_weight_accumulators_[mixtures_[mixture_counter][density_counter].var_idx]=var_weight_accumulators_[mixtures_[mixture_counter][0].var_idx];
+
+			//Iterate through all dimensions
+			for(size_t d=0;d<dimension;d++){
+
+				//adding current feature to mean_accumulators
+				mean_accumulators_[d+dimension*mixtures_[mixture_counter][density_counter].mean_idx]+=*feature_iterator[d];
+
+				if(density_counter==0)
+
+				//if it is the first density squared feature is accumulated
+					var_accumulators_[d+dimension*mixtures_[mixture_counter][density_counter].var_idx]+=(*feature_iterator[d])*(*feature_iterator[d]);
+				else
+
+				//if it is not var accumulator is pooled with the first one
+					var_accumulators_[d+dimension*mixtures_[mixture_counter][density_counter].var_idx]=var_accumulators_[d+dimension*mixtures_[mixture_counter][0].var_idx];
+			}
+		}
+	}
 }
 
 /*****************************************************************************/
 
 void MixtureModel::finalize() {
   // TODO: implement
+  std::cout<<"Maximization step"<<std::endl;
+
+	//Iterate through all Densities in all Mixtures
+	for (StateIdx mixture_counter = 0; mixture_counter < mixtures_.size(); mixture_counter++) {
+
+		for (DensityIdx density_counter = 0; density_counter < mixtures_[mixture_counter].size();
+			density_counter++) {
+
+			//Iterate through all dimensions
+			for(size_t d=0;d<dimension;d++){
+
+				//computing mean, variance and norm components for each density
+				means_[d+dimension*mixtures_[mixture_counter][density_counter].mean_idx]=mean_accumulators_[d+dimension*mixtures_[mixture_counter][density_counter].mean_idx]/mean_weight_accumulators_[mixtures_[mixture_counter][density_counter].mean_idx];
+				vars_[d+dimension*mixtures_[mixture_counter][density_counter].var_idx]=(var_accumulators_[d+dimension*mixtures_[mixture_counter][density_counter].var_idx]-2*means_[d+dimension*mixtures_[mixture_counter][density_counter].mean_idx]*mean_accumulators_[d+dimension*mixtures_[mixture_counter][density_counter].mean_idx]+var_weight_accumulators_[mixtures_[mixture_counter][density_counter].var_idx]*means_[d+dimension*mixtures_[mixture_counter][density_counter].mean_idx]*means_[d+dimension*mixtures_[mixture_counter][density_counter].mean_idx])/var_weight_accumulators_[mixtures_[mixture_counter][density_counter].var_idx];
+				norm_[d+dimension*mixtures_[mixture_counter][density_counter].var_idx]=sqrt(2*M_PI*vars_[d+dimension*mixtures_[mixture_counter][density_counter].var_idx]);
+			}
+
+			//updating refs
+			mean_refs_[mixtures_[mixture_counter][density_counter].mean_idx]=1;
+			var_refs_[mixtures_[mixture_counter][density_counter].var_idx]=1;
+		}
+	}
 }
 
 /*****************************************************************************/
@@ -264,9 +341,51 @@ size_t MixtureModel::num_densities() const {
 
 // computes the score (probability in negative log space) for a feature vector
 // given a mixture density
+// Miguel: Here we do not need the membership probabilities of the density in the mixture
+// 				 These are passed to the sum_score function, but not to this one.
 double MixtureModel::density_score(FeatureIter const& iter, StateIdx mixture_idx, DensityIdx density_idx) const {
-  // TODO: implement
-  return 0.0;
+	if (verbosity_ > noLog) {
+		std::cerr << "In function MixtureModel::density_score(...)" << std::endl;
+	}
+
+	double score = 0.0;
+	bool static first_pass_density_score = true;
+	static double dimensionality_factor = 0.0;
+
+	// Precompute a constant factor for each density scoring
+	if (first_pass_density_score) {
+		dimensionality_factor = pow(2 * M_PI, ((float)dimension / 2));
+		first_pass_density_score = false;
+	}
+
+	// Positions of beginning of the mean / variance of the density in the flat array
+	double mean_index     = mixtures_[mixture_idx][density_idx].mean_idx;
+	double variance_index = mixtures_[mixture_idx][density_idx].mean_idx;
+
+	double variance_factor    = dimensionality_factor;
+	double distance_factor    = 0.0;
+	double distance_from_mean = 0.0;
+	for (size_t feature_idx = 0; feature_idx < dimension; feature_idx++) {
+
+		// update the mean term
+		distance_from_mean = *iter[feature_idx] - means_[mean_index + feature_idx];
+		distance_factor    += pow(distance_from_mean, 2) / vars_[variance_index + feature_idx];
+
+		// Update the variance term
+		variance_factor    += log(vars_[variance_index + feature_idx]);
+	}
+
+	// apply operations on the end product of the terms and sum them
+	score = (variance_factor + distance_factor) / 2;
+
+	if (verbosity_ > noLog) {
+		std::cerr << "Score of density: " << score
+							<< "Mixture idx:      " << mixture_idx
+							<< "Density idx:      " << density_idx
+							<< std::endl;
+	}
+
+  return score;
 }
 
 /*****************************************************************************/
@@ -274,8 +393,22 @@ double MixtureModel::density_score(FeatureIter const& iter, StateIdx mixture_idx
 // this function returns the density with the lowest score (=highest probability)
 // for the given feature vector
 std::pair<double, DensityIdx> MixtureModel::min_score(FeatureIter const& iter, StateIdx mixture_idx) const {
-  // TODO: implement
-  return std::make_pair(0.0, 0u);
+  size_t     n_densities = mixtures_[mixture_idx].size();
+  DensityIdx min_idx = 0;
+  double    min_score = 1e10;
+  double    new_score = 0.0;
+
+  for (size_t density_idx = 0; density_idx < n_densities; density_idx++) {
+    new_score = density_score(iter, mixture_idx, density_idx);
+
+    // update density
+    if (new_score < min_score) {
+      min_idx   = density_idx;
+      min_score = new_score;
+    }
+  }
+
+  return std::make_pair(min_score, min_idx);
 }
 
 /*****************************************************************************/

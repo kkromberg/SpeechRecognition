@@ -61,4 +61,15 @@ typedef Parameter<float>       ParameterFloat;
 typedef Parameter<double>      ParameterDouble;
 typedef Parameter<std::string> ParameterString;
 
+/*
+ * Determine the verbosity of a configurable component
+ */
+enum Verbosity {
+	noLog,
+	informationLog,
+	debugLog
+};
+
+Verbosity get_verbosity_from_string(std::string input);
+
 #endif /* __CONFIG_H__ */
