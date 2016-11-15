@@ -134,3 +134,18 @@ template class Parameter<float>;
 template class Parameter<double>;
 template class Parameter<std::string>;
 
+// -------------------- Verbosity --------------------
+Verbosity get_verbosity_from_string(std::string input) {
+	if (input == "noLog") {
+		return noLog;
+	} else if (input == "informationLog") {
+		return informationLog;
+	} else if (input == "debugLog") {
+		return debugLog;
+	} else {
+		throw std::runtime_error("Verbosity: " + input + std::string(" has invalid type"));
+		return noLog;
+	}
+}
+
+

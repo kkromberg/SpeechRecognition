@@ -98,6 +98,8 @@ namespace {
 /*****************************************************************************/
 
 const ParameterString MixtureModel::paramLoadMixturesFrom("load-mixtures-from", "");
+const ParameterString MixtureModel::paramVerbosity			 ("verbosity", "");
+
 
 const char     MixtureModel::magic[8] = {'M', 'I', 'X', 'S', 'E', 'T', 0, 0};
 const uint32_t MixtureModel::version = 2u;
@@ -109,14 +111,54 @@ MixtureModel::MixtureModel(Configuration const& config, size_t dimension, size_t
             : dimension(dimension),
               var_model(var_model),
               max_approx_    (max_approx),
-              mixtures_(num_mixtures) {
+              mixtures_(num_mixtures),
+              verbosity_(get_verbosity_from_string(paramVerbosity(config))) {
   // TODO: implement
+	std::cout << "Dimension: " << dimension << std::endl;
+	std::cout << "Num: " << num_mixtures << std::endl;
+	std::cerr << var_model << std::endl;
+	//std::cerr << config.get-value("min-obs") << std::endl;
+
+	// create a mean and variance for each feature/dimension
+	for (size_t feature_counter = 0; feature_counter < dimension; feature_counter++) {
+		// one mean and variance for each feature
+		means_.push_back(0.0);
+		vars_.push_back(0.0);
+
+		mean_accumulators_.push_back(0.0);
+		mean_weight_accumulators_.push_back(0.0);
+
+		var_accumulators_.push_back(0.0);
+		var_weight_accumulators_.push_back(0.0);
+	}
+
+	// create num_mixtures many mixtures (amount of words/automata)
+	for (size_t mixture_counter = 0; mixture_counter < num_mixtures; mixture_counter++) {
+		unsigned int current_start = mixture_counter * dimension;
+		mean_refs_.push_back(0ul);
+		var_refs_.push_back(0ul);
+		// initialize means and vars depending on amount of features (dimension)
+
+		//
+		Mixture mixture;
+		MixtureDensity mixture_density(means_.size() + current_start, vars_.size() + current_start);
+		mixture.push_back(mixture_density);
+
+		mixtures_.push_back(mixture);
+	}
+
+
 }
 
 /*****************************************************************************/
 
 void MixtureModel::reset_accumulators() {
   // TODO: implement
+	// reset accumulation vectors
+	std::fill(mean_accumulators_.begin(), mean_accumulators_.end(), 0.0);
+	std::fill(mean_weight_accumulators_.begin(), mean_weight_accumulators_.end(), 0.0);
+	std::fill(var_accumulators_.begin(), var_accumulators_.end(), 0.0);
+	std::fill(var_weight_accumulators_.begin(), var_weight_accumulators_.end(), 0.0);
 }
 
 /*****************************************************************************/
@@ -155,9 +197,54 @@ size_t MixtureModel::num_densities() const {
 
 // computes the score (probability in negative log space) for a feature vector
 // given a mixture density
+// Miguel: Here we do not need the membership probabilities of the density in the mixture
+// 				 These are passed to the sum_score function, but not to this one.
 double MixtureModel::density_score(FeatureIter const& iter, StateIdx mixture_idx, DensityIdx density_idx) const {
-  // TODO: implement
-  return 0.0;
+	if (verbosity_ > noLog) {
+		std::cerr << "In function MixtureModel::density_score(...)" << std::endl;
+	}
+
+	double score = 0.0;
+	bool static first_pass_density_score = true;
+	static double dimensionality_factor = 0.0;
+
+	// Precompute a constant factor for each density scoring
+	if (first_pass_density_score) {
+		dimensionality_factor = pow(2 * M_PI, ((float)dimension / 2));
+		first_pass_density_score = false;
+	}
+
+	// Positions of beginning of the mean / variance of the density in the flat array
+	double mean_index = mixtures_[mixture_idx][density_idx].mean_idx;
+	double variance_index = mixtures_[mixture_idx][density_idx].mean_idx;
+
+	double variance_factor = dimensionality_factor;
+	double distance_factor = 0.0;
+	double distance_from_mean = 0.0;
+	for (size_t feature_idx = 0; feature_idx < dimension; feature_idx++) {
+
+		// update the mean term
+		distance_from_mean = *iter[feature_idx] - means_[mean_index + feature_idx];
+		distance_factor += pow(distance_from_mean, 2) / vars_[variance_index + feature_idx];
+
+		// Update the variance term
+		variance_factor *= vars_[variance_index + feature_idx];
+	}
+
+	// apply operations on the end product of the terms
+	variance_factor = sqrt(variance_factor);
+	distance_factor /= 2;
+
+	score = variance_factor + distance_factor;
+
+	if (verbosity_ > noLog) {
+		std::cerr << "Score of density: " << score
+							<< "Mixture idx:      " << mixture_idx
+							<< "Density idx:      " << density_idx
+							<< std::endl;
+	}
+
+  return score;
 }
 
 /*****************************************************************************/
@@ -165,8 +252,22 @@ double MixtureModel::density_score(FeatureIter const& iter, StateIdx mixture_idx
 // this function returns the density with the lowest score (=highest probability)
 // for the given feature vector
 std::pair<double, DensityIdx> MixtureModel::min_score(FeatureIter const& iter, StateIdx mixture_idx) const {
-  // TODO: implement
-  return std::make_pair(0.0, 0u);
+  size_t     n_densities = mixtures_[mixture_idx].size();
+  DensityIdx min_idx = 0;
+  double    min_score = 1e10;
+  double    new_score = 0.0;
+
+  for (size_t density_idx = 0; density_idx < n_densities; density_idx++) {
+    new_score = density_score(iter, mixture_idx, density_idx);
+
+    // update density
+    if (new_score < min_score) {
+      min_idx   = density_idx;
+      min_score = new_score;
+    }
+  }
+
+  return std::make_pair(min_score, min_idx);
 }
 
 /*****************************************************************************/
