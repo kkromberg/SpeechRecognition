@@ -215,27 +215,24 @@ double MixtureModel::density_score(FeatureIter const& iter, StateIdx mixture_idx
 	}
 
 	// Positions of beginning of the mean / variance of the density in the flat array
-	double mean_index = mixtures_[mixture_idx][density_idx].mean_idx;
+	double mean_index     = mixtures_[mixture_idx][density_idx].mean_idx;
 	double variance_index = mixtures_[mixture_idx][density_idx].mean_idx;
 
-	double variance_factor = dimensionality_factor;
-	double distance_factor = 0.0;
+	double variance_factor    = dimensionality_factor;
+	double distance_factor    = 0.0;
 	double distance_from_mean = 0.0;
 	for (size_t feature_idx = 0; feature_idx < dimension; feature_idx++) {
 
 		// update the mean term
 		distance_from_mean = *iter[feature_idx] - means_[mean_index + feature_idx];
-		distance_factor += pow(distance_from_mean, 2) / vars_[variance_index + feature_idx];
+		distance_factor    += pow(distance_from_mean, 2) / vars_[variance_index + feature_idx];
 
 		// Update the variance term
-		variance_factor *= vars_[variance_index + feature_idx];
+		variance_factor    += log(vars_[variance_index + feature_idx]);
 	}
 
-	// apply operations on the end product of the terms
-	variance_factor = sqrt(variance_factor);
-	distance_factor /= 2;
-
-	score = variance_factor + distance_factor;
+	// apply operations on the end product of the terms and sum them
+	score = (variance_factor + distance_factor) / 2;
 
 	if (verbosity_ > noLog) {
 		std::cerr << "Score of density: " << score
