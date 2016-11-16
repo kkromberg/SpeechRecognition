@@ -124,13 +124,13 @@ MixtureModel::MixtureModel(Configuration const& config, size_t dimension, size_t
 		for (size_t feature_counter = 0; feature_counter < dimension; feature_counter++) {
 			// one mean and variance for each feature
 			means_.push_back(0.0);
+			mean_accumulators_.push_back(0.0);
+
 			vars_.push_back(0.0);
+			var_accumulators_.push_back(0.0);
+
 			norm_.push_back(0.0);
 		}
-
-		mean_accumulators_.push_back(0.0);
-		var_accumulators_.push_back(0.0);
-
 		mean_weight_accumulators_.push_back(0.0);
 		var_weight_accumulators_.push_back(0.0);
 
@@ -264,17 +264,33 @@ void MixtureModel::split(size_t min_obs) {
 
 				// extend the mixture model by one more density
 				extend_mixture_model();
-				// create a new density
-				MixtureDensity new_md(num_densities(), num_densities());
+				// create a new density with according indices
+				MixtureDensity new_md(mean_refs_.size()-1, var_refs_.size()-1);
 
+				// current absolute variance
 				abs_var = std::sqrt(std::pow(var_weight_accumulators_[var_ref], 2));
-				// calculate new means
-				mean_plus = mean_weight_accumulators_[mean_ref] + abs_var;
+				// new means
+				mean_plus  = mean_weight_accumulators_[mean_ref] + abs_var;
 				mean_minus = mean_weight_accumulators_[mean_ref] - abs_var;
-				// update only the mean
+				// update only the mean weight for old density
 				mean_weight_accumulators_[mean_ref] = mean_plus;
+
+				// store new mean
 				mean_weight_accumulators_[new_md.mean_idx] = mean_minus;
 
+				// copy values for new density from the old one
+				mean_weights_[new_md.mean_idx] = mean_weights_[mean_ref];
+
+				for (unsigned int dim = 0; dim < dimension; dim++) {
+					means_[new_md.mean_idx + dim] 					  = means_[mean_ref + dim];
+					mean_accumulators_[new_md.mean_idx + dim] = mean_accumulators_[mean_ref + dim];
+
+					vars_[new_md.var_idx + dim]   						= vars_[var_ref + dim];
+					var_accumulators_[new_md.var_idx + dim] 	= var_accumulators_[var_ref + dim];
+
+					norm_[new_md.mean_idx + dim]  						= norm_[mean_ref + dim];
+				}
+				// put new density into current mixture
 				mixtures_[mixture].push_back(new_md);
 			}
 		}
@@ -289,19 +305,21 @@ void MixtureModel::extend_mixture_model() {
 	 */
 	for (unsigned int i = 0; i < dimension; i++) {
 		means_.push_back(0.0);
+		mean_accumulators_.push_back(0.0);
+
 		vars_.push_back(0.0);
+		var_accumulators_.push_back(0.0);
+
+		norm_.push_back(0.0);
 	}
 	mean_refs_.push_back(1);
 	var_refs_.push_back(1);
-
-	mean_accumulators_.push_back(0.0);
-	var_accumulators_.push_back(0.0);
 
 	mean_weight_accumulators_.push_back(0.0);
 	var_weight_accumulators_.push_back(0.0);
 
 	mean_weights_.push_back(0.0);
-	norm_.push_back(0.0);
+
 
 }
 
