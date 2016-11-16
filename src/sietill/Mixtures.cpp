@@ -257,38 +257,35 @@ void MixtureModel::split(size_t min_obs) {
 	for (unsigned int mixture = 0; mixture < mixtures_.size(); mixture++) {// loop mixtures
 
 		for (unsigned int density = 0; density < mixtures_[mixture].size(); density++) {		// loop densities
-			mean_ref = mixtures_[mixture][density].mean_idx;
-			var_ref  = mixtures_[mixture][density].var_idx;
+			mean_ref = mixtures_[mixture][density].mean_idx * dimension;
+			var_ref  = mixtures_[mixture][density].var_idx * dimension;
 			// if accumulated weight > min_obs we have to split density
-			if (mean_weights_[mean_ref] >= min_obs) { // or weight acc?
+			if (mean_weight_accumulators_[mean_ref] >= min_obs) { // or weight acc?
 
 				// extend the mixture model by one more density
 				extend_mixture_model();
+
 				// create a new density with according indices
 				MixtureDensity new_md(mean_refs_.size()-1, var_refs_.size()-1);
 
-				// current absolute variance
-				abs_var = std::sqrt(std::pow(var_weight_accumulators_[var_ref], 2));
-				// new means
-				mean_plus  = mean_weight_accumulators_[mean_ref] + abs_var;
-				mean_minus = mean_weight_accumulators_[mean_ref] - abs_var;
-				// update only the mean weight for old density
-				mean_weight_accumulators_[mean_ref] = mean_plus;
-
-				// store new mean
-				mean_weight_accumulators_[new_md.mean_idx] = mean_minus;
-
 				// copy values for new density from the old one
-				mean_weights_[new_md.mean_idx] = mean_weights_[mean_ref];
+				mean_weights_[new_md.mean_idx * dimension] = mean_weights_[mean_ref];
 
 				for (unsigned int dim = 0; dim < dimension; dim++) {
-					means_[new_md.mean_idx + dim] 					  = means_[mean_ref + dim];
-					mean_accumulators_[new_md.mean_idx + dim] = mean_accumulators_[mean_ref + dim];
+					// current absolute variance
+					abs_var = sqrt(vars_[var_ref + dim]);
 
-					vars_[new_md.var_idx + dim]   						= vars_[var_ref + dim];
-					var_accumulators_[new_md.var_idx + dim] 	= var_accumulators_[var_ref + dim];
+					// new means
+					mean_plus  = means_[mean_ref + dim] + abs_var;
+					mean_minus = means_[mean_ref + dim] - abs_var;
 
-					norm_[new_md.mean_idx + dim]  						= norm_[mean_ref + dim];
+					means_[mean_ref + dim]        = mean_plus;
+					means_[new_md.mean_idx * dimension + dim] = mean_minus;
+
+					// when using mixture-level pooling, the variance does not need to updated!
+					// just copy the variance and normalization term
+					vars_[new_md.var_idx * dimension + dim] = vars_[var_ref + dim];
+					norm_[new_md.var_idx * dimension + dim] = norm_[var_ref + dim];
 				}
 				// put new density into current mixture
 				mixtures_[mixture].push_back(new_md);
@@ -319,8 +316,6 @@ void MixtureModel::extend_mixture_model() {
 	var_weight_accumulators_.push_back(0.0);
 
 	mean_weights_.push_back(0.0);
-
-
 }
 
 /*****************************************************************************/
@@ -338,7 +333,7 @@ void MixtureModel::eliminate(double min_obs) {
 			var_ref  = mixtures_[mixture][density].var_idx;
 
 			// remove density if mean weight < min obs
-			if (mean_weights_[mean_ref] < min_obs) {
+			if (mean_weight_accumulators_[mean_ref] < min_obs) {
 				mixtures_[mixture].erase(mixtures_[mixture].begin() + density);
 
 				// set refs to 0
@@ -378,7 +373,7 @@ double MixtureModel::density_score(FeatureIter const& iter, StateIdx mixture_idx
 
 	// Positions of beginning of the mean / variance of the density in the flat array
 	double mean_index     = mixtures_[mixture_idx][density_idx].mean_idx;
-	double variance_index = mixtures_[mixture_idx][density_idx].mean_idx;
+	double variance_index = mixtures_[mixture_idx][density_idx].var_idx;
 
 	double variance_factor    = dimensionality_factor;
 	double distance_factor    = 0.0;
