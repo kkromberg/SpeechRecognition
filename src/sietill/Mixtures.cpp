@@ -125,6 +125,7 @@ MixtureModel::MixtureModel(Configuration const& config, size_t dimension, size_t
 			// one mean and variance for each feature
 			means_.push_back(0.0);
 			vars_.push_back(0.0);
+			norm_.push_back(0.0);
 		}
 
 		mean_accumulators_.push_back(0.0);
@@ -134,11 +135,10 @@ MixtureModel::MixtureModel(Configuration const& config, size_t dimension, size_t
 		var_weight_accumulators_.push_back(0.0);
 
 		mean_weights_.push_back(0.0);
-		norm_.push_back(0.0);
 
 		Mixture mixture;
 		// create one mixture density for each mixture
-		MixtureDensity mixture_density(num_densities(), num_densities());
+		MixtureDensity mixture_density(mean_refs_.size()-1, var_refs_.size()-1);
 		mixture.push_back(mixture_density);
 
 		mixtures_[mixture_counter] = mixture;
