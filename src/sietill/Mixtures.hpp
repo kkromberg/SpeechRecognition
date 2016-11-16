@@ -36,6 +36,9 @@ public:
   void accumulate(ConstAlignmentIter alignment_begin, ConstAlignmentIter alignment_end,
                   FeatureIter        feature_begin,   FeatureIter        feature_end,
                   bool first_pass, bool max_approx=true);
+  void accumulate_sum(ConstAlignmentIter alignment_begin, ConstAlignmentIter alignment_end,
+											FeatureIter        feature_begin,   FeatureIter        feature_end,
+											bool first_pass);
   void finalize();
   void split(size_t min_obs);
   void eliminate(double min_obs);
