@@ -179,10 +179,12 @@ void MixtureModel::accumulate(ConstAlignmentIter alignment_begin, ConstAlignment
 
 			//iterate through all features and states
 			if (verbosity_ > noLog) {
+				/*
 				std::cout<<"Assigning feature vector # "<<count<<std::endl;
 				for (size_t d = 0; d < dimension; d++) {
 					std::cout << *(*feature_iterator + d) << std::endl;
 				}
+				*/
 			}
 			StateIdx   mixture_counter = (*alignment_iterator)->state;
 			DensityIdx density_counter;
@@ -219,9 +221,8 @@ void MixtureModel::accumulate(ConstAlignmentIter alignment_begin, ConstAlignment
 
 				if (verbosity_ > noLog) {
 					std::cout << "Dimension: " << d << std::endl;
-					std::cout << "Mean accumulating: " << *feature_iterator[d] << std::endl;
-					std::cout << "Variance accumulating: " << (*feature_iterator[d])*(*feature_iterator[d]) << std::endl;
-
+					std::cout << "Mean accumulating: " << *(*feature_iterator + d) << std::endl;
+					std::cout << "Variance accumulating: " << (*(*feature_iterator + d))*(*(*feature_iterator + d)) << std::endl;
 				}
 			}
 		}
@@ -427,7 +428,7 @@ double MixtureModel::density_score(FeatureIter const& iter, StateIdx mixture_idx
 	for (size_t feature_idx = 0; feature_idx < dimension; feature_idx++) {
 
 		// update the mean term
-		distance_from_mean = *iter[feature_idx] - means_[mean_index + feature_idx];
+		distance_from_mean = *(*iter + feature_idx) - means_[mean_index + feature_idx];
 		distance_factor    += pow(distance_from_mean, 2) / vars_[variance_index + feature_idx];
 
 		if (verbosity_ > noLog) {
