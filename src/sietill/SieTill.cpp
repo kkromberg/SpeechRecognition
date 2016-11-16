@@ -84,13 +84,27 @@ int main(int argc, const char *argv[]) {
       analyzer.read_normalization_file(normalization_stream);
     }
 
+    const ParameterString paramPooling  ("pooling",   "");
+    std::string poolingString  (paramPooling  (config));
+
+    MixtureModel::VarianceModel pooling_method = MixtureModel::NO_POOLING;
+    if (poolingString == "none") {
+    	pooling_method = MixtureModel::NO_POOLING;
+    } else if (poolingString == "mixture") {
+    	pooling_method = MixtureModel::MIXTURE_POOLING;
+    } else if (poolingString == "global") {
+    	pooling_method = MixtureModel::GLOBAL_POOLING;
+    } else {
+    	std::cerr << "ERROR: The following GMM pooling option is not valid: " << poolingString << std::endl;
+    }
+
     Corpus corpus;
     corpus.read(corpus_description, feature_path, analyzer);
 
     TdpModel tdp_model(config, lexicon.get_silence_automaton()[0ul]);
 
     if (action == "train") {
-      MixtureModel mixtures(config, analyzer.n_features_total, lexicon.num_states(), MixtureModel::MIXTURE_POOLING, max_approx);
+      MixtureModel mixtures(config, analyzer.n_features_total, lexicon.num_states(), pooling_method, max_approx);
 
       Trainer trainer(config, lexicon, mixtures, tdp_model, max_approx);
       trainer.train(corpus);
@@ -100,7 +114,7 @@ int main(int argc, const char *argv[]) {
       FeatureScorer* fs = nullptr;
 
       if (feature_scorer == "gmm") {
-        fs = new MixtureModel(config, analyzer.n_features_total, lexicon.num_states(), MixtureModel::MIXTURE_POOLING, max_approx);
+        fs = new MixtureModel(config, analyzer.n_features_total, lexicon.num_states(), pooling_method, max_approx);
       }
       else {
         std::cerr << "unknown feature scorer: " << feature_scorer << std::endl;
