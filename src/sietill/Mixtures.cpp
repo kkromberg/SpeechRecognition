@@ -280,8 +280,8 @@ void MixtureModel::finalize() {
 
 
 			//updating refs
-			mean_refs_[mixtures_[mixture_counter][density_counter].mean_idx]=1;
-			var_refs_[mixtures_[mixture_counter][density_counter].var_idx]=1;
+			//mean_refs_[mixtures_[mixture_counter][density_counter].mean_idx]=1;
+			//var_refs_[mixtures_[mixture_counter][density_counter].var_idx]=1;
 		}
 
 		for (DensityIdx density_counter = 0; density_counter < mixtures_[mixture_counter].size();
@@ -307,7 +307,7 @@ void MixtureModel::split(size_t min_obs) {
 			mean_ref = mixtures_[mixture][density].mean_idx * dimension;
 			var_ref  = mixtures_[mixture][density].var_idx * dimension;
 			// if accumulated weight > min_obs we have to split density
-			if (mean_weight_accumulators_[mean_ref] >= min_obs) { // or weight acc?
+			if (mean_weight_accumulators_[mixtures_[mixture][density].mean_idx] >= min_obs) { // or weight acc?
 
 				// extend the mixture model by one more density
 				extend_mixture_model();
@@ -316,7 +316,7 @@ void MixtureModel::split(size_t min_obs) {
 				MixtureDensity new_md(mean_refs_.size()-1, var_refs_.size()-1);
 
 				// copy values for new density from the old one
-				mean_weights_[new_md.mean_idx * dimension] = mean_weights_[mean_ref];
+				mean_weights_[new_md.mean_idx] = mean_weights_[mixtures_[mixture][density].mean_idx];
 
 				for (unsigned int dim = 0; dim < dimension; dim++) {
 					// current absolute variance
