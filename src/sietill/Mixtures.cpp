@@ -180,6 +180,9 @@ void MixtureModel::accumulate(ConstAlignmentIter alignment_begin, ConstAlignment
 			//iterate through all features and states
 			if (verbosity_ > noLog) {
 				std::cout<<"Assigning feature vector # "<<count<<std::endl;
+				for (size_t d = 0; d < dimension; d++) {
+					std::cout << *(*feature_iterator + d) << std::endl;
+				}
 			}
 			StateIdx   mixture_counter = (*alignment_iterator)->state;
 			DensityIdx density_counter;
@@ -207,16 +210,17 @@ void MixtureModel::accumulate(ConstAlignmentIter alignment_begin, ConstAlignment
 
 				//adding current feature to mean_accumulators
 				mean_accumulators_[d+dimension*mixtures_[mixture_counter][density_counter].mean_idx]
-				                   +=*feature_iterator[d];
+				                   +=*(*feature_iterator + d);
 
 
 				//var accumulator is pooled with the first one
 				var_accumulators_[d+dimension*pooled_variance_mixture_density.var_idx]
-													 +=(*feature_iterator[d])*(*feature_iterator[d]);
+													 +=(*(*feature_iterator + d))*(*(*feature_iterator + d));
 
 				if (verbosity_ > noLog) {
-					std::cerr << "Mean accumulating: " << *feature_iterator[d] << std::endl;
-					std::cerr << "Variance accumulating: " << (*feature_iterator[d])*(*feature_iterator[d]) << std::endl;
+					std::cout << "Dimension: " << d << std::endl;
+					std::cout << "Mean accumulating: " << *feature_iterator[d] << std::endl;
+					std::cout << "Variance accumulating: " << (*feature_iterator[d])*(*feature_iterator[d]) << std::endl;
 
 				}
 			}
