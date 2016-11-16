@@ -56,6 +56,8 @@ private:
   static const char     magic[8];
   static const uint32_t version;
 
+  void extend_mixture_model();
+
   bool max_approx_;
 
   std::vector<double> means_;
