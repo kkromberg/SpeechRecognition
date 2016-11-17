@@ -184,22 +184,37 @@ void MixtureModel::accumulate_sum(ConstAlignmentIter alignment_begin, ConstAlign
 
 			// Calculate membership probabilities
 			std::vector<double> mixture_weights = std::vector<double>(n_densities, 0.0);
-			std::vector<double> density_scores  = std::vector<double>(n_densities, 0.0);
-			double							sum_score       = 0.0;
+			std::vector<double> density_probs   = std::vector<double>(n_densities, 0.0);
+			double							point_probability = 0.0;
 
 			// calculate the score of each density + weigh it accordingly
 			for (size_t density_idx = 0; density_idx < n_densities; density_idx++) {
 				mixture_weights[density_idx] = mean_weights_[mixtures_[mixture_counter][density_idx].mean_idx];
-				density_scores[density_idx]  = density_score(feature_iterator, mixture_counter, density_idx);
+				density_probs[density_idx]   = pow(M_E, -1 * density_score(feature_iterator, mixture_counter, density_idx));
 
 				// update the normalization term
-				sum_score += density_scores[density_idx] * mixture_weights[density_idx];
+				membership_probabilities[density_idx] = density_probs[density_idx] * mixture_weights[density_idx];
+				point_probability += membership_probabilities[density_idx];
 			}
 
+			if (verbosity_ > noLog) {
+				std::cerr << "Membership probabilities for state " << mixture_counter << std::endl;
+				for (size_t density_idx = 0; density_idx < n_densities; density_idx++) {
+					std::cerr << mixture_weights[density_idx] << " * " <<  density_probs[density_idx] << std::endl;
+				}
+			}
 			// Normalize the density scores
 			for (size_t density_idx = 0; density_idx < n_densities; density_idx++) {
-				membership_probabilities[density_idx] = density_scores[density_idx] / sum_score;
+				membership_probabilities[density_idx] = membership_probabilities[density_idx] / point_probability;
+				if (verbosity_ > noLog) {
+					std::cerr << membership_probabilities[density_idx] << " ";
+				}
 			}
+			if (verbosity_ > noLog) {
+				std::cerr << std::endl;
+			}
+
+
 		}
 
 		// Now parse through all densities (in a mixture)
@@ -218,7 +233,7 @@ void MixtureModel::accumulate_sum(ConstAlignmentIter alignment_begin, ConstAlign
 				std::cerr << "Unknown variance pooling type" << std::endl;
 			}
 
-			StateIdx current_density_mean_index = mixtures_[mixture_counter][density_idx].mean_idx;
+			size_t current_density_mean_index = mixtures_[mixture_counter][density_idx].mean_idx;
 
 			mean_weight_accumulators_[current_density_mean_index] += membership_probabilities[density_idx];
 			var_weight_accumulators_[pooled_variance_mixture_density.var_idx] += membership_probabilities[density_idx];
@@ -236,9 +251,11 @@ void MixtureModel::accumulate_sum(ConstAlignmentIter alignment_begin, ConstAlign
 													 += membership_probabilities[density_idx] * (*(*feature_iterator + d))*(*(*feature_iterator + d));
 
 				if (verbosity_ > noLog) {
+					/*
 					std::cout << "Dimension: " << d << std::endl;
 					std::cout << "Mean accumulating: " << *(*feature_iterator + d) << std::endl;
 					std::cout << "Variance accumulating: " << (*(*feature_iterator + d))*(*(*feature_iterator + d)) << std::endl;
+					*/
 				}
 			}
 		}
@@ -298,7 +315,7 @@ void MixtureModel::accumulate(ConstAlignmentIter alignment_begin, ConstAlignment
 			//accumulating weights for each density = counting observations (for max case)
 			mean_weight_accumulators_[current_density_mean_index]+=1;
 
-			//if it is the first density in the mixture var weight accumulator is incremented
+			// increment var weight accumulator
 			var_weight_accumulators_[pooled_variance_mixture_density.var_idx]+=1;
 
 			//Iterate through all dimensions
@@ -308,14 +325,16 @@ void MixtureModel::accumulate(ConstAlignmentIter alignment_begin, ConstAlignment
 				mean_accumulators_[d+dimension*mixtures_[mixture_counter][density_counter].mean_idx]
 				                   +=*(*feature_iterator + d);
 
-				//var accumulator is pooled with the first one
+				// write the weighted variances in the designated container
 				var_accumulators_[d+dimension*pooled_variance_mixture_density.var_idx]
 													 +=(*(*feature_iterator + d))*(*(*feature_iterator + d));
 
 				if (verbosity_ > noLog) {
+					/*
 					std::cout << "Dimension: " << d << std::endl;
 					std::cout << "Mean accumulating: " << *(*feature_iterator + d) << std::endl;
 					std::cout << "Variance accumulating: " << (*(*feature_iterator + d))*(*(*feature_iterator + d)) << std::endl;
+					*/
 				}
 			}
 		}
@@ -332,11 +351,11 @@ void MixtureModel::finalize() {
 	  std::cout<<"Maximization step"<<std::endl;
 	}
 
-	double 							sum_mixture_mean_weights = 0.0;
 	std::vector<double> sum_features(dimension,0.0);
 
 	// Iterate through all mixtures
 	for (StateIdx mixture_counter = 0; mixture_counter < mixtures_.size(); mixture_counter++) {
+		double sum_mixture_mean_weights = 0.0;
 
 		//mixture pooling part
 		MixtureDensity pooled_variance_mixture_density = mixtures_[mixture_counter][0];
@@ -377,6 +396,9 @@ void MixtureModel::finalize() {
 			// Increment the sum over all weights in the mixture -> will be equal to the points in the mixture
 			sum_mixture_mean_weights += mean_weight_accumulators_[current_density_mean_index];
 
+			if (verbosity_ > noLog) {
+				std::cerr << "sum_mixture_mean_weights " << sum_mixture_mean_weights << std::endl;
+			}
 			//Iterate through all dimensions
 			for(size_t d=0;d<dimension;d++){
 				// compute mean, variance and norm components for each density
@@ -419,8 +441,8 @@ void MixtureModel::finalize() {
 				}
 
 				if (verbosity_ > noLog) {
-					std::cerr << "Current mean     " << means_[d+dimension*current_density_mean_index] << std::endl;
-					std::cerr << "Current variance " << vars_[d+dimension*current_density_var_index] << std::endl;
+					//std::cerr << "Current mean     " << means_[d+dimension*current_density_mean_index] << std::endl;
+					//std::cerr << "Current variance " << vars_[d+dimension*current_density_var_index] << std::endl;
 				}
 
 				// Compute the normalization term of the normal distribution for the current density
@@ -440,6 +462,8 @@ void MixtureModel::finalize() {
 			StateIdx   current_density_mean_index = mixtures_[mixture_counter][density_counter].mean_idx;
 			DensityIdx current_density_var_index  = mixtures_[mixture_counter][density_counter].var_idx;
 
+
+			//! TODO: Move this to the for-loop where the variances are calculated
 			if(var_model==MIXTURE_POOLING) {
 				for(size_t d=0;d<dimension;d++) {
 					// Copy the variance of the current density from the pooled variance
@@ -451,6 +475,9 @@ void MixtureModel::finalize() {
 
 			// compute mixture weights
 			mean_weights_[current_density_mean_index] = mean_weight_accumulators_[current_density_mean_index] / sum_mixture_mean_weights;
+			if (verbosity_ > noLog) {
+				std::cerr << "mean_weights_ " << density_counter << " " << mean_weights_[current_density_mean_index] << std::endl;
+			}
 		}
 	}
 
@@ -490,6 +517,10 @@ void MixtureModel::split(size_t min_obs) {
 			mean_ref = mixtures_[mixture][density].mean_idx * dimension;
 			var_ref  = mixtures_[mixture][density].var_idx * dimension;
 			// if accumulated weight > min_obs we have to split density
+
+			if (verbosity_ > noLog) {
+				std::cerr << "##" << mixture << " " << density << " " << mean_weight_accumulators_[mixtures_[mixture][density].mean_idx] << std::endl;
+			}
 			if (mean_weight_accumulators_[mixtures_[mixture][density].mean_idx] >= min_obs) { // or weight acc?
 
 				// extend the mixture model by one more density
@@ -498,7 +529,7 @@ void MixtureModel::split(size_t min_obs) {
 				// create a new density with according indices
 				MixtureDensity new_md(mean_refs_.size()-1, var_refs_.size()-1);
 
-				// copy values for new density from the old one
+				// copy mixture weights from the reference density
 				mean_weights_[new_md.mean_idx] = mean_weights_[mixtures_[mixture][density].mean_idx];
 
 				for (unsigned int dim = 0; dim < dimension; dim++) {
@@ -535,7 +566,7 @@ void MixtureModel::extend_mixture_model() {
 		mean_accumulators_.push_back(0.0);
 
 		vars_.push_back(0.0);
-		var_accumulators_.push_back(0.0);
+		var_accumulators_.push_back(1e-6);
 
 		norm_.push_back(0.0);
 	}
@@ -587,10 +618,6 @@ size_t MixtureModel::num_densities() const {
 // Miguel: Here we do not need the membership probabilities of the density in the mixture
 // 				 These are passed to the sum_score function, but not to this one.
 double MixtureModel::density_score(FeatureIter const& iter, StateIdx mixture_idx, DensityIdx density_idx) const {
-	if (verbosity_ > noLog) {
-		std::cerr << "In function MixtureModel::density_score(...)" << std::endl;
-	}
-
 	double score = 0.0;
 	bool static first_pass_density_score = true;
 	static double dimensionality_factor = 0.0;
@@ -626,10 +653,12 @@ double MixtureModel::density_score(FeatureIter const& iter, StateIdx mixture_idx
 	score = (variance_factor + distance_factor) / 2;
 
 	if (verbosity_ > noLog) {
+		/*
 		std::cerr << "Score of density: " << score
 							<< " Mixture idx:      " << mixture_idx
 							<< " Density idx:      " << density_idx
 							<< std::endl;
+							*/
 	}
 
   return score;
@@ -677,10 +706,10 @@ double MixtureModel::sum_score(FeatureIter const& iter, StateIdx mixture_idx, st
   double     score = 0.0;
 
   for (size_t density_idx = 0; density_idx < n_densities; density_idx++) {
-  	score += (*weights)[density_idx] * density_score(iter, mixture_idx, density_idx);
+  	score += (*weights)[density_idx] * pow(M_E, -1 * density_score(iter, mixture_idx, density_idx));
   }
 
-  return score;
+  return -log(score);
 }
 
 /*****************************************************************************/
