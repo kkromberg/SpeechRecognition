@@ -40,6 +40,7 @@ public:
 											FeatureIter        feature_begin,   FeatureIter        feature_end,
 											bool first_pass);
   void finalize();
+  void finalize2();
   void split(size_t min_obs);
   void eliminate(double min_obs);
 

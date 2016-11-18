@@ -18,6 +18,47 @@
 #include "pmmintrin.h"
 
 namespace {
+
+  template<typename T>
+  struct dump_vector {
+    dump_vector(std::ostream& stream, std::vector<T> const& vector) {
+      for (auto it : vector ) {
+        stream << it << " ";
+      }
+      stream << "\n";
+    }
+  };
+
+  template<typename T>
+  struct minus_power {
+    T operator()(T const& x, T const& y) {
+      return x - y * y;
+    }
+  };
+
+  template<typename T>
+  struct scale_add {
+    T scale_;
+
+    scale_add(T const& scale) : scale_(scale) {}
+
+    T operator()(T const& x, T const& y) {
+      return x + scale_ * y;
+    }
+  };
+
+  template<typename T>
+  struct scale_add_square {
+    T scale_;
+
+    scale_add_square(T const& scale) : scale_(scale) {}
+
+    T operator()(T const& x, T const& y) {
+      return x + scale_ * y * y;
+    }
+  };
+
+
   // compute -log(exp(-a) + exp(-b)) using the following equality:
   // -log(exp(-a) + exp(-b)) = -log(exp(-a-c) + exp(-b-c)) - c
   //                         = -log(1 + exp(-abs(a-b))) - c
@@ -99,7 +140,6 @@ namespace {
 
 const ParameterString MixtureModel::paramLoadMixturesFrom("load-mixtures-from", "");
 const ParameterString MixtureModel::paramVerbosity			 ("verbosity", "");
-//const ParameterString MixtureModel::paramPooling			 ("pooling", "");
 
 const char     MixtureModel::magic[8] = {'M', 'I', 'X', 'S', 'E', 'T', 0, 0};
 const uint32_t MixtureModel::version = 2u;
@@ -159,108 +199,6 @@ void MixtureModel::reset_accumulators() {
 	std::fill(var_weight_accumulators_.begin(), var_weight_accumulators_.end(), 0.0);
 }
 
-void MixtureModel::accumulate_sum(ConstAlignmentIter alignment_begin, ConstAlignmentIter alignment_end,
-																	FeatureIter        feature_begin,   FeatureIter        feature_end,
-																	bool first_pass) {
-	if (verbosity_ > noLog) {
-	  std::cout << "Estimation step (sum) " << std::endl;
-	}
-
-	ConstAlignmentIter alignment_iterator = alignment_begin;
-	for (FeatureIter feature_iterator = feature_begin;
-		 feature_iterator != feature_end;
-		 feature_iterator++, alignment_iterator++) {
-		//iterate through all features
-
-		// Get mixture / density information
-		StateIdx mixture_counter = (*alignment_iterator)->state;
-		size_t   n_densities = mixtures_[mixture_counter].size();
-
-		std::vector<double> membership_probabilities = std::vector<double>(n_densities, 0.0);
-		if(first_pass) {
-			//at the first pass we have only one density -> it has a probability of 1
-			membership_probabilities[0] = 1.0;
-		} else {
-
-			// Calculate membership probabilities
-			std::vector<double> mixture_weights = std::vector<double>(n_densities, 0.0);
-			std::vector<double> density_probs   = std::vector<double>(n_densities, 0.0);
-			double							point_probability = 0.0;
-
-			// calculate the score of each density + weigh it accordingly
-			for (size_t density_idx = 0; density_idx < n_densities; density_idx++) {
-				mixture_weights[density_idx] = mean_weights_[mixtures_[mixture_counter][density_idx].mean_idx];
-				density_probs[density_idx]   = pow(M_E, -1 * density_score(feature_iterator, mixture_counter, density_idx));
-
-				// update the normalization term
-				membership_probabilities[density_idx] = density_probs[density_idx] * mixture_weights[density_idx];
-				point_probability += membership_probabilities[density_idx];
-			}
-
-			if (verbosity_ > noLog) {
-				std::cerr << "Membership probabilities for state " << mixture_counter << std::endl;
-				for (size_t density_idx = 0; density_idx < n_densities; density_idx++) {
-					std::cerr << mixture_weights[density_idx] << " * " <<  density_probs[density_idx] << std::endl;
-				}
-			}
-			// Normalize the density scores
-			for (size_t density_idx = 0; density_idx < n_densities; density_idx++) {
-				membership_probabilities[density_idx] = membership_probabilities[density_idx] / point_probability;
-				if (verbosity_ > noLog) {
-					std::cerr << membership_probabilities[density_idx] << " ";
-				}
-			}
-			if (verbosity_ > noLog) {
-				std::cerr << std::endl;
-			}
-
-
-		}
-
-		// Now parse through all densities (in a mixture)
-		for (size_t density_idx = 0; density_idx < n_densities; density_idx++) {
-			MixtureDensity pooled_variance_mixture_density = mixtures_[mixture_counter][0];
-			switch ( var_model ) {
-			case NO_POOLING:
-				pooled_variance_mixture_density = mixtures_[mixture_counter][density_idx];
-				break;
-			case GLOBAL_POOLING:
-				pooled_variance_mixture_density = mixtures_[0][0];
-				break;
-			case MIXTURE_POOLING:
-				break;
-			default:
-				std::cerr << "Unknown variance pooling type" << std::endl;
-			}
-
-			size_t current_density_mean_index = mixtures_[mixture_counter][density_idx].mean_idx;
-
-			mean_weight_accumulators_[current_density_mean_index] += membership_probabilities[density_idx];
-			var_weight_accumulators_[pooled_variance_mixture_density.var_idx] += membership_probabilities[density_idx];
-
-			//Iterate through all dimensions
-			for(size_t d=0;d<dimension;d++){
-
-				//adding current feature to mean_accumulators
-				mean_accumulators_[d+dimension*mixtures_[mixture_counter][density_idx].mean_idx]
-													 += membership_probabilities[density_idx] * *(*feature_iterator + d);
-
-
-				//var accumulator is pooled with the first one
-				var_accumulators_[d+dimension*pooled_variance_mixture_density.var_idx]
-													 += membership_probabilities[density_idx] * (*(*feature_iterator + d))*(*(*feature_iterator + d));
-
-				if (verbosity_ > noLog) {
-					/*
-					std::cout << "Dimension: " << d << std::endl;
-					std::cout << "Mean accumulating: " << *(*feature_iterator + d) << std::endl;
-					std::cout << "Variance accumulating: " << (*(*feature_iterator + d))*(*(*feature_iterator + d)) << std::endl;
-					*/
-				}
-			}
-		}
-	}
-}
 /*****************************************************************************/
 
 void MixtureModel::accumulate(ConstAlignmentIter alignment_begin, ConstAlignmentIter alignment_end,
@@ -270,79 +208,146 @@ void MixtureModel::accumulate(ConstAlignmentIter alignment_begin, ConstAlignment
 	  std::cout<<"Estimation step"<<std::endl;
 	}
 
-	//Maximum approximation case
-	if(max_approx){
-		ConstAlignmentIter alignment_iterator = alignment_begin;
-		for (FeatureIter feature_iterator = feature_begin;
-			 feature_iterator != feature_end;
-			 feature_iterator++, alignment_iterator++) {
+	reset_accumulators();
 
-			//iterate through all features and states
-			if (verbosity_ > noLog) {
-				/*
-				std::cout<<"Assigning feature vector # "<<count<<std::endl;
-				for (size_t d = 0; d < dimension; d++) {
-					std::cout << *(*feature_iterator + d) << std::endl;
-				}
-				*/
-			}
-			StateIdx   mixture_counter = (*alignment_iterator)->state;
-			DensityIdx density_counter;
+  ConstAlignmentIter alignment_iterator = alignment_begin;
+  for (FeatureIter feature_iterator = feature_begin;
+       feature_iterator != feature_end;
+       feature_iterator++, alignment_iterator++) {
 
-			//at the first pass we have only one density
-			if(first_pass) density_counter=0;
+    StateIdx m = (*alignment_iterator)->state;
+    std::vector<double> membership_probabilities = std::vector<double>(mixtures_[m].size(), 0.0);
 
-			//choose the density with the minimum density score = hard assignment = maximum approximation
-			else density_counter = min_score(feature_iterator, mixture_counter).second;
+    DensityIdx max_approx_density = 0;
+    if (max_approx && !first_pass) {
+      max_approx_density = min_score(feature_iterator, m).second;
+    }
 
-			MixtureDensity pooled_variance_mixture_density = mixtures_[mixture_counter][0];
-			switch ( var_model ) {
-			case NO_POOLING:
-				pooled_variance_mixture_density = mixtures_[mixture_counter][density_counter];
-				break;
-			case GLOBAL_POOLING:
-				pooled_variance_mixture_density = mixtures_[0][0];
-				break;
-			case MIXTURE_POOLING:
-				break;
-			default:
-				std::cerr << "Unknown variance pooling type" << std::endl;
-			}
+    for (DensityIdx d = 0; d < mixtures_[m].size(); d++) {
+      if(first_pass) {
+        //at the first pass we have only one density
+        membership_probabilities[0] = 1.0;
+      } else if (max_approx && d == max_approx_density) {
+        // set the membership probability to 1 for the max_approx case
+        membership_probabilities[d] = 1.0;
+      } else if (!max_approx) {
+        membership_probabilities[d] = mean_weights_[mixtures_[m][d].mean_idx]
+                                    * exp(-1 * density_score(feature_iterator, m , d));
+      }
+    }
 
-			StateIdx   current_density_mean_index = mixtures_[mixture_counter][density_counter].mean_idx;
-			//DensityIdx current_density_var_index  = mixtures_[mixture_counter][density_counter].var_idx;
+    if (verbosity_ > noLog) {
+      //dump_vector<float>(std::cerr, membership_probabilities);
+    }
 
-			//accumulating weights for each density = counting observations (for max case)
-			mean_weight_accumulators_[current_density_mean_index]+=1;
+    if (!max_approx) {
+      // Normalize the membership probabilities
+      double sum_probability = std::accumulate(membership_probabilities.begin(),
+                                               membership_probabilities.end()  , 0.0);
+      if (verbosity_ > noLog) {
+        std::cout << "sum_probability: " << sum_probability << std::endl;
+      }
+      std::transform(membership_probabilities.begin(), membership_probabilities.end(),
+                     membership_probabilities.begin(), std::bind2nd(std::divides<double>(), sum_probability));
+    }
 
-			// increment var weight accumulator
-			var_weight_accumulators_[pooled_variance_mixture_density.var_idx]+=1;
+    if (verbosity_ > noLog) {
+      dump_vector<double>(std::cout, membership_probabilities);
+    }
 
-			//Iterate through all dimensions
-			for(size_t d=0;d<dimension;d++){
+    for (DensityIdx d = 0; d < mixtures_[m].size(); d++) {
+      DensityIdx mean_idx = mixtures_[m][d].mean_idx;
+      DensityIdx var_idx  = mixtures_[m][d].var_idx;
 
-				//adding current feature to mean_accumulators
-				mean_accumulators_[d+dimension*mixtures_[mixture_counter][density_counter].mean_idx]
-				                   +=*(*feature_iterator + d);
+      mean_weight_accumulators_[mean_idx] += membership_probabilities[d];
+      var_weight_accumulators_ [var_idx ] += membership_probabilities[d];
 
-				// write the weighted variances in the designated container
-				var_accumulators_[d+dimension*pooled_variance_mixture_density.var_idx]
-													 +=(*(*feature_iterator + d))*(*(*feature_iterator + d));
+      std::transform(mean_accumulators_.begin() + mean_idx * dimension,
+                     mean_accumulators_.begin() + mean_idx * dimension + dimension,
+                     *feature_iterator,
+                     mean_accumulators_.begin() + mean_idx * dimension,
+                     scale_add<double>(membership_probabilities[d]));
 
-				if (verbosity_ > noLog) {
-					/*
-					std::cout << "Dimension: " << d << std::endl;
-					std::cout << "Mean accumulating: " << *(*feature_iterator + d) << std::endl;
-					std::cout << "Variance accumulating: " << (*(*feature_iterator + d))*(*(*feature_iterator + d)) << std::endl;
-					*/
-				}
-			}
-		}
-	} else {
-		accumulate_sum(alignment_begin, alignment_end, feature_begin, feature_end, first_pass);
-	}
+      std::transform(var_accumulators_.begin() + var_idx * dimension,
+                     var_accumulators_.begin() + var_idx * dimension + dimension,
+                     *feature_iterator,
+                     var_accumulators_.begin() + var_idx * dimension,
+                     scale_add_square<double>(membership_probabilities[d]));
+
+      //dump_vector<double>(std::cout, mean_accumulators_);
+      //dump_vector<double>(std::cout, var_accumulators_);
+    }
+  }
+  if (verbosity_ > noLog) {
+    std::cout << "mean_accumulators_" << std::endl;
+    dump_vector<double>(std::cout, mean_accumulators_);
+    std::cout << "var_accumulators_" << std::endl;
+    dump_vector<double>(std::cout, var_accumulators_);
+    std::cout << "mean_weight_accumulators_" << std::endl;
+    dump_vector<double>(std::cout, mean_weight_accumulators_);
+    std::cout << "var_weight_accumulators_" << std::endl;
+    dump_vector<double>(std::cout, var_weight_accumulators_);
+  }
 }
 
+void MixtureModel::finalize2() {
+  if (verbosity_ > noLog) {
+    std::cout<<"Maximization step"<<std::endl;
+  }
+
+  double total_mixture_observations = 0.0;
+  for (StateIdx m = 0; m < mixtures_.size(); m++) {
+
+    double total_density_obversations = 0.0;
+    for (DensityIdx d = 0; d < mixtures_[m].size(); d++) {
+      DensityIdx mean_idx = mixtures_[m][d].mean_idx;
+      DensityIdx var_idx  = mixtures_[m][d].var_idx;
+
+      total_density_obversations += mean_weight_accumulators_[mean_idx];
+
+      std::transform(mean_accumulators_.begin() + mean_idx * dimension,
+                     mean_accumulators_.begin() + mean_idx * dimension + dimension,
+                     means_.begin() + mean_idx * dimension,
+                     std::bind2nd(std::divides<double>(), mean_weight_accumulators_[mean_idx]));
+
+      if (var_model == NO_POOLING) {
+
+        std::transform(var_accumulators_.begin() + var_idx * dimension,
+                       var_accumulators_.begin() + var_idx * dimension + dimension,
+                       vars_.begin() + var_idx * dimension,
+                       std::bind2nd(std::divides<double>(), var_weight_accumulators_[var_idx]));
+
+        std::transform(vars_.begin()  + var_idx  * dimension,
+                       vars_.begin()  + var_idx  * dimension + dimension,
+                       means_.begin() + mean_idx * dimension,
+                       vars_.begin()  + var_idx  * dimension,
+                       minus_power<double>());
+
+        norm_[var_idx] = std::accumulate(vars_.begin() + var_idx,
+            vars_.begin() + var_idx + dimension,
+            dimension * log(2*M_PI),
+            [](double const& x, double const& y) {
+                return x + log(y);
+            });
+        norm_[var_idx]/= 2;
+      }
+    }
+
+    for (DensityIdx d = 0; d < mixtures_[m].size(); d++) {
+      DensityIdx mean_idx = mixtures_[m][d].mean_idx;
+      mean_weights_[mean_idx] = mean_weight_accumulators_[mean_idx] / total_density_obversations;
+    }
+  }
+
+  if (verbosity_ > noLog) {
+    std::cout << "means_" << std::endl;
+    dump_vector<double>(std::cout, means_);
+    std::cout << "vars_" << std::endl;
+    dump_vector<double>(std::cout, vars_);
+    std::cout << "mean_weights_" << std::endl;
+    dump_vector<double>(std::cout, mean_weights_);
+  }
+}
 /*****************************************************************************/
 
 void MixtureModel::finalize() {
@@ -396,9 +401,6 @@ void MixtureModel::finalize() {
 			// Increment the sum over all weights in the mixture -> will be equal to the points in the mixture
 			sum_mixture_mean_weights += mean_weight_accumulators_[current_density_mean_index];
 
-			if (verbosity_ > noLog) {
-				std::cerr << "sum_mixture_mean_weights " << sum_mixture_mean_weights << std::endl;
-			}
 			//Iterate through all dimensions
 			for(size_t d=0;d<dimension;d++){
 				// compute mean, variance and norm components for each density
@@ -475,9 +477,6 @@ void MixtureModel::finalize() {
 
 			// compute mixture weights
 			mean_weights_[current_density_mean_index] = mean_weight_accumulators_[current_density_mean_index] / sum_mixture_mean_weights;
-			if (verbosity_ > noLog) {
-				std::cerr << "mean_weights_ " << density_counter << " " << mean_weights_[current_density_mean_index] << std::endl;
-			}
 		}
 	}
 
@@ -519,7 +518,7 @@ void MixtureModel::split(size_t min_obs) {
 			// if accumulated weight > min_obs we have to split density
 
 			if (verbosity_ > noLog) {
-				std::cerr << "##" << mixture << " " << density << " " << mean_weight_accumulators_[mixtures_[mixture][density].mean_idx] << std::endl;
+				//std::cerr << "##" << mixture << " " << density << " " << mean_weight_accumulators_[mixtures_[mixture][density].mean_idx] << std::endl;
 			}
 			if (mean_weight_accumulators_[mixtures_[mixture][density].mean_idx] >= min_obs) { // or weight acc?
 
@@ -619,46 +618,38 @@ size_t MixtureModel::num_densities() const {
 // 				 These are passed to the sum_score function, but not to this one.
 double MixtureModel::density_score(FeatureIter const& iter, StateIdx mixture_idx, DensityIdx density_idx) const {
 	double score = 0.0;
-	bool static first_pass_density_score = true;
-	static double dimensionality_factor = 0.0;
-
-	// Precompute a constant factor for each density scoring
-	if (first_pass_density_score) {
-		dimensionality_factor = log(pow(2 * M_PI, dimension));
-		first_pass_density_score = false;
-	}
 
 	// Positions of beginning of the mean / variance of the density in the flat array
 	double mean_index     = mixtures_[mixture_idx][density_idx].mean_idx * dimension;
 	double variance_index = mixtures_[mixture_idx][density_idx].var_idx  * dimension;
 
-	double variance_factor    = dimensionality_factor;
 	double distance_factor    = 0.0;
 	double distance_from_mean = 0.0;
 	for (size_t feature_idx = 0; feature_idx < dimension; feature_idx++) {
 
 		// update the mean term
-		distance_from_mean = *(*iter + feature_idx) - means_[mean_index + feature_idx];
-		distance_factor    += pow(distance_from_mean, 2) / vars_[variance_index + feature_idx];
+		distance_from_mean = (*iter)[feature_idx] - means_[mean_index + feature_idx];
+		distance_factor    += distance_from_mean * distance_from_mean / vars_[variance_index + feature_idx];
 
 		if (verbosity_ > noLog) {
-			//std::cerr << "Current mean     " << means_[mean_index + feature_idx] << std::endl;
-			//std::cerr << "Current variance " << vars_[variance_index + feature_idx] << std::endl;
+			std::cout << "Current mean / variance " << means_[mean_index + feature_idx] << " "
+                                              << vars_[variance_index + feature_idx] << " "
+                                              << std::endl;
+			std::cout << "Current distance_factor " << distance_factor << std::endl;
 		}
-		// Update the variance term
-		variance_factor    += log(vars_[variance_index + feature_idx]);
 	}
 
 	// apply operations on the end product of the terms and sum them
-	score = (variance_factor + distance_factor) / 2;
+	score = norm_[mixtures_[mixture_idx][density_idx].var_idx] + distance_factor / 2;
 
 	if (verbosity_ > noLog) {
-		/*
-		std::cerr << "Score of density: " << score
+
+		std::cout << "Score of density: " << score
+		          << " Probability:      " << exp(-1 * score)
 							<< " Mixture idx:      " << mixture_idx
 							<< " Density idx:      " << density_idx
 							<< std::endl;
-							*/
+
 	}
 
   return score;
