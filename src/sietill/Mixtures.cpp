@@ -167,10 +167,11 @@ MixtureModel::MixtureModel(Configuration const& config, size_t dimension, size_t
 			mean_accumulators_.push_back(0.0);
 
 			vars_.push_back(0.0);
-			var_accumulators_.push_back(0.0);
+			var_accumulators_.push_back(1e-6);
 
-			norm_.push_back(0.0);
 		}
+    norm_.push_back(0.0);
+
 		mean_weight_accumulators_.push_back(0.0);
 		var_weight_accumulators_.push_back(0.0);
 
@@ -290,7 +291,7 @@ void MixtureModel::accumulate(ConstAlignmentIter alignment_begin, ConstAlignment
   }
 }
 
-void MixtureModel::finalize2() {
+void MixtureModel::finalize() {
   if (verbosity_ > noLog) {
     std::cout<<"Maximization step"<<std::endl;
   }
@@ -350,7 +351,7 @@ void MixtureModel::finalize2() {
 }
 /*****************************************************************************/
 
-void MixtureModel::finalize() {
+void MixtureModel::finalize2() {
   // TODO: implement
 	if (verbosity_ > noLog) {
 	  std::cout<<"Maximization step"<<std::endl;
@@ -567,13 +568,13 @@ void MixtureModel::extend_mixture_model() {
 		vars_.push_back(0.0);
 		var_accumulators_.push_back(1e-6);
 
-		norm_.push_back(0.0);
 	}
 	mean_refs_.push_back(1);
 	var_refs_.push_back(1);
 
 	mean_weight_accumulators_.push_back(0.0);
 	var_weight_accumulators_.push_back(0.0);
+  norm_.push_back(0.0);
 
 	mean_weights_.push_back(0.0);
 }
@@ -623,6 +624,7 @@ double MixtureModel::density_score(FeatureIter const& iter, StateIdx mixture_idx
 	double mean_index     = mixtures_[mixture_idx][density_idx].mean_idx * dimension;
 	double variance_index = mixtures_[mixture_idx][density_idx].var_idx  * dimension;
 
+	//double variance_factor = log(pow(2 * M_PI, dimension));;
 	double distance_factor    = 0.0;
 	double distance_from_mean = 0.0;
 	for (size_t feature_idx = 0; feature_idx < dimension; feature_idx++) {
@@ -632,16 +634,20 @@ double MixtureModel::density_score(FeatureIter const& iter, StateIdx mixture_idx
 		distance_factor    += distance_from_mean * distance_from_mean / vars_[variance_index + feature_idx];
 
 		if (verbosity_ > noLog) {
+		  /*
 			std::cout << "Current mean / variance " << means_[mean_index + feature_idx] << " "
                                               << vars_[variance_index + feature_idx] << " "
                                               << std::endl;
 			std::cout << "Current distance_factor " << distance_factor << std::endl;
+			*/
 		}
+
+		//variance_factor += log(vars_[variance_index + feature_idx]);
 	}
 
 	// apply operations on the end product of the terms and sum them
 	score = norm_[mixtures_[mixture_idx][density_idx].var_idx] + distance_factor / 2;
-
+  //score = (variance_factor + distance_factor) / 2;
 	if (verbosity_ > noLog) {
 
 		std::cout << "Score of density: " << score
