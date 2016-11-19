@@ -324,8 +324,8 @@ void MixtureModel::finalize() {
                        vars_.begin()  + var_idx  * dimension,
                        minus_power<double>());
 
-        norm_[var_idx] = std::accumulate(vars_.begin() + var_idx,
-            vars_.begin() + var_idx + dimension,
+        norm_[var_idx] = std::accumulate(vars_.begin() + var_idx * dimension,
+            vars_.begin() + var_idx * dimension + dimension,
             dimension * log(2*M_PI),
             [](double const& x, double const& y) {
                 return x + log(y);
@@ -531,6 +531,7 @@ void MixtureModel::split(size_t min_obs) {
 
 				// copy mixture weights from the reference density
 				mean_weights_[new_md.mean_idx] = mean_weights_[mixtures_[mixture][density].mean_idx];
+        norm_[new_md.var_idx] = norm_[var_ref];
 
 				for (unsigned int dim = 0; dim < dimension; dim++) {
 					// current absolute variance
@@ -546,7 +547,6 @@ void MixtureModel::split(size_t min_obs) {
 					// when using mixture-level pooling, the variance does not need to updated!
 					// just copy the variance and normalization term
 					vars_[new_md.var_idx * dimension + dim] = vars_[var_ref + dim];
-					norm_[new_md.var_idx * dimension + dim] = norm_[var_ref + dim];
 				}
 				// put new density into current mixture
 				mixtures_[mixture].push_back(new_md);
@@ -639,7 +639,7 @@ double MixtureModel::density_score(FeatureIter const& iter, StateIdx mixture_idx
                                               << vars_[variance_index + feature_idx] << " "
                                               << std::endl;
 			std::cout << "Current distance_factor " << distance_factor << std::endl;
-			*/
+      */
 		}
 
 		//variance_factor += log(vars_[variance_index + feature_idx]);
