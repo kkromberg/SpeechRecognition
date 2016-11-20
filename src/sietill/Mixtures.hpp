@@ -58,6 +58,7 @@ private:
   void           calculate_variance    (DensityIdx var_idx, std::vector<double>::iterator means_iterator_begin);
   MixtureDensity create_mixture_density(DensityIdx mean_index, DensityIdx var_index);
   void           update_split_densities(MixtureDensity& md_original, MixtureDensity& md_split);
+  void           print_coding_progress();
 
   static const char     magic[8];
   static const uint32_t version;
