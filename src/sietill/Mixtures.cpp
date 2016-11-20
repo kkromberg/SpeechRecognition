@@ -438,12 +438,9 @@ void MixtureModel::finalize() {
 
 void MixtureModel::split(size_t min_obs) {
   // TODO: implement
-	unsigned int mean_ref, var_ref;
 	for (unsigned int mixture = 0; mixture < mixtures_.size(); mixture++) {// loop mixtures
 
 		for (int density = mixtures_[mixture].size() - 1; density >= 0; density--) {		// loop densities
-			mean_ref = mixtures_[mixture][density].mean_idx * dimension;
-			var_ref  = mixtures_[mixture][density].var_idx  * dimension;
 
 			// if accumulated weight > min_obs we have to split density
 			if (mean_weight_accumulators_[mixtures_[mixture][density].mean_idx] >= min_obs) {
