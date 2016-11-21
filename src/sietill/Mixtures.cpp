@@ -30,6 +30,13 @@ namespace {
   };
 
   template<typename T>
+    struct log_to_prob {
+      T operator()(T const& x) {
+        return exp(-1 * x);
+      }
+    };
+
+  template<typename T>
   struct minus_power {
     T operator()(T const& x, T const& y) {
       return x - y * y;
@@ -191,6 +198,7 @@ MixtureDensity MixtureModel::create_mixture_density(DensityIdx mean_index, Densi
 
   mean_refs_.push_back(1);
   mean_weights_.push_back(0.0);
+  mean_weights_log_.push_back(0.0);
   mean_weight_accumulators_.push_back(0.0);
   for (size_t feature_counter = 0; feature_counter < dimension; feature_counter++) {
     means_.push_back(0.0);
@@ -279,8 +287,7 @@ void MixtureModel::accumulate(ConstAlignmentIter alignment_begin, ConstAlignment
         // set the membership probability to 1 for the max_approx case
         membership_probabilities[d] = 1.0;
       } else if (!max_approx) {
-        membership_probabilities[d] = mean_weights_[mixtures_[m][d].mean_idx]
-                                    * exp(-1 * density_score(feature_iterator, m , d));
+        membership_probabilities[d] = exp(-1 *density_score(feature_iterator, m , d));
       }
     }
 
@@ -290,24 +297,25 @@ void MixtureModel::accumulate(ConstAlignmentIter alignment_begin, ConstAlignment
 
     if (!max_approx) {
       // Normalize the membership probabilities
+      //double sum_probability = sum_score(feature_iterator, m, NULL);
       double sum_probability = std::accumulate(membership_probabilities.begin(),
-                                               membership_probabilities.end()  , 0.0);
+      			membership_probabilities.end(), 0.0);
+
       std::transform(membership_probabilities.begin(), membership_probabilities.end(),
                      membership_probabilities.begin(), std::bind2nd(std::divides<double>(), sum_probability));
-
-      if (verbosity_ > noLog) {
-        std::cout << "sum_probability: " << sum_probability << std::endl;
-      }
     }
 
     if (verbosity_ > noLog) {
-      //dump_vector<double>(std::cout, membership_probabilities);
+			if (membership_probabilities.size() > 1) {
+				std::cout << "membership2" << std::endl;
+				dump_vector<double>(std::cout, membership_probabilities);
+			}
     }
 
     for (DensityIdx d = 0; d < mixtures_[m].size(); d++) {
 
       // Skip entries which can be ignored
-      if (membership_probabilities[d] == 0.0) {
+      if (membership_probabilities[d] < 1e-8) {
         continue;
       }
 
@@ -376,8 +384,9 @@ void MixtureModel::finalize() {
 
     // Calculate the density weights
     for (DensityIdx d = 0; d < mixtures_[m].size(); d++) {
-      DensityIdx mean_idx     = mixtures_[m][d].mean_idx;
-      mean_weights_[mean_idx] = mean_weight_accumulators_[mean_idx] / total_mixture_observations;
+      DensityIdx mean_idx         = mixtures_[m][d].mean_idx;
+      mean_weights_[mean_idx]     = mean_weight_accumulators_[mean_idx] / total_mixture_observations;
+      mean_weights_log_[mean_idx] = log(mean_weights_[mean_idx]);
     }
 
     if (var_model == MIXTURE_POOLING) {
@@ -471,7 +480,8 @@ void MixtureModel::update_split_densities(MixtureDensity& md_original, MixtureDe
   DensityIdx var_idx_split     = md_split.var_idx;
 
   // copy mixture weights from the reference density
-  mean_weights_[mean_idx_split] = mean_weights_[mean_idx_original];
+  mean_weights_[mean_idx_split]     = mean_weights_[mean_idx_original];
+  mean_weights_log_[mean_idx_split] = mean_weights_log_[mean_idx_original];
 
   for (unsigned int dim = 0; dim < dimension; dim++) {
     // calculate the term to shift the means by
@@ -557,28 +567,24 @@ double MixtureModel::density_score(FeatureIter const& iter, StateIdx mixture_idx
 		distance_factor    += distance_from_mean * distance_from_mean / vars_[variance_index + feature_idx];
 
 		if (verbosity_ > noLog) {
-		  /*
 			std::cout << "Current mean / variance " << means_[mean_index + feature_idx] << " "
                                               << vars_[variance_index + feature_idx] << " "
                                               << std::endl;
 			std::cout << "Current distance_factor " << distance_factor << std::endl;
-			*/
-
 		}
 
 	}
 
 	// apply operations on the end product of the terms and sum them
 	score = norm_[mixtures_[mixture_idx][density_idx].var_idx] + distance_factor / 2;
+	score -= mean_weights_log_[mixtures_[mixture_idx][density_idx].mean_idx];
 
 	if (verbosity_ > noLog) {
-/*
 		std::cout << "Score of density: " << score
 		          << " Probability:      " << exp(-1 * score)
 							<< " Mixture idx:      " << mixture_idx
 							<< " Density idx:      " << density_idx
 							<< std::endl;
-*/
 	}
 
   return score;
@@ -612,21 +618,12 @@ std::pair<double, DensityIdx> MixtureModel::min_score(FeatureIter const& iter, S
 // compute the 'full' score of a feature vector for a given mixture. The weights
 // of each density are stored in weights and should sum up to 1.0
 double MixtureModel::sum_score(FeatureIter const& iter, StateIdx mixture_idx, std::vector<double>* weights) const {
-
-	assert(weights != NULL);
-	if (verbosity_ > debugLog) {
-		double sum = 0.0;
-		for (size_t i = 0; i < weights->size(); i++) {
-			sum += weights->at(i);
-		}
-		std::cerr << "Sum of weights in MixtureModel::sum_score " << sum << std::endl;
-	}
-
   size_t n_densities = mixtures_[mixture_idx].size();
   double score       = 0.0;
 
   for (size_t density_idx = 0; density_idx < n_densities; density_idx++) {
-  	score += (*weights)[density_idx] * pow(M_E, -1 * density_score(iter, mixture_idx, density_idx));
+  	//score = logsum(score, -1 * density_score(iter, mixture_idx, density_idx));
+  	score += exp(-1 * density_score(iter, mixture_idx, density_idx));
   }
 
   return -log(score);
@@ -644,16 +641,18 @@ double MixtureModel::score(FeatureIter const& iter, StateIdx mixture_idx) const 
     return min_score(iter, mixture_idx).first;
   }
   else {
-  	std::vector<double> weights;
+  	/* Why do we need to compute this for the sum score??
   	size_t						  n_densities = mixtures_[mixture_idx].size();
   	size_t							weight_idx = 0;
+  	std::vector<double> weights = new std;
+
 
   	for (size_t density_idx = 0; density_idx < n_densities; density_idx++) {
   		weight_idx = mixtures_[mixture_idx][density_idx].mean_idx;
   		weights.push_back(mean_weights_[weight_idx]);
   	}
-
-    return sum_score(iter, mixture_idx, &weights);
+		*/
+    return sum_score(iter, mixture_idx, NULL);
   }
 }
 
