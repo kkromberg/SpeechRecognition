@@ -16,8 +16,14 @@
 
 class Aligner {
 public:
+
+	// Data structures for a 2D alignment using dynamic programming
+	typedef std::vector< std::vector<double> >    CostMatrix;
+	typedef std::vector< std::vector<size_t> > 	 BackpointerMatrix;
+
   Aligner(MixtureModel const& mixtures, TdpModel const& tdp_model, size_t max_aligns);
 
+  double compute_local_costs(StateIdx state, double feature);
   double align_sequence_full(FeatureIter feature_begin, FeatureIter feature_end,
                              MarkovAutomaton const& reference,
                              AlignmentIter align_begin, AlignmentIter align_end);
