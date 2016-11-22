@@ -5,6 +5,7 @@
 /*****************************************************************************/
 
 #include "Alignment.hpp"
+#include "Util.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -45,28 +46,24 @@ double Aligner::align_sequence_full(FeatureIter feature_begin, FeatureIter featu
 	BackpointerMatrix backpointer_matrix;
 	int feature_number = feature_end - feature_begin;
 	int state_number   = reference.num_states();
-	std::cerr << "Number of features: " << feature_number << std::endl;
 	// initialise cost and backpointer matrix
 	for (StateIdx state = 0; state < state_number; state++){
 		cost_matrix.push_back(std::vector<double>(feature_number, std::numeric_limits<double>::infinity())); // set costs to infinity
 		backpointer_matrix.push_back(std::vector<size_t>(feature_number, 0));													  	 // backpointer initially with zeros
 	}
 
-	double local_costs, previous_costs, previous_min_costs, loop_costs, forward_costs, skip_costs = std::numeric_limits<double>::infinity();
+	// cost variables
+	double local_costs, loop_costs = std::numeric_limits<double>::infinity(),
+				 forward_costs = std::numeric_limits<double>::infinity(),
+				 skip_costs = std::numeric_limits<double>::infinity();
 
 	int max_state = 2;
-	int min_state = state_number-1-(feature_number*4);
-	size_t t = 1;
+	int min_state = state_number-1-(feature_number-2)*2;
 	// costs for the first point are fixed
 	cost_matrix[0][0] = mixtures_.score(feature_begin, reference[0]);
-
-	for (FeatureIter feature_iter = feature_begin+1; feature_iter != feature_end; feature_iter++,t++, min_state += 2, max_state += 2) { // loop features
-		//TODO determine slope for the current point
-		//double result = tdp_model_.score(0, 0);
-		int min = min_state;
-		int max = max_state;
-		//StateIdx min = std::min(state_number-1, max_state);
-		for (StateIdx state = std::max(0, min); state < std::min(state_number-1, max); state++) { // loop states
+	size_t t = 1;
+	for (FeatureIter feature_iter = feature_begin+1; feature_iter != feature_end+1; feature_iter++,t++, min_state += 2, max_state += 2) { // loop features
+		for (StateIdx state = std::max(0, min_state); state <= std::min(state_number-1, max_state); state++) { // loop states
 				// compute local costs
 				local_costs = mixtures_.score(feature_iter, reference[state]);
 				// compute transition plus corresponding penalty costs
@@ -90,7 +87,6 @@ double Aligner::align_sequence_full(FeatureIter feature_begin, FeatureIter featu
 	for (AlignmentIter align_iter = align_begin; align_iter != align_end; align_iter++) { // loop
 			//(*align_iter)->state = automaton_state
 	}
-
 	// return the last entry from the cost matrix
   return cost_matrix[state_number-1][feature_number-1];
 }
