@@ -63,14 +63,14 @@ double Aligner::align_sequence_full(FeatureIter feature_begin, FeatureIter featu
 		for (StateIdx state = 0; state < state_number; state++) { // loop states
 			// already given
 			if (t == 0 && state == 0){
-				continue;
+				;
 			}
-			else{
+			else if (t > 0){
 				// compute local costs
 				local_costs = mixtures_.score(feature_iter, reference[state]);
 				// compute transition plus corresponding penalty costs
 				// (t-1) loop costs: previous costs + tdp
-				loop_costs = cost_matrix[state][t-1] + tdp_model_.score(reference[state-1], 0);
+				loop_costs = cost_matrix[state][t-1] + tdp_model_.score(reference[state], 0);
 
 				if (state > 0) {
 					// (s-1)(n-1)
@@ -78,7 +78,7 @@ double Aligner::align_sequence_full(FeatureIter feature_begin, FeatureIter featu
 				}
 				if (state > 1) {
 					// (s-2)(n-1)
-					skip_costs = cost_matrix[state-2][t-1] + tdp_model_.score(reference[state-2], 1);
+					skip_costs = cost_matrix[state-2][t-1] + tdp_model_.score(reference[state-2], 2);
 				}
 				// store minimal costs for current point
 				cost_matrix[state][t] = local_costs + std::min(loop_costs, std::min(forward_costs, skip_costs));
