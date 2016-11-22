@@ -52,31 +52,39 @@ double Aligner::align_sequence_full(FeatureIter feature_begin, FeatureIter featu
 		backpointer_matrix.push_back(std::vector<size_t>(feature_number, 0));													  	 // backpointer initially with zeros
 	}
 
-	double local_costs, loop_costs, forward_costs, skip_costs = std::numeric_limits<double>::infinity();
-	size_t n = 0;
+	double local_costs, previous_costs, previous_min_costs, loop_costs, forward_costs, skip_costs = std::numeric_limits<double>::infinity();
+	size_t t = 0;
 	// costs for the first point are fixed
-	cost_matrix[0][0] = compute_local_costs( reference[0], *(*feature_begin));
+	cost_matrix[0][0] = mixtures_.score(feature_begin, reference[0]);
 
-	for (FeatureIter feature_iter = feature_begin; feature_iter != feature_end; feature_iter++, n++) { // loop features
+	for (FeatureIter feature_iter = feature_begin; feature_iter != feature_end; feature_iter++, t++) { // loop features
 		//TODO determine slope for the current point
 		//double result = tdp_model_.score(0, 0);
 		for (StateIdx state = 0; state < state_number; state++) { // loop states
+			// already given
+			if (t == 0 && state == 0){
+				continue;
+			}
+			else{
+				// compute local costs
+				local_costs = mixtures_.score(feature_iter, reference[state]);
+				// compute transition plus corresponding penalty costs
+				// (t-1) loop costs: previous costs + tdp
+				loop_costs = cost_matrix[state][t-1] + tdp_model_.score(reference[state-1], 0);
 
-			local_costs = compute_local_costs(reference[state], **feature_iter);
-			// (t-1) loop costs
-			loop_costs    = cost_matrix[state][n];
-			if (((state-1) >= 0) && ((n-1) >= 0)){  // avoid out of bounds error
-				// (t-1)(s-1) forward_costs
-				forward_costs = cost_matrix[state-1][n-1];
-				if (state -2 >= 0){ // avoid out of bound error
-					// (t-1)(s-2) skip costs
-					skip_costs = cost_matrix[state-2][n-1];
+				if (state > 0) {
+					// (s-1)(n-1)
+					forward_costs = cost_matrix[state-1][t-1] + tdp_model_.score(reference[state-1], 1);
+				}
+				if (state > 1) {
+					// (s-2)(n-1)
+					skip_costs = cost_matrix[state-2][t-1] + tdp_model_.score(reference[state-2], 1);
+				}
+				// store minimal costs for current point
+				cost_matrix[state][t] = local_costs + std::min(loop_costs, std::min(forward_costs, skip_costs));
 				}
 			}
-			// store minimal costs for current point
-			cost_matrix[state][n] = local_costs + std::min(loop_costs,std::min(forward_costs, skip_costs));
 		}
-	}
 
 	// TODO mapping of automaton states to alignment
 	for (AlignmentIter align_iter = align_begin; align_iter != align_end; align_iter++) { // loop
