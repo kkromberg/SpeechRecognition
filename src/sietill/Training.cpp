@@ -78,7 +78,7 @@ void Trainer::train(Corpus const& corpus) {
   	//std::cerr << corpus.get_file_name(s) << std::endl;
     std::pair<FeatureIter, FeatureIter> features = corpus.get_feature_sequence(s);
     align_timer.tick();
-    std::pair<size_t, size_t> boundaries = linear_segmentation_approximation(
+    std::pair<size_t, size_t> boundaries = linear_segmentation_running_sums(
         segment_automata[s],
         features.first,
         features.second,
@@ -163,7 +163,7 @@ void Trainer::train(Corpus const& corpus) {
                                            pruning_threshold_);
           }
           else {
-            aligner_.align_sequence_full(seq.first, seq.second,
+            aligner_.align_sequence_fwdbwd(seq.first, seq.second,
                                          segment_automata[s],
                                          alignment_begin, alignment_end);
           }
@@ -524,7 +524,7 @@ void Trainer::linear_segmentation_alignment_mapping(
 
     // set the mapping
     StateIdx current_state = automaton[state_idx];
-    (*it)->state = current_state;
+    (*it)[0].state = current_state;
     //std::cerr << "f(" << n << ")" << " = " << state_idx << " " << (*it)->state << std::endl;
   }
 }
@@ -586,6 +586,8 @@ double Trainer::calc_am_score(Corpus const& corpus, Alignment const& alignment) 
 
       // Calculate the acoustic model score p(x|s)
       total_score += mixtures_.score(feature_iter, mixture_idx);
+
+      //dump_alignment(std::cerr, alignment, num_max_aligns_);
     }
   }
 

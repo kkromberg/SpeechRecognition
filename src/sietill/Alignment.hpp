@@ -25,12 +25,28 @@ public:
                                MarkovAutomaton const& reference,
                                AlignmentIter align_begin, AlignmentIter align_end,
                                double pruning_threshold);
+  double align_sequence_fwdbwd(FeatureIter feature_begin, FeatureIter feature_end,
+                             MarkovAutomaton const& reference,
+                             AlignmentIter align_begin, AlignmentIter align_end);
 
 private:
   MixtureModel const& mixtures_;
   TdpModel     const& tdp_model_;
 
   size_t max_aligns_;
+
+  typedef std::vector<double>     CostColumn;
+  typedef std::vector<CostColumn> CostMatrix;
+
+  CostMatrix forward_pass (FeatureIter feature_begin, FeatureIter feature_end,
+	 	 	 	 	 	 	 	 	 	 	 	 	MarkovAutomaton const& reference);
+  CostMatrix backward_pass(FeatureIter feature_begin, FeatureIter feature_end,
+	 	 	 	 	 	 	 	 	 	 	 	 	MarkovAutomaton const& reference);
+  double     path_probability(const CostMatrix& forward_matrix, const CostMatrix& backward_matrix,
+  														StateIdx feature, StateIdx state_idx);
+	void weighted_alignment_mapping(const FeatureIter& feature_begin,
+			const AlignmentIter& align_begin, const AlignmentIter& align_end,
+			const CostMatrix& path_probability_matrix);
 };
 
 void dump_alignment (std::ostream& out, Alignment const& alignment, size_t  max_aligns);

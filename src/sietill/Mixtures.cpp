@@ -567,10 +567,12 @@ double MixtureModel::density_score(FeatureIter const& iter, StateIdx mixture_idx
 		distance_factor    += distance_from_mean * distance_from_mean / vars_[variance_index + feature_idx];
 
 		if (verbosity_ > noLog) {
+			/*
 			std::cout << "Current mean / variance " << means_[mean_index + feature_idx] << " "
                                               << vars_[variance_index + feature_idx] << " "
                                               << std::endl;
 			std::cout << "Current distance_factor " << distance_factor << std::endl;
+			*/
 		}
 
 	}
@@ -580,11 +582,13 @@ double MixtureModel::density_score(FeatureIter const& iter, StateIdx mixture_idx
 	score -= mean_weights_log_[mixtures_[mixture_idx][density_idx].mean_idx];
 
 	if (verbosity_ > noLog) {
+		/*
 		std::cout << "Score of density: " << score
 		          << " Probability:      " << exp(-1 * score)
 							<< " Mixture idx:      " << mixture_idx
 							<< " Density idx:      " << density_idx
 							<< std::endl;
+							*/
 	}
 
   return score;
