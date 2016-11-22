@@ -43,8 +43,8 @@ double Aligner::align_sequence_full(FeatureIter feature_begin, FeatureIter featu
   // TODO: implement
 	CostMatrix cost_matrix;
 	BackpointerMatrix backpointer_matrix;
-	size_t feature_number = feature_end - feature_begin;
-	size_t state_number   = reference.num_states();
+	int feature_number = feature_end - feature_begin;
+	int state_number   = reference.num_states();
 	std::cerr << "Number of features: " << feature_number << std::endl;
 	// initialise cost and backpointer matrix
 	for (StateIdx state = 0; state < state_number; state++){
@@ -53,19 +53,20 @@ double Aligner::align_sequence_full(FeatureIter feature_begin, FeatureIter featu
 	}
 
 	double local_costs, previous_costs, previous_min_costs, loop_costs, forward_costs, skip_costs = std::numeric_limits<double>::infinity();
-	size_t t = 0;
+
+	int max_state = 2;
+	int min_state = state_number-1-(feature_number*4);
+	size_t t = 1;
 	// costs for the first point are fixed
 	cost_matrix[0][0] = mixtures_.score(feature_begin, reference[0]);
 
-	for (FeatureIter feature_iter = feature_begin; feature_iter != feature_end; feature_iter++, t++) { // loop features
+	for (FeatureIter feature_iter = feature_begin+1; feature_iter != feature_end; feature_iter++,t++, min_state += 2, max_state += 2) { // loop features
 		//TODO determine slope for the current point
 		//double result = tdp_model_.score(0, 0);
-		for (StateIdx state = 0; state < state_number; state++) { // loop states
-			// already given
-			if (t == 0 && state == 0){
-				;
-			}
-			else if (t > 0){
+		int min = min_state;
+		int max = max_state;
+		//StateIdx min = std::min(state_number-1, max_state);
+		for (StateIdx state = std::max(0, min); state < std::min(state_number-1, max); state++) { // loop states
 				// compute local costs
 				local_costs = mixtures_.score(feature_iter, reference[state]);
 				// compute transition plus corresponding penalty costs
@@ -83,7 +84,6 @@ double Aligner::align_sequence_full(FeatureIter feature_begin, FeatureIter featu
 				// store minimal costs for current point
 				cost_matrix[state][t] = local_costs + std::min(loop_costs, std::min(forward_costs, skip_costs));
 				}
-			}
 		}
 
 	// TODO mapping of automaton states to alignment
@@ -95,11 +95,6 @@ double Aligner::align_sequence_full(FeatureIter feature_begin, FeatureIter featu
   return cost_matrix[state_number-1][feature_number-1];
 }
 
-
-double Aligner::compute_local_costs(StateIdx state, double feature) {
-	double costs = fabs(state - feature);
-	return costs;
-}
 /*****************************************************************************/
 
 double Aligner::align_sequence_pruned(FeatureIter feature_begin, FeatureIter feature_end,
