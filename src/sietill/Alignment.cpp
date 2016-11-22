@@ -49,7 +49,7 @@ double Aligner::align_sequence_full(FeatureIter feature_begin, FeatureIter featu
 	// initialise cost and backpointer matrix
 	for (StateIdx state = 0; state < state_number; state++){
 		cost_matrix.push_back(std::vector<double>(feature_number, std::numeric_limits<double>::infinity())); // set costs to infinity
-		backpointer_matrix.push_back(std::vector<size_t>(feature_number, 0));													  	 // backpointer initially with zeros
+		backpointer_matrix.push_back(std::vector<size_t>(feature_number, -1));													  	 // backpointer initially with zeros
 	}
 
 	// cost variables
@@ -63,28 +63,49 @@ double Aligner::align_sequence_full(FeatureIter feature_begin, FeatureIter featu
 	cost_matrix[0][0] = mixtures_.score(feature_begin, reference[0]);
 	size_t t = 1;
 	for (FeatureIter feature_iter = feature_begin+1; feature_iter != feature_end+1; feature_iter++,t++, min_state += 2, max_state += 2) { // loop features
+		size_t best_state = 0;
 		for (StateIdx state = std::max(0, min_state); state <= std::min(state_number-1, max_state); state++) { // loop states
-				// compute local costs
-				local_costs = mixtures_.score(feature_iter, reference[state]);
-				// compute transition plus corresponding penalty costs
-				// (t-1) loop costs: previous costs + tdp
-				loop_costs = cost_matrix[state][t-1] + tdp_model_.score(reference[state], 0);
+			// compute local costs / emission probability
+			local_costs = mixtures_.score(feature_iter, reference[state]);
+			// compute transition plus corresponding penalty costs
+			// (t-1) loop costs: previous costs + tdp
+			loop_costs = cost_matrix[state][t-1] + tdp_model_.score(reference[state], 0);
+			double best_costs = loop_costs;
+			int taken_transition = 0;
+			if (state > 0) {
+				// (s-1)(n-1)
+				forward_costs = cost_matrix[state-1][t-1] + tdp_model_.score(reference[state-1], 1);
+				if (forward_costs < best_costs){
+					best_costs = forward_costs;
+					taken_transition = 1;
+				}
+			}
+			if (state > 1) {
+				// (s-2)(n-1)
+				skip_costs = cost_matrix[state-2][t-1] + tdp_model_.score(reference[state-2], 2);
+				if (skip_costs < best_costs) {
+					best_costs = skip_costs;
+					taken_transition = 2;
+				}
+			}
+			// store minimal costs for current point
+			cost_matrix[state][t] = local_costs + best_costs;
 
-				if (state > 0) {
-					// (s-1)(n-1)
-					forward_costs = cost_matrix[state-1][t-1] + tdp_model_.score(reference[state-1], 1);
-				}
-				if (state > 1) {
-					// (s-2)(n-1)
-					skip_costs = cost_matrix[state-2][t-1] + tdp_model_.score(reference[state-2], 2);
-				}
-				// store minimal costs for current point
-				cost_matrix[state][t] = local_costs + std::min(loop_costs, std::min(forward_costs, skip_costs));
-				}
+			// determine where the best transition came from
+			if (taken_transition == 0){ // loop transition was best
+				backpointer_matrix[state][t] = state;
+			}
+			else if (taken_transition == 1) { // forward transition was best
+				backpointer_matrix[state][t] = state-1;
+			}
+			else { // skip transition was the best
+				backpointer_matrix[state][t] = state-2;
+			}
 		}
+	}
 
 	// TODO mapping of automaton states to alignment
-	for (AlignmentIter align_iter = align_begin; align_iter != align_end; align_iter++) { // loop
+	for (AlignmentIter align_iter = align_end; align_iter != align_begin; align_iter--) { // loop
 			//(*align_iter)->state = automaton_state
 	}
 	// return the last entry from the cost matrix
