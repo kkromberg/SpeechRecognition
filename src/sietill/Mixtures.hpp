@@ -68,6 +68,7 @@ private:
   std::vector<double> means_;
   std::vector<double> mean_accumulators_;
   std::vector<double> mean_weights_;
+  std::vector<double> mean_weights_log_;
   std::vector<double> mean_weight_accumulators_;
   std::vector<size_t> mean_refs_;
 
