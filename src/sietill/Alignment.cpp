@@ -89,18 +89,19 @@ double Aligner::align_sequence_full(FeatureIter feature_begin, FeatureIter featu
 				}
 		//std::cout<<std::endl;
 		}
-
-
-
-
 	// TODO mapping of automaton states to alignment
-	for (AlignmentIter align_iter = align_begin; align_iter != align_end; align_iter++) { // loop
-			//(*align_iter)->state = automaton_state
+	size_t feature_index = feature_number - 1;
+			size_t state_index   = state_number - 1;
+			for (AlignmentIter align_iter = align_end-1; align_iter != align_begin - 1; align_iter--, feature_index--) { // loop
+				StateIdx automaton_state = reference[state_index];
+				(*align_iter)->state = automaton_state;
+				//std::cout << feature_index << " " << state_index << std::endl;
+				state_index = backpointer_matrix[state_index][feature_index];
+			}
+			// return the cost of best path
+	  return cost_matrix[state_number-1][feature_number-1];
 	}
 
-	// return the cost of best path
-  return 0.0;
-}
 
 /*****************************************************************************/
 
@@ -135,7 +136,7 @@ double Aligner::align_sequence_pruned(FeatureIter feature_begin, FeatureIter fea
 			int max = max_state;
 			//std::cout<<std::endl<<" ";
 			double min_cost = std::numeric_limits<double>::infinity();
-			for (StateIdx state = std::max(0, min); state < std::min(state_number-1, max); state++) {
+			for (StateIdx state = std::max(0, min); state <= std::min(state_number-1, max); state++) {
 				//std::cout<<"State number "<<state<<std::endl;// loop states
 					local_costs = mixtures_.score(feature_iter, reference[state]);
 					//std::cout<<state<<std::endl<<" ";
@@ -164,17 +165,17 @@ double Aligner::align_sequence_pruned(FeatureIter feature_begin, FeatureIter fea
 			}
 			//std::cout<<std::endl;
 			}
-
-
-
-
 		// TODO mapping of automaton states to alignment
-		for (AlignmentIter align_iter = align_begin; align_iter != align_end; align_iter++) { // loop
-				//(*align_iter)->state = automaton_state
+		size_t feature_index = feature_number - 1;
+		size_t state_index   = state_number - 1;
+		for (AlignmentIter align_iter = align_end-1; align_iter != align_begin - 1; align_iter--, feature_index--) { // loop
+			StateIdx automaton_state = reference[state_index];
+			(*align_iter)->state = automaton_state;
+			//std::cout << feature_index << " " << state_index << std::endl;
+			state_index = backpointer_matrix[state_index][feature_index];
 		}
-
 		// return the cost of best path
-  return 0.0;
+  return cost_matrix[state_number-1][feature_number-1];
 }
 
 /*****************************************************************************/
