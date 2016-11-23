@@ -75,9 +75,12 @@ double Aligner::align_sequence_full(FeatureIter feature_begin, FeatureIter featu
 	size_t t = 1;
 	for (FeatureIter feature_iter = feature_begin+1; feature_iter != feature_end+1; feature_iter++,t++, min_state += 2, max_state += 2) { // loop features
 		size_t best_state = 0;
+		StateIdx previous_state = 0;
 		for (StateIdx state = std::max(0, min_state); state <= std::min(state_number-1, max_state); state++) { // loop states
 			// compute local costs / emission probability
-			local_costs = mixtures_.score(feature_iter, reference[state]);
+			if (previous_state != state){
+				local_costs = mixtures_.score(feature_iter, reference[state]);
+			}
 			// compute transition plus corresponding penalty costs
 			// (t-1) loop costs: previous costs + tdp
 			loop_costs = cost_matrix[state][t-1] + tdp_model_.score(reference[state], 0);
@@ -101,9 +104,9 @@ double Aligner::align_sequence_full(FeatureIter feature_begin, FeatureIter featu
 			}
 			// store minimal costs for current point
 			cost_matrix[state][t] = local_costs + best_costs;
-
 			// determine where the best transition came from
 			backpointer_matrix[state][t] = state - taken_transition;
+			previous_state = state;
 		}
 	}
 
