@@ -16,6 +16,8 @@
 
 class Aligner {
 public:
+  typedef std::vector< std::vector<double> >    CostMatrix;
+	typedef std::vector< std::vector<size_t> > 	 BackpointerMatrix;
   Aligner(MixtureModel const& mixtures, TdpModel const& tdp_model, size_t max_aligns);
 
   double align_sequence_full(FeatureIter feature_begin, FeatureIter feature_end,
