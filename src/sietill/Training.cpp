@@ -505,6 +505,7 @@ void Trainer::linear_segmentation_alignment_mapping(
   // Calculate the slope of the linear alignment (within the boundary range)
   double states_per_vector = ((float) (automaton.num_states())) / (boundaries.second - boundaries.first);
 
+  //std::cout << "Old alignment: " << std::endl;
   size_t n = 0;
   size_t state_idx = 0;
   // Assign each vector a state. Note that it is possible for vectors to be aligned to the same state and vice-versa
@@ -525,7 +526,9 @@ void Trainer::linear_segmentation_alignment_mapping(
     // set the mapping
     StateIdx current_state = automaton[state_idx];
     (*it)->state = current_state;
+    (*it)->count = 1;
     //std::cerr << "f(" << n << ")" << " = " << state_idx << " " << (*it)->state << std::endl;
+    //std::cout << n << " " << state_idx << std::endl;
   }
 }
 
@@ -571,21 +574,24 @@ double Trainer::calc_am_score(Corpus const& corpus, Alignment const& alignment) 
   size_t              total_frames = 0;
   double              total_score = 0.0;
 
+  ConstAlignmentIter align_iter = ConstAlignmentIter(&*(alignment.begin()), num_max_aligns_);
   for (SegmentIdx s = 0u; s < corpus.get_corpus_size(); s++) {
     std::pair<FeatureIter, FeatureIter> features = corpus.get_feature_sequence(s);
     total_frames += features.second - features.first;
     segment_offsets.push_back(total_frames);
 
-    size_t n = 0;
+    //std::cout << "new segment" << std::endl;
     for (FeatureIter feature_iter = features.first;
          feature_iter != features.second;
-         feature_iter++, n++) {
+         feature_iter++, align_iter++) {
 
       // The mixture index is given by the state index (there is exactly one mixture per state)
-      StateIdx mixture_idx = alignment[n].state;
+      StateIdx mixture_idx = (*align_iter)[0].state;
 
       // Calculate the acoustic model score p(x|s)
       total_score += mixtures_.score(feature_iter, mixture_idx);
+
+      //std::cout << n << " " << mixture_idx << " " << mixtures_.score(feature_iter, mixture_idx) << std::endl;
     }
   }
 
