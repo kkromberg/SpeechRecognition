@@ -16,7 +16,8 @@ def plot(X, Y, labels, splits):
     # draw lines for splits which were made by alignment
     for i in range(1,len(splits)):
         if splits[i] == 0:
-            plt.axvline(x=i, color='r')
+            plt.axvline(x=i, color='r', linestyle='dashed')
+
 
     plt.ylim([np.min(Y), np.max(Y) + 5])
     plt.xticks(X)
