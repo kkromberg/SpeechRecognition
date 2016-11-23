@@ -16,6 +16,16 @@
 /*****************************************************************************/
 
 namespace {
+
+	template<typename T>
+	struct dump_vector {
+		dump_vector(std::ostream& stream, std::vector<T> const& vector) {
+			for (auto it : vector ) {
+				stream << it << " ";
+			}
+			stream << "\n";
+		}
+	};
   // compute -log(exp(-a) + exp(-b)) using the following equality:
   // -log(exp(-a) + exp(-b)) = -log(exp(-a-c) + exp(-b-c)) - c
   //                         = -log(1 + exp(-abs(a-b))) - c
@@ -40,6 +50,7 @@ Aligner::Aligner(MixtureModel const& mixtures, TdpModel const& tdp_model, size_t
 double Aligner::align_sequence_full(FeatureIter feature_begin, FeatureIter feature_end,
                                     MarkovAutomaton const& reference,
                                     AlignmentIter align_begin, AlignmentIter align_end) {
+
 
   // TODO: implement
 	CostMatrix cost_matrix;
@@ -92,31 +103,23 @@ double Aligner::align_sequence_full(FeatureIter feature_begin, FeatureIter featu
 			cost_matrix[state][t] = local_costs + best_costs;
 
 			// determine where the best transition came from
-			if (taken_transition == 0){ // loop transition was best
-				backpointer_matrix[state][t] = state;
-			}
-			else if (taken_transition == 1) { // forward transition was best
-				backpointer_matrix[state][t] = state-1;
-			}
-			else { // skip transition was the best
-				backpointer_matrix[state][t] = state-2;
-			}
+			backpointer_matrix[state][t] = state - taken_transition;
 		}
 	}
 
+
+	//std::cout << "New alignment: " << std::endl;
 	// TODO mapping of automaton states to alignment
-	int counter = feature_number-1;
-	for (AlignmentIter align_iter = align_end-1; align_iter != align_begin; align_iter--, counter--) { // loop alignment
-		//std::cerr << "COUNTER: " << counter << std::endl;
-		for (StateIdx state = state_number-1; state >= 0; state--) {
-			//std::cerr << "STATE: " << state << std::endl;
-			if (backpointer_matrix[state][counter] != -1) {
-				(*align_iter)->state = reference[state];
-				break;
-			}
-		}
-			//(*align_iter)->state = automaton_state
+	size_t feature_index = feature_number - 1;
+	size_t state_index   = state_number - 1;
+	for (AlignmentIter align_iter = align_end-1; align_iter != align_begin - 1; align_iter--, feature_index--) { // loop alignment
+		StateIdx automaton_state = reference[state_index];
+		(*align_iter)->state = automaton_state;
+
+		//std::cout << feature_index << " " << state_index << std::endl;
+		state_index = backpointer_matrix[state_index][feature_index];
 	}
+
 	// return the last entry from the cost matrix
   return cost_matrix[state_number-1][feature_number-1];
 }
