@@ -49,7 +49,7 @@ double Aligner::align_sequence_full(FeatureIter feature_begin, FeatureIter featu
 	// initialise cost and backpointer matrix
 	for (StateIdx state = 0; state < state_number; state++){
 		cost_matrix.push_back(std::vector<double>(feature_number, std::numeric_limits<double>::infinity())); // set costs to infinity
-		backpointer_matrix.push_back(std::vector<size_t>(feature_number, -1));													  	 // backpointer initially with zeros
+		backpointer_matrix.push_back(std::vector<int>(feature_number, -1));													  	 // backpointer initially with zeros
 	}
 
 	// cost variables
@@ -105,7 +105,16 @@ double Aligner::align_sequence_full(FeatureIter feature_begin, FeatureIter featu
 	}
 
 	// TODO mapping of automaton states to alignment
-	for (AlignmentIter align_iter = align_end; align_iter != align_begin; align_iter--) { // loop
+	int counter = feature_number-1;
+	for (AlignmentIter align_iter = align_end-1; align_iter != align_begin; align_iter--, counter--) { // loop alignment
+		//std::cerr << "COUNTER: " << counter << std::endl;
+		for (StateIdx state = state_number-1; state >= 0; state--) {
+			//std::cerr << "STATE: " << state << std::endl;
+			if (backpointer_matrix[state][counter] != -1) {
+				(*align_iter)->state = reference[state];
+				break;
+			}
+		}
 			//(*align_iter)->state = automaton_state
 	}
 	// return the last entry from the cost matrix

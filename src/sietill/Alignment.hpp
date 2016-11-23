@@ -19,7 +19,7 @@ public:
 
 	// Data structures for a 2D alignment using dynamic programming
 	typedef std::vector< std::vector<double> >    CostMatrix;
-	typedef std::vector< std::vector<size_t> > 	 BackpointerMatrix;
+	typedef std::vector< std::vector<int> > 	 BackpointerMatrix;
 
   Aligner(MixtureModel const& mixtures, TdpModel const& tdp_model, size_t max_aligns);
 
