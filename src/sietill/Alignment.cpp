@@ -75,7 +75,7 @@ double Aligner::align_sequence_full(FeatureIter feature_begin, FeatureIter featu
 	size_t t = 1;
 	for (FeatureIter feature_iter = feature_begin+1; feature_iter != feature_end+1; feature_iter++,t++, min_state += 2, max_state += 2) { // loop features
 		size_t best_state = 0;
-		StateIdx previous_state = 0;
+		StateIdx previous_state = -1;
 		for (StateIdx state = std::max(0, min_state); state <= std::min(state_number-1, max_state); state++) { // loop states
 			// compute local costs / emission probability
 			if (previous_state != state){
