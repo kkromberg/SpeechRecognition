@@ -591,7 +591,7 @@ double Trainer::calc_am_score(Corpus const& corpus, Alignment const& alignment) 
       // Calculate the acoustic model score p(x|s)
       total_score += mixtures_.score(feature_iter, mixture_idx);
 
-      //std::cout << n << " " << mixture_idx << " " << mixtures_.score(feature_iter, mixture_idx) << std::endl;
+      //std::cout << mixture_idx << " " << mixtures_.score(feature_iter, mixture_idx) << std::endl;
     }
   }
 

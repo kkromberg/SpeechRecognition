@@ -622,11 +622,10 @@ double MixtureModel::sum_score(FeatureIter const& iter, StateIdx mixture_idx, st
   double score       = 0.0;
 
   for (size_t density_idx = 0; density_idx < n_densities; density_idx++) {
-  	//score = logsum(score, -1 * density_score(iter, mixture_idx, density_idx));
-  	score += exp(-1 * density_score(iter, mixture_idx, density_idx));
+  	score += exp( -1 * density_score(iter, mixture_idx, density_idx));
   }
 
-  return -log(score);
+  return -1 * log(score);
 }
 
 /*****************************************************************************/
