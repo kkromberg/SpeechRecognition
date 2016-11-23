@@ -187,7 +187,7 @@ double Aligner::align_sequence_pruned(FeatureIter feature_begin, FeatureIter fea
 		}
 
 		//traverse through the states to discard bad hypothesizes
-		for (StateIdx state = std::max(0, min); state < std::min(state_number-1, max); state++) {
+		for (StateIdx state = std::max(0, min); state < std::min(state_number, max); state++) {
 			if (cost_matrix[state][t]>min_cost+pruning_threshold) {
 				cost_matrix[state][t] = std::numeric_limits<double>::infinity();
 			}
