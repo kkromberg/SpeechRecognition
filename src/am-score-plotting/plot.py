@@ -14,8 +14,8 @@ def plot(X, Y, labels, splits):
 
 
     # draw lines for splits which were made by alignment
-    for i in range(len(splits)):
-        if splits[i] == -1:
+    for i in range(1,len(splits)):
+        if splits[i] == 0:
             plt.axvline(x=i, color='r')
 
     plt.ylim([np.min(Y), np.max(Y) + 5])
@@ -63,7 +63,7 @@ for i in range(1, len(sys.argv)):
 
             # Add the score of the current iteration to the file
             score = float(split_line[3])
-            splits.append(int(split_line[1]))
+            splits.append(int(split_line[2]) + int(split_line[1]))
             new_scores.append(score)
 
             iteration_counter += 1
