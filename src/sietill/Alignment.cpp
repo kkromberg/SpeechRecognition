@@ -39,6 +39,66 @@ double Aligner::align_sequence_full(FeatureIter feature_begin, FeatureIter featu
                                     MarkovAutomaton const& reference,
                                     AlignmentIter align_begin, AlignmentIter align_end) {
   // TODO: implement
+  CostMatrix cost_matrix;
+	BackpointerMatrix backpointer_matrix;
+	int feature_number = feature_end - feature_begin;
+	int state_number   = reference.num_states();
+	std::cerr << "Number of features: " << feature_number << std::endl;
+	// initialise cost and backpointer matrix
+	for (StateIdx state = 0; state < state_number; state++){
+		cost_matrix.push_back(std::vector<double>(feature_number, std::numeric_limits<double>::infinity())); // set costs to infinity
+		backpointer_matrix.push_back(std::vector<size_t>(feature_number, 0));													  	 // backpointer initially with zeros
+	}
+	double local_costs = std::numeric_limits<double>::infinity();
+	//double local_costs,
+	size_t max_state = 2;
+	size_t min_state = state_number-1-(feature_number-2)*2;
+	size_t t = 1;
+	// costs for the first point are fixed
+	cost_matrix[0][0] = mixtures_.score(feature_begin, reference[0]);
+
+	for (FeatureIter feature_iter = feature_begin+1; feature_iter != feature_end; feature_iter++,t++,
+		min_state += 2, max_state += 2) { // loop features
+		//TODO determine slope for the current point
+		//double result = tdp_model_.score(0, 0);
+		int min = min_state;
+		int max = max_state;
+		//std::cout<<std::endl<<" ";
+		for (StateIdx state = std::max(0, min); state < std::min(state_number-1, max); state++) {
+			//std::cout<<"State number "<<state<<std::endl;// loop states
+				local_costs = mixtures_.score(feature_iter, reference[state]);
+				//std::cout<<state<<std::endl<<" ";
+				double best = std::numeric_limits<double>::infinity();
+				StateIdx state_prime=0;
+				//std::cout<<std::max(0,state_number-max+2)<<std::endl;
+				for (size_t i=std::max(0,state-max+2); i<=std::min(state+0,2);i++){
+					//std::cout<<"i="<<i<<std::endl;
+					double temp=cost_matrix[state-i][t-1] + tdp_model_.score(reference[state-i], i);
+					if(temp<best){
+						best=temp;
+						state_prime=state-i;
+						//std::cout<<state_prime<<" ";
+					}
+				}
+				//std::cout<<local_costs + best<<" "<<std::endl<<" ";
+				cost_matrix[state][t] = local_costs + best;
+				//std::cout<<cost_matrix[state][t]<<" ";
+				backpointer_matrix[state][t]=state_prime;
+				//std::cout<<backpointer_matrix[state][t]<<" ";
+
+				}
+		//std::cout<<std::endl;
+		}
+
+
+
+
+	// TODO mapping of automaton states to alignment
+	for (AlignmentIter align_iter = align_begin; align_iter != align_end; align_iter++) { // loop
+			//(*align_iter)->state = automaton_state
+	}
+
+	// return the cost of best path
   return 0.0;
 }
 
@@ -49,6 +109,71 @@ double Aligner::align_sequence_pruned(FeatureIter feature_begin, FeatureIter fea
                                       AlignmentIter align_begin, AlignmentIter align_end,
                                       double pruning_threshold) {
   // TODO: implement
+  CostMatrix cost_matrix;
+		BackpointerMatrix backpointer_matrix;
+		int feature_number = feature_end - feature_begin;
+		int state_number   = reference.num_states();
+		std::cerr << "Number of features: " << feature_number << std::endl;
+		// initialise cost and backpointer matrix
+		for (StateIdx state = 0; state < state_number; state++){
+			cost_matrix.push_back(std::vector<double>(feature_number, std::numeric_limits<double>::infinity())); // set costs to infinity
+			backpointer_matrix.push_back(std::vector<size_t>(feature_number, 0));													  	 // backpointer initially with zeros
+		}
+		double local_costs = std::numeric_limits<double>::infinity();
+		//double local_costs,
+		size_t max_state = 2;
+		size_t min_state = state_number-1-(feature_number-2)*2;
+		size_t t = 1;
+		// costs for the first point are fixed
+		cost_matrix[0][0] = mixtures_.score(feature_begin, reference[0]);
+
+		for (FeatureIter feature_iter = feature_begin+1; feature_iter != feature_end; feature_iter++,t++,
+			min_state += 2, max_state += 2) { // loop features
+			//TODO determine slope for the current point
+			//double result = tdp_model_.score(0, 0);
+			int min = min_state;
+			int max = max_state;
+			//std::cout<<std::endl<<" ";
+			double min_cost = std::numeric_limits<double>::infinity();
+			for (StateIdx state = std::max(0, min); state < std::min(state_number-1, max); state++) {
+				//std::cout<<"State number "<<state<<std::endl;// loop states
+					local_costs = mixtures_.score(feature_iter, reference[state]);
+					//std::cout<<state<<std::endl<<" ";
+					double best = std::numeric_limits<double>::infinity();
+					StateIdx state_prime=0;
+					//std::cout<<std::max(0,state_number-max+2)<<std::endl;
+					for (size_t i=std::max(0,state-max+2); i<=std::min(state+0,2);i++){
+						//std::cout<<"i="<<i<<std::endl;
+						double temp=cost_matrix[state-i][t-1] + tdp_model_.score(reference[state-i], i);
+						if(temp<best){
+							best=temp;
+							state_prime=state-i;
+							//std::cout<<state_prime<<" ";
+						}
+					}
+					//std::cout<<local_costs + best<<" "<<std::endl<<" ";
+					cost_matrix[state][t] = local_costs + best;
+					if (cost_matrix[state][t]<min_cost) min_cost = cost_matrix[state][t];
+					//std::cout<<cost_matrix[state][t]<<" ";
+					backpointer_matrix[state][t]=state_prime;
+					//std::cout<<backpointer_matrix[state][t]<<" ";
+
+					}
+			for (StateIdx state = std::max(0, min); state < std::min(state_number-1, max); state++) {
+				if (cost_matrix[state][t]>min_cost+pruning_threshold) cost_matrix[state][t] = std::numeric_limits<double>::infinity();
+			}
+			//std::cout<<std::endl;
+			}
+
+
+
+
+		// TODO mapping of automaton states to alignment
+		for (AlignmentIter align_iter = align_begin; align_iter != align_end; align_iter++) { // loop
+				//(*align_iter)->state = automaton_state
+		}
+
+		// return the cost of best path
   return 0.0;
 }
 
