@@ -7,8 +7,10 @@
 #ifndef __ALIGNMENT_HPP__
 #define __ALIGNMENT_HPP__
 
+#include <map>
 #include <limits>
 #include <iostream>
+#include <utility>
 
 #include "MarkovAutomaton.hpp"
 #include "Mixtures.hpp"
@@ -16,6 +18,27 @@
 
 class Aligner {
 public:
+
+	struct Node {
+		Node     *antecessor;
+		StateIdx state;
+		double   score;
+
+		Node(Node *a, StateIdx s, double c) :
+			antecessor(a), state(s), score(c) {}
+	};
+
+	typedef std::pair<StateIdx, Node*> NodeScore;
+	struct CompareScore
+	{
+	    bool operator()(const NodeScore& left, const NodeScore& right) const
+	    {
+	        return left.second->score < right.second->score;
+	    }
+	};
+
+	typedef std::map<StateIdx, Node*> Beam;
+	typedef std::map<StateIdx, Node*>::iterator BeamIterator;
 
 	// Data structures for a 2D alignment using dynamic programming
 	typedef std::vector< std::vector<double> >    CostMatrix;

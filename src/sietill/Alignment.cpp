@@ -136,6 +136,8 @@ double Aligner::align_sequence_full(FeatureIter feature_begin, FeatureIter featu
 		state_index = backpointer_matrix[state_index][feature_index];
 	}
 
+	//std::cout << "best costs: " << current_costs[state_number-1] << std::endl;
+
 	// return the path costs
   return current_costs[state_number-1];
 }
@@ -147,75 +149,127 @@ double Aligner::align_sequence_pruned(FeatureIter feature_begin, FeatureIter fea
                                       MarkovAutomaton const& reference,
                                       AlignmentIter align_begin, AlignmentIter align_end,
                                       double pruning_threshold) {
-  // TODO: implement
-	CostMatrix cost_matrix;
-	BackpointerMatrix backpointer_matrix;
-	int feature_number = feature_end - feature_begin;
-	int state_number   = reference.num_states();
-	// initialise cost and backpointer matrix
-	for (StateIdx state = 0; state < state_number; state++){
-		cost_matrix.push_back(std::vector<double>(feature_number, std::numeric_limits<double>::infinity())); // set costs to infinity
-		backpointer_matrix.push_back(std::vector<int>(feature_number, 0));													  	 // backpointer initially with zeros
-	}
-	double local_costs = std::numeric_limits<double>::infinity();
-	size_t max_state = 2;
-	size_t min_state = state_number-1-(feature_number-2)*2;
-	size_t t = 1;
+	size_t histogram_size = pruning_threshold;
+	size_t n_features = feature_end - feature_begin;
+	std::vector<double> emission_score_cache = std::vector<double>(reference.num_states(),
+																																 std::numeric_limits<double>::infinity());
 
-	// costs for the first point are fixed
-	cost_matrix[0][0] = mixtures_.score(feature_begin, reference[0]);
+	std::vector<Beam> beams = std::vector<Beam>(n_features, Beam());
+	Node *initial_node = new Node(NULL, 0, mixtures_.score(feature_begin, reference.first_state()));
 
-	// iterate through features
-	for (FeatureIter feature_iter = feature_begin+1; feature_iter != feature_end; feature_iter++,t++,
-	min_state += 2, max_state += 2) {
-		int min = min_state;
-		int max = max_state;
-		double min_cost = std::numeric_limits<double>::infinity();
+	beams[0].insert(std::make_pair(0, initial_node));
 
-		//for the repetitions
-		StateIdx previous_state=-1;
+	FeatureIter feature_iter = feature_begin + 1;
+	for (size_t beam_index = 1; beam_index < n_features; beam_index++, feature_iter++) {
 
-		//iterate through states
-		for (StateIdx state = std::max(0, min); state <= std::min(state_number-1, max); state++) {
-			if(previous_state!=state){
-				local_costs = mixtures_.score(feature_iter, reference[state]);
-			}
-			double best = std::numeric_limits<double>::infinity();
-			StateIdx state_prime=0;
-			for (size_t i=std::max(0,state-max+2); i<=std::min(state+0,2);i++){
-				double temp=cost_matrix[state-i][t-1] + tdp_model_.score(reference[state-i], i);
-				if(temp<best){
-					best=temp;
-					state_prime=state-i;
+		// reset the emission score cache
+		std::fill(emission_score_cache.begin(),
+							emission_score_cache.end(),
+							std::numeric_limits<double>::infinity());
+
+		// loop over all previous hypotheses in beam of the previous feature vector
+		for (BeamIterator previous_hyp_entry = beams[beam_index-1].begin();
+				previous_hyp_entry != beams[beam_index-1].end();
+				previous_hyp_entry++) {
+
+			StateIdx  previous_hyp_state = previous_hyp_entry->first;
+			Node     *previous_hyp_node  = previous_hyp_entry->second;
+
+			// hypothesize the state changes of the 0-1-2 topology
+			for (size_t jump = 0; jump <= 2; jump++) {
+				StateIdx new_state_index = previous_hyp_state + jump;
+
+				// Check if the node is still within our search space
+				if (new_state_index >= reference.num_states()) {
+					break;
 				}
-			}
-			cost_matrix[state][t] = local_costs + best;
 
-			//find the best hypothesis
-			if (cost_matrix[state][t]<min_cost){
-				min_cost = cost_matrix[state][t];
-			}
-			backpointer_matrix[state][t]=state_prime;
-			previous_state=state;
+				// compute the costs of the new node
+				double new_costs = previous_hyp_node->score;
+				new_costs += tdp_model_.score(reference[new_state_index], jump);
+
+				// check the cache if the value has already been computed
+				if (emission_score_cache[new_state_index] == std::numeric_limits<double>::infinity()) {
+					// compute the score
+					emission_score_cache[new_state_index] = mixtures_ .score(feature_iter, reference[new_state_index]);
+				}
+				new_costs += emission_score_cache[new_state_index];
+
+				// create a new node and add it to the beam
+				Node *new_node = new Node(previous_hyp_node, new_state_index, new_costs);
+
+				// try to find the node in the current beam (search by state index)
+				BeamIterator same_state_node = beams[beam_index].find(new_state_index);
+
+				if (same_state_node == beams[beam_index].end()) {
+					// the element does not yet exist
+					beams[beam_index].insert(std::make_pair(new_state_index, new_node));
+				} else if (new_costs < same_state_node->second->score) {
+					// the element exists, but has a worse score -> free the memory and set it
+					delete same_state_node->second;
+					same_state_node->second = new_node;
+				}
+
+			} // for: jump
+		} // for: previous_hyp
+
+		// Retrieve the lowest score of the hypotheses in the current beam
+		double best_costs = min_element(beams[beam_index].begin(), beams[beam_index].end(), CompareScore())->second->score;
+		double upper_bound = best_costs + pruning_threshold;
+
+		// Apply pruning criterion
+		// Yes, removing elements of maps by value is this complicated
+		// TODO: Use an alternative data structure to map for the beams
+		BeamIterator it = beams[beam_index].begin();
+		while ((it = std::find_if(it, beams[beam_index].end(), [&upper_bound](const NodeScore& val){
+																													 	 return val.second->score > upper_bound;
+																													 })) != beams[beam_index].end()) {
+			delete it->second;
+			beams[beam_index].erase(it++);
 		}
 
-		//traverse through the states to discard bad hypothesizes
-		for (StateIdx state = std::max(0, min); state < std::min(state_number-1, max); state++) {
-			if (cost_matrix[state][t]>min_cost+pruning_threshold) {
-				cost_matrix[state][t] = std::numeric_limits<double>::infinity();
+	} // for: beam_index
+
+
+	// Linear search to find the highest state reached in search
+	// It is possible that the final automaton state has not been reached
+	// TODO: Use std::map::find()
+	// TODO: Maybe return a very high cost at this point, instead of using a smaller state
+	StateIdx highest_state_idx = 0;
+	for (BeamIterator hyp = beams[n_features-1].begin();
+					hyp != beams[n_features-1].end();
+					hyp++) {
+		highest_state_idx = std::max(highest_state_idx, hyp->first);
+	}
+
+	// extract the best hypothesis from the last beam
+	Node  *best_node  = beams[n_features-1].find(highest_state_idx)->second;
+	double best_costs = best_node->score;
+
+	// backtrack to the initial node and set the alignment
+	AlignmentIter align_iter = align_end-1;
+	while (best_node->antecessor != NULL) {
+		// set the mapping
+		(*align_iter)[0].state = reference[best_node->state];
+		align_iter--;
+
+		// set the node for backtracking
+		best_node = best_node->antecessor;
+	}
+
+	// set the mapping of the first vector to the beginning of the alignment
+	(*align_begin)[0].state = reference[0];
+
+	// clean the pointers to the nodes used in the beam search
+	for (size_t beam_index = 0; beam_index < n_features; beam_index++) {
+			for (BeamIterator hyp = beams[beam_index].begin();
+					hyp != beams[beam_index].end();
+					hyp++) {
+				delete hyp->second;
 			}
-		}
 	}
-	// mapping of automaton states to alignment
-	size_t feature_index = feature_number - 1;
-	size_t state_index   = state_number - 1;
-	for (AlignmentIter align_iter = align_end-1; align_iter != align_begin - 1; align_iter--, feature_index--) { // loop
-		StateIdx automaton_state = reference[state_index];
-		(*align_iter)->state = automaton_state;
-		state_index = backpointer_matrix[state_index][feature_index];
-	}
-	// return the cost of best path
-	return cost_matrix[state_number-1][feature_number-1];
+
+	return best_costs;
 }
 
 /*****************************************************************************/
