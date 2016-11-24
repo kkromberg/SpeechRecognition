@@ -171,11 +171,12 @@ double Aligner::align_sequence_pruned(FeatureIter feature_begin, FeatureIter fea
 	//cost_matrix[0][0] = mixtures_.score(feature_begin, reference[0]);
 	previous_costs[0] = mixtures_.score(feature_begin, reference[0]);
 	// iterate through features
+	int relevant_states;
 	for (FeatureIter feature_iter = feature_begin+1; feature_iter != feature_end; feature_iter++,t++,
 	min_state += 2, max_state += 2) {
-		int relevant_states=0;
+		relevant_states = 0;
 		int min = min_state;
-		std::vector<int> current_backpointers;
+		std::vector<StateIdx> current_backpointers;
 		int max = max_state;
 		double min_cost = std::numeric_limits<double>::infinity();
 
@@ -206,7 +207,6 @@ double Aligner::align_sequence_pruned(FeatureIter feature_begin, FeatureIter fea
 			current_backpointers.push_back(state_prime);
 			previous_state=state;
 		}
-
 		//traverse through the states to discard bad hypothesizes
 		for (StateIdx state = std::max(0, min); state < std::min(state_number, max); state++) {
 			if (current_costs[state]>min_cost+pruning_threshold) {
@@ -214,21 +214,25 @@ double Aligner::align_sequence_pruned(FeatureIter feature_begin, FeatureIter fea
 			}
 			else {
 				relevant_states++;
-				for (int i=backpointers.size()-relevant_states-2;
-						i>=backpointers.size()-relevant_states-backpointers[backpointers.size()-relevant_states].vector_size;
-						i--){
-					//std::cerr<<"Index of a state: "<<i<<std::endl;
+				//std::cerr<<"relevant states: "<<relevant_states<<std::endl;
+				for (int i=backpointers.size()-relevant_states-backpointers[backpointers.size()-relevant_states].vector_size;
+						i<backpointers.size()-relevant_states;
+						i++){
+					std::cerr<<"size: "<<backpointers[i].vector_size<<std::endl;
 					if(backpointers[i].current_state_idx==current_backpointers[state]){
 						backpointers.push_back(StateContainer(state,i));
 						//std::cerr<<"Index of a state: "<<i<<"current state: "<<backpointers[backpointers.size()-1].current_state_idx<<std::endl;
 					}
 				}
+
 			}
+			//std::cerr<<"Relevant states: "<<relevant_states<<std::endl;
 		}
-		std::cerr<<"Relevant states: "<<relevant_states<<std::endl;
+		//std::cerr<<"Relevant states: "<<relevant_states<<std::endl;
 		backpointers.push_back(StateContainer(relevant_states));
 		std::copy(current_costs.begin(), current_costs.end(), previous_costs.begin());
 	}
+	//std::cerr<<"Size: "<<backpointers.size()<<std::endl;
 	// mapping of automaton states to alignment
 	size_t last_entry = backpointers.size()-2;
 	size_t state_index   = state_number - 1;
