@@ -13,14 +13,16 @@ def plot(X, Y, labels, splits):
 
 
 
+    boundaries = []
     # draw lines for splits which were made by alignment
     for i in range(1,len(splits)):
         if splits[i] == 0:
-            plt.axvline(x=i, color='r', linestyle='dashed')
+            boundaries.append(i)
+    plt.vlines(np.array(boundaries), np.min(Y), np.max(Y), color='r', linestyle='dashed', label='density splits')
 
 
     plt.ylim([np.min(Y), np.max(Y) + 5])
-    plt.xticks(X)
+    plt.xticks(range(np.min(X), np.max(X), 5))
 
     plt.xlabel('Iteration')
     plt.ylabel('Average score per frame')
