@@ -148,27 +148,34 @@ double Aligner::align_sequence_pruned(FeatureIter feature_begin, FeatureIter fea
                                       AlignmentIter align_begin, AlignmentIter align_end,
                                       double pruning_threshold) {
   // TODO: implement
-	CostMatrix cost_matrix;
+	//CostMatrix cost_matrix;
 	BackpointerMatrix backpointer_matrix;
 	int feature_number = feature_end - feature_begin;
 	int state_number   = reference.num_states();
 	// initialise cost and backpointer matrix
-	for (StateIdx state = 0; state < state_number; state++){
-		cost_matrix.push_back(std::vector<double>(feature_number, std::numeric_limits<double>::infinity())); // set costs to infinity
-		backpointer_matrix.push_back(std::vector<int>(feature_number, 0));													  	 // backpointer initially with zeros
-	}
+
+	//for (StateIdx state = 0; state < state_number; state++){
+		//cost_matrix.push_back(std::vector<double>(feature_number, std::numeric_limits<double>::infinity())); // set costs to infinity
+		//backpointer_matrix.push_back(std::vector<int>(feature_number, -1));													  	 // backpointer initially with zeros
+	//}
+	std::vector<double> previous_costs = std::vector<double>(feature_number, std::numeric_limits<double>::infinity());
+	std::vector<double> current_costs  = std::vector<double>(feature_number, std::numeric_limits<double>::infinity());
 	double local_costs = std::numeric_limits<double>::infinity();
 	size_t max_state = 2;
 	size_t min_state = state_number-1-(feature_number-2)*2;
 	size_t t = 1;
-
+	std::vector<StateContainer> backpointers;
+	backpointers.push_back(StateContainer(0,0));
+	backpointers.push_back(StateContainer(1));
 	// costs for the first point are fixed
-	cost_matrix[0][0] = mixtures_.score(feature_begin, reference[0]);
-
+	//cost_matrix[0][0] = mixtures_.score(feature_begin, reference[0]);
+	previous_costs[0] = mixtures_.score(feature_begin, reference[0]);
 	// iterate through features
 	for (FeatureIter feature_iter = feature_begin+1; feature_iter != feature_end; feature_iter++,t++,
 	min_state += 2, max_state += 2) {
+		int relevant_states=0;
 		int min = min_state;
+		std::vector<int> current_backpointers;
 		int max = max_state;
 		double min_cost = std::numeric_limits<double>::infinity();
 
@@ -183,39 +190,58 @@ double Aligner::align_sequence_pruned(FeatureIter feature_begin, FeatureIter fea
 			double best = std::numeric_limits<double>::infinity();
 			StateIdx state_prime=0;
 			for (size_t i=std::max(0,state-max+2); i<=std::min(state+0,2);i++){
-				double temp=cost_matrix[state-i][t-1] + tdp_model_.score(reference[state-i], i);
+				double temp=previous_costs[state] + tdp_model_.score(reference[state-i], i);
 				if(temp<best){
 					best=temp;
 					state_prime=state-i;
 				}
 			}
-			cost_matrix[state][t] = local_costs + best;
-
+			//cost_matrix[state][t] = local_costs + best;
+			current_costs[state] = local_costs + best;
 			//find the best hypothesis
-			if (cost_matrix[state][t]<min_cost){
-				min_cost = cost_matrix[state][t];
+			if (current_costs[state]<min_cost){
+				min_cost = current_costs[state];
 			}
-			backpointer_matrix[state][t]=state_prime;
+			//backpointer_matrix[state][t]=state_prime;
+			current_backpointers.push_back(state_prime);
 			previous_state=state;
 		}
 
 		//traverse through the states to discard bad hypothesizes
 		for (StateIdx state = std::max(0, min); state < std::min(state_number, max); state++) {
-			if (cost_matrix[state][t]>min_cost+pruning_threshold) {
-				cost_matrix[state][t] = std::numeric_limits<double>::infinity();
+			if (current_costs[state]>min_cost+pruning_threshold) {
+				current_costs[state] = std::numeric_limits<double>::infinity();
+			}
+			else {
+				relevant_states++;
+				for (int i=backpointers.size()-relevant_states-2;
+						i>=backpointers.size()-relevant_states-backpointers[backpointers.size()-relevant_states].vector_size;
+						i--){
+					//std::cerr<<"Index of a state: "<<i<<std::endl;
+					if(backpointers[i].current_state_idx==current_backpointers[state]){
+						backpointers.push_back(StateContainer(state,i));
+						//std::cerr<<"Index of a state: "<<i<<"current state: "<<backpointers[backpointers.size()-1].current_state_idx<<std::endl;
+					}
+				}
 			}
 		}
+		std::cerr<<"Relevant states: "<<relevant_states<<std::endl;
+		backpointers.push_back(StateContainer(relevant_states));
+		std::copy(current_costs.begin(), current_costs.end(), previous_costs.begin());
 	}
 	// mapping of automaton states to alignment
-	size_t feature_index = feature_number - 1;
+	size_t last_entry = backpointers.size()-2;
 	size_t state_index   = state_number - 1;
-	for (AlignmentIter align_iter = align_end-1; align_iter != align_begin - 1; align_iter--, feature_index--) { // loop
-		StateIdx automaton_state = reference[state_index];
+	for (AlignmentIter align_iter = align_end-1; align_iter != align_begin - 1; align_iter--) { // loop
+		StateContainer state_container = backpointers[last_entry];
+
+		StateIdx automaton_state = reference[state_container.current_state_idx];
 		(*align_iter)->state = automaton_state;
-		state_index = backpointer_matrix[state_index][feature_index];
+		//state_index = backpointer_matrix[state_index][feature_index];
+		last_entry = backpointers[last_entry].taken_transition;
 	}
 	// return the cost of best path
-	return cost_matrix[state_number-1][feature_number-1];
+	return current_costs[state_number-1];
 }
 
 /*****************************************************************************/
