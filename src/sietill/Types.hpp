@@ -29,9 +29,9 @@ struct MixtureDensity {
 };
 
 struct StateContainer {
-  CurrentStateIdx current_state_idx;
-  TakenTransition taken_transition;
-  VectorSize vector_size;
+  int current_state_idx;
+  int taken_transition;
+  int vector_size;
 
   StateContainer(CurrentStateIdx current_state_idx, TakenTransition taken_transition)
   								 : current_state_idx(current_state_idx), taken_transition(taken_transition){
