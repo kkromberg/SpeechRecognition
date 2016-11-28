@@ -22,7 +22,7 @@ CXX       = g++
 CXXFLAGS += -Wall -O2 --std=c++11 -pedantic -msse -msse2 -msse3
 DFLAGS    = -g #-fsanitize=address -fno-omit-frame-pointer #-fno-inline
 IFLAGS    = -Irapidjson/include/
-LIBS      = -B/usr/lib/x86_64-linux-gnu -lm -lrt -lgsl -lblas
+LIBS      = -lm -lrt -lgsl -lblas
 SOURCES   = $(wildcard *.cpp)
 HEADERS   = $(wildcard *.hpp)
 
@@ -38,9 +38,14 @@ SIETILL_O	= SieTill.o\
 						Alignment.o\
 						Config.o\
 						Corpus.o\
+						FeedForwardLayer.o\
 						IO.o\
-            Lexicon.o\
+						Lexicon.o\
 						Mixtures.o\
+						NetworkLayer.o\
+						NeuralNetwork.o\
+						NNTraining.o\
+						OutputLayer.o\
 						Recognizer.o\
 						SignalAnalysis.o\
 						TdpModel.o\
