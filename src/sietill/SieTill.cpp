@@ -14,6 +14,8 @@
 #include "Config.hpp"
 #include "Corpus.hpp"
 #include "IO.hpp"
+#include "NeuralNetwork.hpp"
+#include "NNTraining.hpp"
 #include "Recognizer.hpp"
 #include "SignalAnalysis.hpp"
 #include "Training.hpp"
@@ -116,6 +118,12 @@ int main(int argc, const char *argv[]) {
       if (feature_scorer == "gmm") {
         fs = new MixtureModel(config, analyzer.n_features_total, lexicon.num_states(), pooling_method, max_approx);
       }
+      else if (feature_scorer == "nn") {
+        const ParameterUInt paramContextFrames("context-frames", 0);
+        size_t context_frames = paramContextFrames(config);
+        fs = new NeuralNetwork(config, analyzer.n_features_total * (2ul * context_frames + 1ul), 1ul, corpus.get_max_seq_length(), lexicon.num_states());
+        dynamic_cast<NeuralNetwork*>(fs)->load_prior();
+      }
       else {
         std::cerr << "unknown feature scorer: " << feature_scorer << std::endl;
         exit(EXIT_FAILURE);
@@ -123,6 +131,34 @@ int main(int argc, const char *argv[]) {
 
       Recognizer recognizer(config, lexicon, *fs, tdp_model);
       recognizer.recognize(corpus);
+    }
+  }
+/*****************************************************************************/
+  else if (action == "train-nn" or action == "compute-prior") {
+    const ParameterUInt paramBatchSize("batch-size", 32u);
+    const unsigned batch_size(paramBatchSize(config));
+
+    Corpus corpus;
+    corpus.read(corpus_description, feature_path, analyzer);
+
+    MiniBatchBuilder mini_batch_builder(config, corpus, batch_size, lexicon.num_states(), lexicon.get_silence_automaton()[0]);
+    NeuralNetwork    nn(config, mini_batch_builder.feature_size(), batch_size, corpus.get_max_seq_length(), lexicon.num_states());
+
+    if (action == "train-nn") {
+      NnTrainer nn_trainer(config, mini_batch_builder, nn);
+      nn_trainer.train();
+    }
+    else { // action == "compute-prior"
+      const ParameterString paramPriorFile("prior-file", "");
+      std::string prior_file = paramPriorFile(config);
+
+      std::ofstream out(prior_file, std::ios::out | std::ios::trunc);
+      if (not out.good()) {
+        std::cerr << "Could not open prior-file: " << prior_file << std::endl;
+        std::abort();
+      }
+
+      // TODO: implement
     }
   }
 /*****************************************************************************/
