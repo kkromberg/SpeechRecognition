@@ -54,21 +54,26 @@ void FeedForwardLayer::init_parameters(std::function<float()> const& generator) 
 
 void FeedForwardLayer::forward(std::valarray<float>& output, std::gslice const& slice, std::vector<unsigned> const& mask) const {
   // TODO: implement
-	if(nonlinearity_== 0){
-		output[slice]=input_buffer_*params_[std::slice(0,feature_size_*output_size_,1)]+params_[std::slice(feature_size_*output_size_+1,output_size_,1)];
-	}
-	if(nonlinearity_== 1){
-			output[slice]=input_buffer_*params_[std::slice(0,feature_size_*output_size_,1)]+params_[std::slice(feature_size_*output_size_+1,output_size_,1)];
-			output[slice]=(output[slice]).sum();
+	output.sum();
+	switch(nonlinearity_){
+
+		case Nonlinearity::None:
+			output[slice]=input_buffer_[slice]*params_[std::slice(0,feature_size_*output_size_,1)]+params_[std::slice(feature_size_*output_size_+1,output_size_,1)];
+
+		case Nonlinearity::Sigmoid: {
+			std::valarray<float> temp;
+			temp=input_buffer_[slice]*params_[std::slice(0,feature_size_*output_size_,1)]+params_[std::slice(feature_size_*output_size_+1,output_size_,1)];
+			float norm = temp.sum();
+			output[slice]=temp/norm;
 		}
-	if(nonlinearity_== 2){
-				output[slice]=2/(1+exp(-2*(input_buffer_*params_[std::slice(0,feature_size_*output_size_,1)]+params_[std::slice(feature_size_*output_size_+1,output_size_,1)])))-1;
+		case Nonlinearity::Tanh:
+				output[slice]=2/(1+exp(-2*(input_buffer_[slice]*params_[std::slice(0,feature_size_*output_size_,1)]+params_[std::slice(feature_size_*output_size_+1,output_size_,1)])))-1;
 
-			}
-	if(nonlinearity_== 3){
-					output[slice]=std::max(0,input_buffer_*params_[std::slice(0,feature_size_*output_size_,1)]+params_[std::slice(feature_size_*output_size_+1,output_size_,1)]);
 
-				}
+		case Nonlinearity::ReLU:
+			//to do max
+			output[slice]=std::max(0,input_buffer_[slice]*params_[std::slice(0,feature_size_*output_size_,1)]+params_[std::slice(feature_size_*output_size_+1,output_size_,1)]);
+	}
 
 
 }
