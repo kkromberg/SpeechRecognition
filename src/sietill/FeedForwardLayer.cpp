@@ -55,24 +55,38 @@ void FeedForwardLayer::init_parameters(std::function<float()> const& generator) 
 void FeedForwardLayer::forward(std::valarray<float>& output, std::gslice const& slice, std::vector<unsigned> const& mask) const {
   // TODO: implement
 	output.sum();
+	int m = output_size_;
+	int n = feature_size_;
+	std::valarray<std::valarray<float>> W;
+	std::valarray<float> temp=params_[std::slice(feature_size_*output_size_+1,output_size_,1)];
+	output[slice]=params_[std::slice(feature_size_*output_size_+1,output_size_,1)];
+	for(int i=0;i<output_size_;i++){
+		W[i]=params_[std::slice(i*feature_size_,feature_size_,1)];
+	}
 	switch(nonlinearity_){
-
-		case Nonlinearity::None:
-			output[slice]=input_buffer_[slice]*params_[std::slice(0,feature_size_*output_size_,1)]+params_[std::slice(feature_size_*output_size_+1,output_size_,1)];
-
+		case Nonlinearity::None: {
+			cblas_sgemv(CblasRowMajor, CblasNoTrans, m, n, 1.0f, (float*)&W[0][0], m, &input_buffer_[slice][0], 1, 1.0f, &output[slice][0], 1);
+			//output[slice]=input_buffer_[slice]*params_[std::slice(0,feature_size_*output_size_,1)]+params_[std::slice(feature_size_*output_size_+1,output_size_,1)];
+		}
 		case Nonlinearity::Sigmoid: {
-			std::valarray<float> temp;
-			temp=input_buffer_[slice]*params_[std::slice(0,feature_size_*output_size_,1)]+params_[std::slice(feature_size_*output_size_+1,output_size_,1)];
+
+			cblas_sgemv(CblasRowMajor, CblasNoTrans, m, n, 1.0f, (float*)W[0][0], m, input_buffer_[slice], 1, 1.0f, temp, 1);
 			float norm = temp.sum();
 			output[slice]=temp/norm;
 		}
-		case Nonlinearity::Tanh:
-				output[slice]=2/(1+exp(-2*(input_buffer_[slice]*params_[std::slice(0,feature_size_*output_size_,1)]+params_[std::slice(feature_size_*output_size_+1,output_size_,1)])))-1;
+		case Nonlinearity::Tanh: {
+			cblas_sgemv(CblasRowMajor, CblasNoTrans, m, n, 1.0f, (float*)W[0][0], m, input_buffer_[slice], 1, 1.0f, temp, 1);
+			output[slice]=2/(1+exp(-2*(temp)))-1;
 
-
+		}
 		case Nonlinearity::ReLU:
-			//to do max
-			output[slice]=std::max(0,input_buffer_[slice]*params_[std::slice(0,feature_size_*output_size_,1)]+params_[std::slice(feature_size_*output_size_+1,output_size_,1)]);
+			cblas_sgemv(CblasRowMajor, CblasNoTrans, m, n, 1.0f, (float*)W[0][0], m, input_buffer_[slice], 1, 1.0f, temp, 1);
+			output[slice]=temp.apply([](float n)->float {
+					if (n>0)
+						return n;
+					else
+						return 0;
+                });
 	}
 
 
