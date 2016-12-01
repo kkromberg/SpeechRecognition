@@ -149,7 +149,6 @@ double Aligner::align_sequence_pruned(FeatureIter feature_begin, FeatureIter fea
                                       MarkovAutomaton const& reference,
                                       AlignmentIter align_begin, AlignmentIter align_end,
                                       double pruning_threshold) {
-	size_t histogram_size = pruning_threshold;
 	size_t n_features = feature_end - feature_begin;
 	std::vector<double> emission_score_cache = std::vector<double>(reference.num_states(),
 																																 std::numeric_limits<double>::infinity());
@@ -166,6 +165,8 @@ double Aligner::align_sequence_pruned(FeatureIter feature_begin, FeatureIter fea
 		std::fill(emission_score_cache.begin(),
 							emission_score_cache.end(),
 							std::numeric_limits<double>::infinity());
+
+		std::vector<Node*> next_hypotheses = std::vector<Node*>(reference.num_states(), NULL);
 
 		// loop over all previous hypotheses in beam of the previous feature vector
 		for (BeamIterator previous_hyp_entry = beams[beam_index-1].begin();
@@ -190,28 +191,36 @@ double Aligner::align_sequence_pruned(FeatureIter feature_begin, FeatureIter fea
 
 				// check the cache if the value has already been computed
 				if (emission_score_cache[new_state_index] == std::numeric_limits<double>::infinity()) {
-					// compute the score
 					emission_score_cache[new_state_index] = mixtures_ .score(feature_iter, reference[new_state_index]);
 				}
 				new_costs += emission_score_cache[new_state_index];
 
-				// create a new node and add it to the beam
-				Node *new_node = new Node(previous_hyp_node, new_state_index, new_costs);
-
-				// try to find the node in the current beam (search by state index)
-				BeamIterator same_state_node = beams[beam_index].find(new_state_index);
-
-				if (same_state_node == beams[beam_index].end()) {
-					// the element does not yet exist
-					beams[beam_index].insert(std::make_pair(new_state_index, new_node));
-				} else if (new_costs < same_state_node->second->score) {
-					// the element exists, but has a worse score -> free the memory and set it
-					delete same_state_node->second;
-					same_state_node->second = new_node;
+				// try to find the node in the current beam and update the costs if it exists
+				if (next_hypotheses[new_state_index] == NULL) {
+					next_hypotheses[new_state_index] = new Node(previous_hyp_node, new_state_index, new_costs);
+				} else if (next_hypotheses[new_state_index]->score > new_costs) {
+					next_hypotheses[new_state_index]->score      = new_costs;
+					next_hypotheses[new_state_index]->antecessor = previous_hyp_node;
 				}
 
 			} // for: jump
 		} // for: previous_hyp
+
+		// insert the vector in the map
+		double best_score = std::numeric_limits<double>::infinity();
+		for (unsigned i = 0; i < next_hypotheses.size(); i++) {
+			if (next_hypotheses[i] != NULL) {
+
+				// create a new entry
+				std::pair<StateIdx, Node*> new_hypothesis = std::make_pair(next_hypotheses[i]->state, next_hypotheses[i]);
+				beams[beam_index].insert(new_hypothesis);
+
+				// update the pruning costs
+				if (best_score > next_hypotheses[i]->score) {
+					best_score = next_hypotheses[i]->score;
+				}
+			}
+		}
 
 		// Retrieve the lowest score of the hypotheses in the current beam
 		double best_costs = min_element(beams[beam_index].begin(), beams[beam_index].end(), CompareScore())->second->score;
