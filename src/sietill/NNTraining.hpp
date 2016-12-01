@@ -107,7 +107,18 @@ public:
 
   AdaDeltaUpdater(Configuration const& config, VAMap const& parameters, VAMap const& gradients)
                  : ParameterUpdater(parameters, gradients), momentum_(paramAdaDeltaMomentum(config)),
-                   learning_rate_(paramLearningRate(config)) {}
+                   learning_rate_(paramLearningRate(config)) {
+  	for (VAMap::const_iterator it = parameters_.begin(); it != parameters_.end(); it++) {
+  		std::string key = it->first;
+  		std::valarray<float> initial_values(it->second->size(), 0.0);
+  		std::pair<std::string, std::valarray<float>> new_entry(std::make_pair(key, initial_values));
+
+  		update_rms_.insert(new_entry);
+  		gradient_rms_.insert(new_entry);
+  	}
+
+  	stability_factor_ = 1e-8;
+  }
   ~AdaDeltaUpdater() {}
 
   virtual void update();
@@ -116,6 +127,7 @@ private:
 
   float momentum_;
   float learning_rate_;
+  float stability_factor_;
 
   OwnedVAMap gradient_rms_;
   OwnedVAMap update_rms_;

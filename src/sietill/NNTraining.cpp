@@ -205,6 +205,15 @@ const ParameterFloat SGDUpdater::paramLearningRate("learning-rate", 0.001);
 
 void SGDUpdater::update() {
   // TODO: implement
+	VAMap::const_iterator parameter_iterator = parameters_.begin();
+	VAMap::const_iterator gradients_iterator = gradients_.begin();
+
+	while (parameter_iterator != parameters_.end()) {
+		assert(parameter_iterator->first == gradients_iterator->first);
+
+		*parameter_iterator->second -= learning_rate_ * *gradients_iterator->second;
+		gradients_iterator++; parameter_iterator++;
+	}
 }
 
 const ParameterFloat AdaDeltaUpdater::paramAdaDeltaMomentum("adadelta-momentum", 0.90);
@@ -212,7 +221,36 @@ const ParameterFloat AdaDeltaUpdater::paramLearningRate("learning-rate", 0.001);
 
 void AdaDeltaUpdater::update() {
   // TODO: implement
+	VAMap::const_iterator parameter_iterator    = parameters_.begin();
+	VAMap::const_iterator gradients_iterator    = gradients_.begin();
+	OwnedVAMap::iterator  update_rms_iterator   = update_rms_.begin();
+	OwnedVAMap::iterator  gradient_rms_iterator = gradient_rms_.begin();
+
+	while (parameter_iterator != parameters_.end()) {
+		assert(parameter_iterator->first == gradients_iterator->first);
+
+		// accumulate gradient
+		gradient_rms_iterator->second = momentum_ * gradient_rms_iterator->second
+																	+ (1-momentum_) * *gradients_iterator->second;
+
+		// compute update
+		update_buffer_ = sqrt(update_rms_iterator->second   + stability_factor_)
+									 / sqrt(gradient_rms_iterator->second + stability_factor_)
+									 * -1 * *gradients_iterator->second;
+
+		// accumulate updates
+		update_rms_iterator->second = momentum_ * update_rms_iterator->second
+																+ (1-momentum_) * update_buffer_;
+
+		// apply updates
+		//parameter_iterator->second -= learning_rate_ * update_buffer_;
+		*parameter_iterator->second += update_buffer_;
+
+		gradients_iterator++; parameter_iterator++;
+		update_rms_iterator++; gradient_rms_iterator++;
+	}
 }
+
 
 // -------------------- NnTrainer  --------------------
 
