@@ -54,27 +54,38 @@ void FeedForwardLayer::init_parameters(std::function<float()> const& generator) 
 
 void FeedForwardLayer::forward(std::valarray<float>& output, std::gslice const& slice, std::vector<unsigned> const& mask) const {
   // TODO: implement
-	int m = output_size_;
-	int n = feature_size_;
-	std::valarray<std::valarray<float>> W;
-	std::valarray<float> x = input_buffer_[slice];
-	std::valarray<float> temp=params_[std::slice(feature_size_*output_size_+1,output_size_,1)];
-	cblas_sgemv(CblasRowMajor, CblasNoTrans, m, n, 1.0f, (float*)&W[0][0], m, &x[0], 1, 1.0f, &temp[0], 1);
-	for(size_t i=0;i<output_size_;i++){
-		W[i]=params_[std::slice(i*feature_size_,feature_size_,1)];
+	size_t m = output_size_;
+	size_t n = feature_size_;
+
+	//Initialize Weight Matrix W
+	std::valarray<std::valarray<float>> W(m);
+	for(size_t i=0;i<m;i++){
+		W[i] = params_[std::slice(i*feature_size_,feature_size_,1)];
 	}
+
+	//initialize feature vector x
+	std::valarray<float> x = input_buffer_[slice];
+
+	//variable temp ('a' in slides' notation) stores the result of the affine transformation Wx + b
+	//it is initialized as b
+	std::valarray<float> temp = params_[std::slice(m*n- 1,m,1)];
+
+	//computing temp = Wx + b using BLAS matrix*vector multiplication function SGEMV
+	cblas_sgemv(CblasRowMajor, CblasNoTrans, m, n, 1.0f, (float*)&W[0][0], n, &x[0], 1, 1.0f, &temp[0], 1);
+
+	//applying different activation functions
 	switch(nonlinearity_){
 		case Nonlinearity::None: {
 			output[slice] = temp;
 		}
 		case Nonlinearity::Sigmoid: {
-			output[slice]=1/(1+exp(-temp));
+			output[slice] = 1/(1+exp(-temp));
 		}
 		case Nonlinearity::Tanh: {
-			output[slice]=2/(1+exp(-2.0f*(temp)))-1;
+			output[slice] = 2/(1+exp(-2.0f*(temp)))-1;
 		}
 		case Nonlinearity::ReLU:{
-			output[slice]=temp.apply([](float n)->float {
+			output[slice] = temp.apply([](float n)->float {
 					if (n>0)
 						return n;
 					else
