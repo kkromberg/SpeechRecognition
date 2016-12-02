@@ -53,48 +53,68 @@ void FeedForwardLayer::init_parameters(std::function<float()> const& generator) 
 }
 
 void FeedForwardLayer::forward(std::valarray<float>& output, std::gslice const& slice, std::vector<unsigned> const& mask) const {
-  // TODO: implement
-	size_t m = output_size_;
-	size_t n = feature_size_;
+	std::slice weights_slice(0, {output_size_, feature_size_}, {feature_size_, 1});
+  std::slice bias_slice(output_size_ * feature_size_, output_size_, 1);
 
-	//Initialize Weight Matrix W
-	std::valarray<std::valarray<float>> W(m);
-	for(size_t i=0;i<m;i++){
-		W[i] = params_[std::slice(i*feature_size_,feature_size_,1)];
+  float *weights = params_[weights_slice];
+  //float *bias    = params_[bias_slice];
+
+  // The bias is a matrix H x B, where H is the output_size_ and B is the batch_size_. Each column of the matrix is the same!
+  // Find a way of initializing it correctly. (And then make a separate variable, because the matrix operations all get written to this matrix)
+  float bias[output_size_ * batch_size_];
+
+	for (size_t time_idx = 0; time_idx < max_seq_length_; time_idx++) {
+
+    std::slice input_slice(time_idx * max_seq_length_,
+                           {batch_size_, feature_size_},
+                           {feature_size_, 1});
+
+    std::slice output_slice(time_idx * slice.stride()[0],
+                           {slice.size()[1], slice.size()[2]},
+                           {slice.stride()[1], slice.stride()[2]});
+
+    float *input = input_buffer_[input_slice];
+
+	  cblas_dgemm(CblasRowMajor,
+	              CblasNoTrans,
+	              CblasNoTrans,
+	              output_size_,
+	              feature_size_,
+	              batch_size_,
+	              1.0f,
+	              weights,
+	              output_size_,
+	              input,
+	              feature_size_,
+	              1.0f,
+	              bias,
+	              output_size_);
+
+    //applying different activation functions
+    switch(nonlinearity_){
+      case Nonlinearity::None: {
+        output[output_slice] = bias;
+        break;
+      }
+      case Nonlinearity::Sigmoid: {
+        output[output_slice] = 1/(1+exp(-bias));
+        break;
+      }
+      case Nonlinearity::Tanh: {
+        output[output_slice] = 2/(1+exp(-2.0f*(bias)))-1;
+        break;
+      }
+      case Nonlinearity::ReLU:{
+        output[output_slice] = bias.apply([](float n)->float {
+            if (n>0)
+              return n;
+            else
+              return 0;
+                  });
+        break;
+      }
+    }
 	}
-
-	//initialize feature vector x
-	std::valarray<float> x = input_buffer_[slice];
-
-	//variable temp ('a' in slides' notation) stores the result of the affine transformation Wx + b
-	//it is initialized as b
-	std::valarray<float> temp = params_[std::slice(m*n- 1,m,1)];
-
-	//computing temp = Wx + b using BLAS matrix*vector multiplication function SGEMV
-	cblas_sgemv(CblasRowMajor, CblasNoTrans, m, n, 1.0f, (float*)&W[0][0], n, &x[0], 1, 1.0f, &temp[0], 1);
-
-	//applying different activation functions
-	switch(nonlinearity_){
-		case Nonlinearity::None: {
-			output[slice] = temp;
-		}
-		case Nonlinearity::Sigmoid: {
-			output[slice] = 1/(1+exp(-temp));
-		}
-		case Nonlinearity::Tanh: {
-			output[slice] = 2/(1+exp(-2.0f*(temp)))-1;
-		}
-		case Nonlinearity::ReLU:{
-			output[slice] = temp.apply([](float n)->float {
-					if (n>0)
-						return n;
-					else
-						return 0;
-                });
-		}
-	}
-
-
 }
 
 void FeedForwardLayer::backward_start() {
