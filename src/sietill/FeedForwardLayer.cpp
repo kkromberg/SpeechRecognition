@@ -63,6 +63,43 @@ void FeedForwardLayer::backward_start() {
 void FeedForwardLayer::backward(std::valarray<float>& output, std::valarray<float>& error,
                                 std::gslice const& slice, std::vector<unsigned> const& mask) {
   // TODO: implement
+	// compute gradients
+  // Matrix of size D x H
+  std::gslice weights_slice(0, {output_size_, feature_size_}, {feature_size_, 1});
+  std::valarray<float> weights = params_[weights_slice];
+
+  // dE_{total}/dw_{ij} = dE_{total}/dout_{ij} * dout{ij}/dnet_{ij} * dnet_{ij}/dw_{ij}
+  // 1: dE_{total}/dout_{ij} sum partial derivations w.r.t. the output
+  //std::valarray<float> sums_output_gradients = ??
+
+  // 2: dout{ij}/dnet_{ij} how much does the output changes w.r.t. the input
+  //std::valarray<float> inner_gradients = ??
+	switch (nonlinearity_) {
+		case Nonlinearity::None:
+			break;
+		case Nonlinearity::Sigmoid:
+			break;
+		case Nonlinearity::Tanh:
+			break;
+		case Nonlinearity::ReLU:
+			break;
+
+		default:
+			break;
+	}
+
+  // 3: dnet_{ij}/dw_{ij} how much does the input changes w.r.t. to the weights
+	//std::valarray<float> input_gradients = ??
+	// store gradients
+	//gradient_[slice] = sums_output_gradients * inner_gradients * input_gradients
+
+	// compute error if need
+	if (input_error_needed_) {
+		// TODO compute error and store in error_buffer_
+	}
+
+
+
 }
 
 FeedForwardLayer::FeedForwardLayer(Configuration const& config, Nonlinearity nonlinearity)
