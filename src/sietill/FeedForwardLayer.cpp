@@ -65,59 +65,96 @@ void FeedForwardLayer::forward(std::valarray<float>& output, std::gslice const& 
   std::cerr << "Output  size H: " << output_size_  << std::endl;
   */
 
-  // Matrix of size D x H
+  unsigned max_time_step = *std::max_element(mask.begin(), mask.end());
+
+  // Matrix of size H x D
   std::gslice weights_slice(0, {output_size_, feature_size_}, {feature_size_, 1});
   std::valarray<float> weights = params_[weights_slice];
 
-  // The bias is a matrix H x B. Each column of the matrix is the same!
-  std::gslice bias_slice(output_size_ * feature_size_, {feature_size_}, {1});
+  // The bias is a matrix B x H. Each row of the matrix is the same!
   std::valarray<float> bias(0.0, output_size_ * batch_size_);
   for (size_t batch_idx = 0; batch_idx < batch_size_; batch_idx++) {
-    bias[std::gslice(batch_idx * output_size_, {output_size_}, {1})] = params_[bias_slice];
+    for (size_t output_idx = 0; output_idx < output_size_; output_idx++) {
+      bias[batch_idx * output_size_ + output_idx] = params_[output_size_ * feature_size_ + output_idx];
+    }
   }
 
   // Go over every time step. Currently the mask is ignored due to simplification reasons.
-  // Optimally, you would break after the max sequence length has been seen.
+  // Optimally, you would break after the max sequence length in the mask has been seen.
 	for (size_t time_idx = 0; time_idx < max_seq_length_; time_idx++) {
+	  if (time_idx > max_time_step) {
+	    break;
+	  }
 
 	  // Slice of size B x D. This in the input to the layer
-    std::gslice input_slice(time_idx * max_seq_length_,
+    std::gslice input_slice(time_idx  * batch_size_ * feature_size_,
                            {batch_size_, feature_size_},
                            {feature_size_, 1});
 
     std::valarray<float> input = input_buffer_[input_slice];
 
-    // TODO: This might be wrong, since the outputs are given in H x B
     // Slice of size B x H
-    std::gslice output_slice(time_idx * slice.stride()[0],
+    std::gslice output_slice(time_idx * slice.size()[1] * slice.size()[2],
                            {slice.size()[1], slice.size()[2]},
                            {slice.stride()[1], slice.stride()[2]});
 
     // prepare the results container
     std::valarray<float> result = bias;
 
-    /*
+/*
+    std::cout << "Output dimensions: " << slice.size()[1] << " x " << slice.size()[2] << std::endl;
+    std::cout << "Bias dimensions  : " << batch_size_ << " x " << output_size_ << std::endl;
+
     std::cerr << "Batch   size B: " << batch_size_ << std::endl;
     std::cerr << "Feature size D: " << feature_size_ << std::endl;
     std::cerr << "Output  size H: " << output_size_  << std::endl;
     std::cerr << "Size of bias   : " << bias.size() << std::endl;
     std::cerr << "Size of weights: " << weights.size() << std::endl;
     std::cerr << "Size of input  : " << input.size() << std::endl;
-     */
+
+    std::cout << "Bias (Tranposed) : " << std::endl;
+    for (size_t batch_idx = 0; batch_idx < batch_size_; batch_idx++) {
+      for (size_t output_idx = 0; output_idx < output_size_; output_idx++) {
+       // std::cerr << std::endl  << batch_idx * output_size_ + output_idx << std::endl;
+        std::cerr << bias[batch_idx * output_size_ + output_idx] << " " ;
+      }
+      std::cerr << std::endl;
+    }
+
+    std::cerr << "Weights (transposed) : " << std::endl;
+    for (size_t feature_idx = 0; feature_idx < feature_size_; feature_idx++) {
+      for (size_t output_idx = 0; output_idx < output_size_; output_idx++) {
+        std::cerr << weights[output_idx * feature_size_ + feature_idx] << " " ;
+      }
+      std::cerr << std::endl;
+    }
+
+    std::cerr << "Input: " << std::endl;
+    for (size_t batch_idx = 0; batch_idx < batch_size_; batch_idx++) {
+      for (size_t feature_idx = 0; feature_idx < feature_size_; feature_idx++) {
+        std::cerr << input[feature_idx + batch_idx * feature_size_] << " " ;
+      }
+      std::cerr << std::endl;
+    }
+
+*/
+    // Perform the following calculation:
+    // output^(BxH) = input^(BxD) * weights^(DxH) + bias^(BxH)
+    // The previously computed weights matrix has to be transposed
 	  cblas_sgemm(CblasRowMajor,
+	              CblasNoTrans,
 	              CblasTrans,
-	              CblasTrans,
+	              batch_size_,
 	              output_size_,
 	              feature_size_,
-	              batch_size_,
 	              1.0f,
-	              &weights[0],      // H x D
-	              feature_size_,
-	              &input[0],        // D x B
-	              batch_size_,
+	              &input[0],          // B x D
+	              feature_size_,      // # columns in the input
+	              &weights[0],        // D x H
+	              feature_size_,      // # columns in the weights (untransposed)
 	              1.0f,
-	              &result[0],       // H x B <- this is the bias and the result at the same time
-	              batch_size_);
+	              &result[0],         // B x H <- this is the bias and the result at the same time
+	              output_size_);      // # columns in the bias
 
     //applying different activation functions
     switch(nonlinearity_){
