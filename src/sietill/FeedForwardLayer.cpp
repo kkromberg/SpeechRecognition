@@ -79,8 +79,7 @@ void FeedForwardLayer::forward(std::valarray<float>& output, std::gslice const& 
     }
   }
 
-  // Go over every time step. Currently the mask is ignored due to simplification reasons.
-  // Optimally, you would break after the max sequence length in the mask has been seen.
+  // Go over every time step
 	for (size_t time_idx = 0; time_idx < max_seq_length_; time_idx++) {
 	  if (time_idx > max_time_step) {
 	    break;
