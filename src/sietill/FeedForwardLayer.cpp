@@ -54,8 +54,8 @@ FeedForwardLayer::~FeedForwardLayer() {
 void FeedForwardLayer::init(bool input_error_needed) {
   NetworkLayer::init(input_error_needed);
   params_.resize(feature_size_ * output_size_ + output_size_);
-  gradient_.resize(params_.size());
-}
+		gradient_.resize(params_.size());
+	}
 
 void FeedForwardLayer::init_parameters(std::function<float()> const& generator) {
   for (size_t i = 0ul; i < params_.size(); i++) {
@@ -89,11 +89,29 @@ void FeedForwardLayer::backward(std::valarray<float>& output, std::valarray<floa
     }
   }
 
+
+  //std::valarray<float>
+
   // Go over every time step
 	for (size_t time_idx = 0; time_idx < max_seq_length_; time_idx++) {
 	  if (time_idx > max_time_step) {
 	    break;
 	  }
+
+	  std::gslice input_slice(time_idx  * batch_size_ * feature_size_,
+	                             {batch_size_, feature_size_},
+	                             {feature_size_, 1});
+
+	  std::valarray<float> input = input_buffer_[input_slice];
+
+	  std::gslice error_slice(time_idx  * batch_size_ * output_size_,
+	  	                             {batch_size_, output_size_},
+	  	                             {output_size_, 1});
+
+	  std::valarray<float> current_error = error[error_slice];
+
+
+
     // Slice of size B x H
     std::gslice output_slice(time_idx * slice.size()[1] * slice.size()[2],
                            {slice.size()[1], slice.size()[2]},
@@ -130,21 +148,48 @@ void FeedForwardLayer::backward(std::valarray<float>& output, std::valarray<floa
 			default:
 				break;
 		}
+		current_error*=inner_gradients;
+		// Perform the following calculation:
+		// gradient^(HxD) = current_error^(BxH) * input^(BxD)
+		// current error has to be transposed
+		cblas_sgemm(CblasRowMajor,
+			              CblasTrans,
+			              CblasNoTrans,
+			              output_size_,
+			              feature_size_,
+			              batch_size_,
+			              1.0f,
+			              &current_error[0], // H x B
+			              output_size_,      // # columns in the error (untransposed)
+			              &input[0],         // B x D
+			              feature_size_,     // # columns in the input
+			              1.0f,
+			              &gradient_[0],     // HxD
+			              feature_size_);    // # columns in the gradient
 
+		// compute error if need
+			if (input_error_needed_) {
+				// TODO compute error and store in error_buffer_
 
-	  // 3: dnet_{ij}/dw_{ij} how much does the input changes w.r.t. to the weights
-		//std::valarray<float> input_gradients = ??
-		// store gradients
-		//gradient_[slice] = sums_output_gradients * inner_gradients * input_gradients
+				// Perform the following calculation:
+				// error_buffer^(BxD) = current_error^(BxH) * weghts^(HxD)
+				cblas_sgemm(CblasRowMajor,
+							              CblasNoTrans,
+							              CblasNoTrans,
+							              batch_size_,
+							              feature_size_,
+							              output_size_,
+							              1.0f,
+							              &current_error[0], // B x H
+							              output_size_,      // # columns in the current error
+							              &weights[0],        // H x D
+							              feature_size_,      // # columns in the weights
+							              1.0f,
+							              &error_buffer_[0],         // B x H <- this is the bias and the result at the same time
+							              feature_size_);      // # columns in the bias
+
+			}
 	}
-
-	// compute error if need
-	if (input_error_needed_) {
-		// TODO compute error and store in error_buffer_
-	}
-
-
-
 }
 
 FeedForwardLayer::FeedForwardLayer(Configuration const& config, Nonlinearity nonlinearity)
