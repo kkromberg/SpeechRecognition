@@ -130,8 +130,9 @@ double Aligner::align_sequence_full(FeatureIter feature_begin, FeatureIter featu
 	size_t state_index   = state_number - 1;
 	for (AlignmentIter align_iter = align_end-1; align_iter != align_begin - 1; align_iter--, feature_index--) { // loop alignment
 		StateIdx automaton_state = reference[state_index];
-		(*align_iter)->state = automaton_state;
-
+    (*align_iter)[0].state  = automaton_state;
+    (*align_iter)[0].weight = 1;
+    (*align_iter)[0].count  = 1;
 		//std::cout << feature_index << " " << state_index << std::endl;
 		state_index = backpointer_matrix[state_index][feature_index];
 	}
@@ -259,7 +260,10 @@ double Aligner::align_sequence_pruned(FeatureIter feature_begin, FeatureIter fea
 	AlignmentIter align_iter = align_end-1;
 	while (best_node->antecessor != NULL) {
 		// set the mapping
-		(*align_iter)[0].state = reference[best_node->state];
+		(*align_iter)[0].state  = reference[best_node->state];
+		(*align_iter)[0].weight = 1;
+    (*align_iter)[0].count  = 1;
+
 		align_iter--;
 
 		// set the node for backtracking
@@ -268,6 +272,8 @@ double Aligner::align_sequence_pruned(FeatureIter feature_begin, FeatureIter fea
 
 	// set the mapping of the first vector to the beginning of the alignment
 	(*align_begin)[0].state = reference[0];
+	(*align_begin)[0].weight = 1;
+	(*align_begin)[0].count = 1;
 
 	// clean the pointers to the nodes used in the beam search
 	for (size_t beam_index = 0; beam_index < n_features; beam_index++) {
@@ -309,6 +315,18 @@ void read_alignment(std::istream& in, Alignment& alignment, size_t& max_aligns) 
   in.read(reinterpret_cast<char*>(&num_frames), sizeof(num_frames));
   alignment.resize(num_frames * max_aligns);
   in.read(reinterpret_cast<char*>(alignment.data()), max_aligns * num_frames * sizeof(Alignment::value_type));
+
+  /*
+  std::cout << "Read alignment: " << std::endl;
+  unsigned counter = 0;
+  Alignment::iterator it = alignment.begin();
+
+  while (it != alignment.end()) {
+    std::cout << counter << " " << (*it).state << std::endl;
+    counter++;
+    it++;
+  }
+  */
 }
 
 /*****************************************************************************/
