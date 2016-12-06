@@ -71,6 +71,7 @@ void FeedForwardLayer::init_parameters(std::function<float()> const& generator) 
  */
 void FeedForwardLayer::forward(std::valarray<float>& output, std::gslice const& slice, std::vector<unsigned> const& mask) const {
 
+	std::cerr << "Started forward" << std::endl;
   /*
   std::cerr << "Batch   size B: " << batch_size_ << std::endl;
   std::cerr << "Feature size D: " << feature_size_ << std::endl;
@@ -152,6 +153,7 @@ void FeedForwardLayer::forward(std::valarray<float>& output, std::gslice const& 
     // Perform the following calculation:
     // output^(BxH) = input^(BxD) * weights^(DxH) + bias^(BxH)
     // The previously computed weights matrix has to be transposed
+
 	  cblas_sgemm(CblasRowMajor,
 	              CblasNoTrans,
 	              CblasTrans,
@@ -165,7 +167,7 @@ void FeedForwardLayer::forward(std::valarray<float>& output, std::gslice const& 
 	              feature_size_,      // # columns in the weights (untransposed)
 	              1.0f,
 	              &result[0],         // B x H <- this is the bias and the result at the same time
-	              output_size_);      // # columns in the bias
+				  output_size_);      // # columns in the bias
 
     //applying different activation functions
     switch(nonlinearity_){
@@ -192,6 +194,7 @@ void FeedForwardLayer::forward(std::valarray<float>& output, std::gslice const& 
       }
     }
 	}
+	std::cerr << "Finish forward" << std::endl;
 }
 
 void FeedForwardLayer::backward_start() {
@@ -203,7 +206,7 @@ void FeedForwardLayer::backward(std::valarray<float>& output, std::valarray<floa
                                 std::gslice const& slice, std::vector<unsigned> const& mask) {
   // TODO: implement
   unsigned max_time_step = *std::max_element(mask.begin(), mask.end());
-
+  std::cerr << "Started backward" << std::endl;
   // Matrix of size H x D
   std::gslice weights_slice(0, {output_size_, feature_size_}, {feature_size_, 1});
   std::valarray<float> weights = params_[weights_slice];
@@ -247,15 +250,18 @@ void FeedForwardLayer::backward(std::valarray<float>& output, std::valarray<floa
 
 
 	  // 2: dout{ij}/dnet_{ij} how much does the output changes w.r.t. the input
-	  std::valarray<float> inner_gradients;
+
 	  std::valarray<float> out_slice = output[output_slice];
+	  std::valarray<float> inner_gradients(0.0f, out_slice.size());
+	  std::valarray<float> ones (1.0f, out_slice.size());
 		switch (nonlinearity_) {
 			case Nonlinearity::None:
 				inner_gradients = 1.0f;
 				break;
 			case Nonlinearity::Sigmoid:
-				std::valarray<float> ones(1.0, slice.size()[1] * slice.size()[2]);
-				inner_gradients = out_slice * (ones-out_slice);
+
+				inner_gradients = out_slice*(ones - out_slice);
+
 				break;
 			case Nonlinearity::Tanh:
 				inner_gradients = 1 - (out_slice * out_slice);
@@ -271,6 +277,11 @@ void FeedForwardLayer::backward(std::valarray<float>& output, std::valarray<floa
 			default:
 				break;
 		}
+		/*
+		std::cerr << inner_gradients.size() << std::endl;
+		std::cerr << current_error.size() << std::endl;
+		std::cerr << out_slice.size() << std::endl;
+		*/
 		current_error*=inner_gradients;
 		// Perform the following calculation:
 		// gradient^(HxD) = current_error^(BxH) * input^(BxD)
@@ -289,13 +300,19 @@ void FeedForwardLayer::backward(std::valarray<float>& output, std::valarray<floa
 			              1.0f,
 			              &gradient_[0],     // HxD
 			              feature_size_);    // # columns in the gradient
-
+		std::cerr << "Gradients : " << std::endl;
+		for (size_t feature_idx = 0; feature_idx < feature_size_; feature_idx++) {
+			for (size_t output_idx = 0; output_idx < output_size_; output_idx++) {
+				std::cerr << gradient_[output_idx * feature_size_ + feature_idx] << " " ;
+		  }
+		  std::cerr << std::endl;
+		}
 		// compute error if need
 			if (input_error_needed_) {
 				// TODO compute error and store in error_buffer_
 
 				// Perform the following calculation:
-				// error_buffer^(BxD) = current_error^(BxH) * weghts^(HxD)
+				// error_buffer^(BxD) = current_error^(BxH) * weights^(HxD)
 				cblas_sgemm(CblasRowMajor,
 							              CblasNoTrans,
 							              CblasNoTrans,
@@ -308,7 +325,7 @@ void FeedForwardLayer::backward(std::valarray<float>& output, std::valarray<floa
 							              &weights[0],        // H x D
 							              feature_size_,      // # columns in the weights
 							              1.0f,
-							              &error_buffer_[0],         // B x H <- this is the bias and the result at the same time
+							              &error_buffer_[0],         // B x D new errors
 							              feature_size_);      // # columns in the bias
 
 			}
