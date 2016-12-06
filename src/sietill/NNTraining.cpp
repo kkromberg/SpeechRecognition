@@ -231,7 +231,7 @@ void AdaDeltaUpdater::update() {
 
 		// accumulate gradient
 		gradient_rms_iterator->second = momentum_ * gradient_rms_iterator->second
-																	+ (1-momentum_) * *gradients_iterator->second;
+																	+ (1-momentum_) * *gradients_iterator->second * *gradients_iterator->second;
 
 		// compute update
 		update_buffer_ = sqrt(update_rms_iterator->second   + stability_factor_)
@@ -240,7 +240,7 @@ void AdaDeltaUpdater::update() {
 
 		// accumulate updates
 		update_rms_iterator->second = momentum_ * update_rms_iterator->second
-																+ (1-momentum_) * update_buffer_;
+																+ (1-momentum_) * update_buffer_ * update_buffer_;
 
 		// apply updates
 		//parameter_iterator->second -= learning_rate_ * update_buffer_;

@@ -118,6 +118,7 @@ public:
   	}
 
   	stability_factor_ = 1e-8;
+  	update_buffer_    = std::valarray<float>(0.0, 1);
   }
   ~AdaDeltaUpdater() {}
 
