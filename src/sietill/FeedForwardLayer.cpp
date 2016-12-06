@@ -283,7 +283,7 @@ void FeedForwardLayer::backward(std::valarray<float>& output, std::valarray<floa
 	  		output_size_,      // # columns in the error (untransposed)
 	  		&input[0],         // B x D
 	  		feature_size_,     // # columns in the input
-	  		0.0f,
+	  		1.0f,
 	  		&gradient_[0],     // HxD
 	  		feature_size_);    // # columns in the gradient
 
@@ -305,7 +305,7 @@ void FeedForwardLayer::backward(std::valarray<float>& output, std::valarray<floa
 		}
 
 		std::gslice bias_slice(output_size_*feature_size_, {output_size_}, {1});
-		gradient_[bias_slice] = bias_gradient;
+		gradient_[bias_slice] += bias_gradient;
 
 
 		/*
