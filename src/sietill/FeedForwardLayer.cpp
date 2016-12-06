@@ -230,6 +230,20 @@ void FeedForwardLayer::backward(std::valarray<float>& output, std::valarray<floa
 	                             {feature_size_, 1});
 
 	  std::valarray<float> input = input_buffer_[input_slice];
+	  /*
+	  //new code
+	  std::valarray<float> identity (0.0f, batch_size_);
+	  std::valarray<float> input [batch_size_*feature_size_+batch_size_];
+	  std::gslice input_slice_without_bias(0,
+	  	                             {batch_size_, feature_size_},
+	  	                             {feature_size_, 1});
+	  input[input_slice_without_bias] = input_buffer_[input_slice];
+	  std::gslice bias_slice(feature_size_,1,feature_size_);
+	  input[bias_slice] = identity;
+	  //std::valarray<float> gradient_with_bias[feature_size_ * output_size_ + output_size_]
+	  //end of the new code
+	  */
+
 
 	  std::gslice error_slice(time_idx  * batch_size_ * output_size_,
 	  	                             {batch_size_, output_size_},
@@ -309,7 +323,20 @@ void FeedForwardLayer::backward(std::valarray<float>& output, std::valarray<floa
 		  std::cerr << std::endl;
 		}
 		*/
+		std::valarray<float> bias_gradient(0.0f, output_size_);
+		for (size_t i = 0;i<output_size_;i++){
+			std::gslice temp_slice(i,{batch_size_},{output_size_});
+			std::valarray<float> temp_error = current_error[temp_slice];
+			bias_gradient[i] = temp_error.sum();
+		}
+		std::gslice bias_slice(output_size_*feature_size_, {output_size_}, {1});
+		gradient_[bias_slice] = bias_gradient;
+
 		// compute error if need
+		std::gslice error_buffer_slice(time_idx  * batch_size_ * feature_size_,
+			  	                             {batch_size_, feature_size_},
+			  	                             {feature_size_, 1});
+		error_buffer_[error_buffer_slice] = bias;
 			if (input_error_needed_) {
 				// TODO compute error and store in error_buffer_
 				// Perform the following calculation:
