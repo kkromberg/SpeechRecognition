@@ -244,12 +244,11 @@ void FeedForwardLayer::backward(std::valarray<float>& output, std::valarray<floa
 	  //end of the new code
 	  */
 
-
+	  /*
 	  std::gslice error_slice(time_idx  * batch_size_ * output_size_,
 	  	                             {batch_size_, output_size_},
 	  	                             {output_size_, 1});
-
-	  std::valarray<float> current_error = error[error_slice];
+		*/
 
 
 
@@ -257,6 +256,8 @@ void FeedForwardLayer::backward(std::valarray<float>& output, std::valarray<floa
     std::gslice output_slice(time_idx * slice.size()[1] * slice.size()[2],
                            {slice.size()[1], slice.size()[2]},
                            {slice.stride()[1], slice.stride()[2]});
+
+	  std::valarray<float> current_error = error[output_slice];
 
     // dE_{total}/dw_{ij} = dE_{total}/dout_{ij} * dout{ij}/dnet_{ij} * dnet_{ij}/dw_{ij}
     // 1: dE_{total}/dout_{ij} sum partial derivations w.r.t. the output
@@ -323,6 +324,9 @@ void FeedForwardLayer::backward(std::valarray<float>& output, std::valarray<floa
 		  std::cerr << std::endl;
 		}
 		*/
+
+
+
 		std::valarray<float> bias_gradient(0.0f, output_size_);
 		for (size_t i = 0;i<output_size_;i++){
 			std::gslice temp_slice(i,{batch_size_},{output_size_});
@@ -332,11 +336,23 @@ void FeedForwardLayer::backward(std::valarray<float>& output, std::valarray<floa
 		std::gslice bias_slice(output_size_*feature_size_, {output_size_}, {1});
 		gradient_[bias_slice] = bias_gradient;
 
+
+
+
+
+		/*
+		for (size_t output_idx = 0; output_idx < output_size_; output_idx++) {
+						std::cerr << gradient_[output_size_*feature_size_+output_idx] << " " ;
+		}
+		std::cerr << std::endl;
+		*/
 		// compute error if need
+		/*
 		std::gslice error_buffer_slice(time_idx  * batch_size_ * feature_size_,
 			  	                             {batch_size_, feature_size_},
 			  	                             {feature_size_, 1});
 		error_buffer_[error_buffer_slice] = bias;
+		*/
 			if (input_error_needed_) {
 				// TODO compute error and store in error_buffer_
 				// Perform the following calculation:
