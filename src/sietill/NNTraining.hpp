@@ -110,7 +110,7 @@ public:
                    learning_rate_(paramLearningRate(config)) {
   	for (VAMap::const_iterator it = parameters_.begin(); it != parameters_.end(); it++) {
   		std::string key = it->first;
-  		std::valarray<float> initial_values(it->second->size(), 0.0);
+  		std::valarray<float> initial_values(0.0, it->second->size());
   		std::pair<std::string, std::valarray<float>> new_entry(std::make_pair(key, initial_values));
 
   		update_rms_.insert(new_entry);
