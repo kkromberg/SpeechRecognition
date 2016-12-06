@@ -300,6 +300,7 @@ void FeedForwardLayer::backward(std::valarray<float>& output, std::valarray<floa
 			              1.0f,
 			              &gradient_[0],     // HxD
 			              feature_size_);    // # columns in the gradient
+		/*
 		std::cerr << "Gradients : " << std::endl;
 		for (size_t feature_idx = 0; feature_idx < feature_size_; feature_idx++) {
 			for (size_t output_idx = 0; output_idx < output_size_; output_idx++) {
@@ -307,10 +308,10 @@ void FeedForwardLayer::backward(std::valarray<float>& output, std::valarray<floa
 		  }
 		  std::cerr << std::endl;
 		}
+		*/
 		// compute error if need
 			if (input_error_needed_) {
 				// TODO compute error and store in error_buffer_
-
 				// Perform the following calculation:
 				// error_buffer^(BxD) = current_error^(BxH) * weights^(HxD)
 				cblas_sgemm(CblasRowMajor,
@@ -322,11 +323,11 @@ void FeedForwardLayer::backward(std::valarray<float>& output, std::valarray<floa
 							              1.0f,
 							              &current_error[0], // B x H
 							              output_size_,      // # columns in the current error
-							              &weights[0],        // H x D
-							              feature_size_,      // # columns in the weights
+							              &weights[0],       // H x D
+							              feature_size_,     // # columns in the weights
 							              1.0f,
-							              &error_buffer_[0],         // B x D new errors
-							              feature_size_);      // # columns in the bias
+							              &error_buffer_[time_idx  * batch_size_ * feature_size_],	// B x D new errors
+							              feature_size_);    // # columns in the bias
 
 			}
 	}
