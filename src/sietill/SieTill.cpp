@@ -134,7 +134,7 @@ int main(int argc, const char *argv[]) {
     }
   }
 /*****************************************************************************/
-  else if (action == "train-nn" or action == "compute-prior") {
+  else if (action == "train-nn" or action == "compute-prior" or action == "plot-activations") {
     const ParameterUInt paramBatchSize("batch-size", 32u);
     const unsigned batch_size(paramBatchSize(config));
 
@@ -148,7 +148,36 @@ int main(int argc, const char *argv[]) {
       NnTrainer nn_trainer(config, mini_batch_builder, nn);
       nn_trainer.train();
     }
-    else { // action == "compute-prior"
+    else if (action == "plot-activations") {
+    	std::vector<std::string> layer_names = {"hidden-layer1", "hidden-layer2", "output-layer"};
+
+    	std::valarray<float> targets = std::valarray<float>(1, 0.0);
+      mini_batch_builder.build_batch(0, false,
+                                      nn.get_feature_buffer(),
+                                      nn.get_feature_buffer_slice(),
+                                      targets,
+                                      nn.get_batch_mask());
+      nn.forward();
+
+      for (size_t i = 0; i < layer_names.size(); i++) {
+      	NetworkLayer *layer = nn.get_network_layer(layer_names[i]);
+      	assert(layer != nullptr);
+
+      	std::valarray<float> inputs = layer->get_input_buffer();
+      	size_t feature_size = layer->get_feature_size();
+
+    		std::vector<double> feature_vector(feature_size, 0.0);
+    		std::ofstream output("../activation-plotting/activations/" + layer_names[i] + ".activations", std::ios_base::out | std::ios_base::trunc);
+      	for (size_t time_idx = 0; time_idx < layer->get_max_seq_length_(); time_idx++) {
+        	for (size_t input_idx = 0; input_idx < feature_size; input_idx++) {
+        		feature_vector[input_idx] = inputs[time_idx * feature_size + time_idx];
+        	}
+      		write_floats_to_file(output, feature_vector);
+      	}
+      	output.close();
+      }
+
+    } else { // action == "compute-prior"
       const ParameterString paramPriorFile("prior-file", "");
       std::string prior_file = paramPriorFile(config);
 

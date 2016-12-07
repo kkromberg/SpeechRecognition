@@ -64,6 +64,8 @@ public:
   std::map<std::string, std::valarray<float>*> const& get_parameters() const;
   std::map<std::string, std::valarray<float>*> const& get_gradients()  const;
 
+
+
   void init_parameters(std::function<float()> const& generator);
   void forward();
   void backward(std::valarray<float> const& targets);
