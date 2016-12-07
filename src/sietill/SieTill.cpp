@@ -35,6 +35,7 @@ int main(int argc, const char *argv[]) {
   const ParameterString paramFeatureScorer("feature-scorer", "gmm");
   const ParameterString paramAlignmentPath("alignment-path", "");
 
+
   std::string action(paramAction(config));
   std::string feature_path(paramFeaturePath(config));
   std::string normalization_path(paramNormalizationPath(config));
@@ -151,31 +152,51 @@ int main(int argc, const char *argv[]) {
     else { // action == "compute-prior"
       const ParameterString paramPriorFile("prior-file", "");
       std::string prior_file = paramPriorFile(config);
+      const ParameterBool computePriorFromAlignment("compute-prior-from-alignment", "");
+      bool compute_prior_from_alignment = computePriorFromAlignment(config);
 
       std::ofstream out(prior_file, std::ios::out | std::ios::trunc);
       if (not out.good()) {
         std::cerr << "Could not open prior-file: " << prior_file << std::endl;
         std::abort();
       }
-      // TODO: implement
-      std::vector<float> state_frequencies(lexicon.num_states());
-      size_t sum = 0;
-      Alignment alignment  = mini_batch_builder.get_alignment();
-      size_t num_max_align = mini_batch_builder.get_max_align();
-      ConstAlignmentIter align_begin(&*alignment.begin(), num_max_align);
-      ConstAlignmentIter align_end(&*alignment.end(), num_max_align);
 
-      for (ConstAlignmentIter align_iter = align_begin; align_iter != align_end; align_iter++) {
-      	sum += 1;
-      	state_frequencies[(*align_iter)->state] += 1;
+      if (compute_prior_from_alignment) {
+        // compute prior using alignment
+        // TODO: implement
+        std::vector<float> state_frequencies(lexicon.num_states());
+        size_t sum = 0;
+        Alignment alignment  = mini_batch_builder.get_alignment();
+        size_t num_max_align = mini_batch_builder.get_max_align();
+        ConstAlignmentIter align_begin(&*alignment.begin(), num_max_align);
+        ConstAlignmentIter align_end(&*alignment.end(), num_max_align);
+
+        for (ConstAlignmentIter align_iter = align_begin; align_iter != align_end; align_iter++) {
+        	sum += 1;
+        	state_frequencies[(*align_iter)->state] += 1;
+        }
+
+        //std::cerr << "LENGHT: " << state_frequencies.size() << std::endl;
+        //std::cerr << "SUM: "		<< sum											<< std::endl;
+        for (size_t i = 0; i < state_frequencies.size(); i++) {
+        	//std::cerr << "I : " << state_frequencies[i]/sum << std::endl;
+        	out << state_frequencies[i]/sum << " ";
+        }
       }
+      else {	// compute prior using models
+        // load weights
+        std::string model_path = "./models/9/";
+        nn.load(model_path);
 
-      //std::cerr << "LENGHT: " << state_frequencies.size() << std::endl;
-      //std::cerr << "SUM: "		<< sum											<< std::endl;
-      double total_sum = 0;
-      for (size_t i = 0; i < state_frequencies.size(); i++) {
-      	//std::cerr << "I : " << state_frequencies[i]/sum << std::endl;
-      	out << state_frequencies[i]/sum << " ";
+        //std::cerr << "FEATURE: " << nn.get_feature_buffer().sum() << std::endl;
+        // do forward step
+        nn.forward();
+        std::valarray<float> score = nn.get_score_buffer();
+        std::cerr << "OUTPUT SIZE: " << score.size() << std::endl;
+        for (size_t i = 0; i < lexicon.num_states(); i++) {
+        	out << score[i] << " ";
+        	std::cerr << score[i] << std::endl;
+        }
       }
       out.close();
     }
