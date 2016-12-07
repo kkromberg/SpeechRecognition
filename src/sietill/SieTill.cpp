@@ -157,8 +157,27 @@ int main(int argc, const char *argv[]) {
         std::cerr << "Could not open prior-file: " << prior_file << std::endl;
         std::abort();
       }
-
       // TODO: implement
+      std::vector<float> state_frequencies(lexicon.num_states());
+      size_t sum = 0;
+      Alignment alignment  = mini_batch_builder.get_alignment();
+      size_t num_max_align = mini_batch_builder.get_max_align();
+      ConstAlignmentIter align_begin(&*alignment.begin(), num_max_align);
+      ConstAlignmentIter align_end(&*alignment.end(), num_max_align);
+
+      for (ConstAlignmentIter align_iter = align_begin; align_iter != align_end; align_iter++) {
+      	sum += 1;
+      	state_frequencies[(*align_iter)->state] += 1;
+      }
+
+      //std::cerr << "LENGHT: " << state_frequencies.size() << std::endl;
+      //std::cerr << "SUM: "		<< sum											<< std::endl;
+      double total_sum = 0;
+      for (size_t i = 0; i < state_frequencies.size(); i++) {
+      	//std::cerr << "I : " << state_frequencies[i]/sum << std::endl;
+      	out << state_frequencies[i]/sum << " ";
+      }
+      out.close();
     }
   }
 /*****************************************************************************/
