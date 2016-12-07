@@ -185,7 +185,9 @@ int main(int argc, const char *argv[]) {
       }
       else {	// compute prior using models
         // load weights
-        std::string model_path = "./models/9/";
+      	const ParameterString modelPath("model-path", "");
+      	std::string model_path = modelPath(config);
+        //std::string model_path = "./models/1/";
         nn.load(model_path);
 
         //std::cerr << "FEATURE: " << nn.get_feature_buffer().sum() << std::endl;
