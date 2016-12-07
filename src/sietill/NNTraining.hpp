@@ -38,6 +38,8 @@ public:
   void shuffle();
   void build_batch(size_t batch_index, bool cv, std::valarray<float>& output, std::gslice const& slice,
                    std::valarray<float>& targets, std::vector<unsigned>& mask) const;
+  Alignment get_alignment();
+  size_t    get_max_align();
 private:
   const size_t      batch_size_;
   const size_t      num_classes_;

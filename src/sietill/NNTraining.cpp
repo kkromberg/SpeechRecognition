@@ -199,6 +199,13 @@ std::pair<size_t, size_t> MiniBatchBuilder::sequence_boundaries(size_t begin, si
                                         end - begin - std::max(final_silence_frames, max_silence_frames_) + max_silence_frames_);
 }
 
+Alignment MiniBatchBuilder::get_alignment() {
+	return alignment_;
+}
+
+size_t MiniBatchBuilder::get_max_align() {
+	return max_aligns_;
+}
 // -------------------- ParameterUpdater  --------------------
 
 const ParameterFloat SGDUpdater::paramLearningRate("learning-rate", 0.001);
