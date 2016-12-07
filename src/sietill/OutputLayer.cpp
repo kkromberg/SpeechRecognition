@@ -5,21 +5,27 @@
 #include "Util.hpp"
 
 namespace {
-  double exp_add(double x, double y) {
-    return x + exp(y);
-  }
-
   template<typename T>
-  struct exp_divide {
-    T scale_;
+  struct shifted_exp_add {
+  	T shift_;
 
-    exp_divide(T const& scale) : scale_(scale) {}
+  	shifted_exp_add(T const& shift) : shift_(shift) {}
 
-    T operator()(T const& x) {
-      return exp(x) / scale_;
-    }
+  	T operator()(T const& prev, T const& x) {
+  		return prev + exp(x - shift_);
+  	}
   };
 
+  template<typename T>
+  struct exp_minus {
+  	T value_;
+
+  	exp_minus(T const& value) : value_(value) {}
+
+  	T operator()(T const& x) {
+  		return exp(x - value_);
+  	}
+  };
 }
 void OutputLayer::forward(std::valarray<float>& output, std::gslice const& slice, std::vector<unsigned> const& mask) const {
   FeedForwardLayer::forward(output, slice, mask);
@@ -40,12 +46,14 @@ void OutputLayer::forward(std::valarray<float>& output, std::gslice const& slice
                              {slice.stride()[2]});
       std::valarray<float> output_values(output[output_slice]);
 
-      // TODO: This is the naïve computation of the soft-max function, which is supposed to be numerically unstable.
-      // However, the subsequent sum over all elements is 1, showing no signs of instability?
-      double sum = std::accumulate(std::begin(output_values), std::end(output_values), 0.0, exp_add);
-
+      // calculate the output layer in log-space to avoid numerical instability
+      // see: https://lingpipe-blog.com/2009/06/25/log-sum-of-exponentials/
+      double max_value = *std::max_element(std::begin(output_values), std::end(output_values));
+      double log_space_sum = std::accumulate(std::begin(output_values), std::end(output_values),
+      																			 0.0, shifted_exp_add<double>(max_value));
+      log_space_sum = max_value + log(log_space_sum);
       std::transform(std::begin(output_values), std::end(output_values),
-                     std::begin(output_values), exp_divide<float>(sum));
+                     std::begin(output_values), exp_minus<float>(log_space_sum));
 
       output[output_slice] = output_values;
       //std::cout << "Sum of elements: " << output_values.sum() << std::endl;
