@@ -146,6 +146,8 @@ public:
   static const ParameterBool   paramRandomParamInit;
   static const ParameterString paramOutputDir;
   static const ParameterString paramNNTrainingStatsPath;
+  static const ParameterString paramNNMethod;
+
 
   NnTrainer(Configuration const& config, MiniBatchBuilder& mini_batch_builder, NeuralNetwork& nn);
   virtual ~NnTrainer();
@@ -158,12 +160,14 @@ private:
   bool         random_param_init_;
   std::string  output_dir_;
   std::string  nn_training_stats_path_;
+  NNMethod method;
 
   std::mt19937 rng_;
 
   MiniBatchBuilder& mini_batch_builder_;
   NeuralNetwork&    nn_;
   std::unique_ptr<ParameterUpdater> updater_;
+
 
   double compute_loss(std::valarray<float>  const& hyp, std::valarray<float>  const& ref, std::vector<unsigned> const& batch_mask,
                       size_t max_frames, size_t batch_size, size_t num_classes) const;

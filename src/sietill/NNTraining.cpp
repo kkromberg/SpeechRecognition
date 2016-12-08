@@ -262,10 +262,12 @@ const ParameterFloat  NnTrainer::paramLearningRate       ("learning-rate",      
 const ParameterBool   NnTrainer::paramRandomParamInit    ("random-param-init",      true);
 const ParameterString NnTrainer::paramOutputDir          ("output-dir",             "./models");
 const ParameterString NnTrainer::paramNNTrainingStatsPath("nn-training-stats-path", "");
+const ParameterString NnTrainer::paramNNMethod           ("method",                "no");
 
 NnTrainer::NnTrainer(Configuration const& config, MiniBatchBuilder& mini_batch_builder, NeuralNetwork& nn)
                            : num_epochs_(paramNumEpochs(config)), start_epoch_(std::max(1u, paramStartEpoch(config))),
                              learning_rate_(paramLearningRate(config)), random_param_init_(paramRandomParamInit(config)),
+														 method(get_method_from_string(paramNNMethod(config))),
                              output_dir_(paramOutputDir(config)), nn_training_stats_path_(paramNNTrainingStatsPath(config)),
                              rng_(paramSeed(config)), mini_batch_builder_(mini_batch_builder), nn_(nn),
                              updater_(get_updater(paramUpdater(config), config, nn_.get_parameters(), nn_.get_gradients())) {
@@ -289,6 +291,8 @@ void NnTrainer::train() {
 
   std::vector<unsigned> mask;
   std::valarray<float> targets;
+  double current_error_rate;
+  double previous_error_rate = 0;
   for (size_t epoch = start_epoch_; epoch <= num_epochs_; epoch++) {
     size_t total_frames           = 0ul;
     size_t total_incorrect_frames = 0ul;
@@ -381,6 +385,21 @@ void NnTrainer::train() {
     nn_.save(ss.str());
     std::cerr << "Epoch train frame error-rate: " << (static_cast<double>(total_incorrect_frames) / static_cast<double>(total_frames))    << std::endl;
     std::cerr << "Epoch cv    frame error-rate: " << (static_cast<double>(cv_errors)              / static_cast<double>(cv_total_frames)) << std::endl;
+
+    if (method > no ){
+    	std::cerr << "Newbob" << std::endl;
+    	current_error_rate = static_cast<double>(cv_errors) / static_cast<double>(cv_total_frames);
+    	if (epoch > 1){
+    	//std::cerr << (((previous_error_rate - current_error_rate)/previous_error_rate) * 100 ) << std::endl;
+    	//std::cerr << "Learning rate before halving: " << learning_rate_<< std::endl;
+    		if (((previous_error_rate - current_error_rate)/previous_error_rate) * 100 < 50){
+    			std::cerr << "Halving learning rate: " << std::endl;
+    			learning_rate_ /=2;
+    		}
+    	//std::cerr << "Learning rate after halving: " << learning_rate_<< std::endl;
+    	}
+    	previous_error_rate = current_error_rate;
+    }
   }
 }
 

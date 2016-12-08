@@ -72,4 +72,11 @@ enum Verbosity {
 
 Verbosity get_verbosity_from_string(std::string input);
 
+enum NNMethod {
+	newBob,
+	no
+};
+
+NNMethod get_method_from_string(std::string input);
+
 #endif /* __CONFIG_H__ */
