@@ -84,6 +84,7 @@ public:
   }
 
   virtual void update() = 0;
+  virtual void setLearningRate(float learning_rate) = 0;
 protected:
   VAMap const& parameters_;
   VAMap const& gradients_;
@@ -98,6 +99,9 @@ public:
   ~SGDUpdater() {}
 
   virtual void update();
+  virtual void setLearningRate(float learning_rate) {
+  	learning_rate_ = learning_rate;
+  }
 private:
   float learning_rate_;
 };
@@ -125,6 +129,9 @@ public:
   ~AdaDeltaUpdater() {}
 
   virtual void update();
+  virtual void setLearningRate(float learning_rate) {
+  	learning_rate_ = learning_rate;
+  }
 private:
   typedef std::map<std::string, std::valarray<float>> OwnedVAMap;
 

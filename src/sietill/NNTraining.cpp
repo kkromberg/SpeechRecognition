@@ -217,6 +217,7 @@ void SGDUpdater::update() {
 
 	while (parameter_iterator != parameters_.end()) {
 		assert(parameter_iterator->first == gradients_iterator->first);
+		//std::cerr << "Learning rate: " << learning_rate_ << std::endl;
 
 		*parameter_iterator->second -= learning_rate_ * *gradients_iterator->second;
 		gradients_iterator++; parameter_iterator++;
@@ -396,11 +397,13 @@ void NnTrainer::train() {
     	//std::cerr << "Newbob" << std::endl;
     	current_error_rate = static_cast<double>(cv_errors) / static_cast<double>(cv_total_frames);
     	if (epoch > 1){
-    		if (((previous_error_rate - current_error_rate)/previous_error_rate) * 100 < 0.5){
+    		if (((previous_error_rate - current_error_rate)/previous_error_rate) * 100 < 50){
     			std::cerr << "Halving learning rate: " << std::endl;
     			learning_rate_ /=2;
     		}
     	}
+
+    	updater_->setLearningRate(learning_rate_);
     	previous_error_rate = current_error_rate;
     }
   }
