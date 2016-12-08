@@ -73,8 +73,8 @@ enum Verbosity {
 Verbosity get_verbosity_from_string(std::string input);
 
 enum NNMethod {
-	newBob,
-	no
+	no,
+	newBob
 };
 
 NNMethod get_method_from_string(std::string input);
