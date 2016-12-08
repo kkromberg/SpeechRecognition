@@ -147,5 +147,18 @@ Verbosity get_verbosity_from_string(std::string input) {
 		return noLog;
 	}
 }
+//neural network method
+NNMethod get_method_from_string(std::string input) {
+	if (input == "newBob") {
+		return newBob;
+	} else if (input == "no") {
+		return no;
+	}  else {
+		throw std::runtime_error("NNMethod: " + input + std::string(" has invalid type"));
+		return no;
+	}
+}
+
+
 
 
