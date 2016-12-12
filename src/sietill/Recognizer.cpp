@@ -95,12 +95,6 @@ void Recognizer::recognizeSequence(FeatureIter feature_begin, FeatureIter featur
 		}
 	}
 
-
-	// backpointer matrix
-	BackpointerMatrix bp_matrix;
-	for (StateIdx state_idx = 0; state_idx < num_states; state_idx++) {
-		bp_matrix.push_back(std::vector<size_t>(num_features, -1));
-	}
 	double local_distance;
 
 	// costs for virtual state
@@ -142,10 +136,10 @@ void Recognizer::recognizeSequence(FeatureIter feature_begin, FeatureIter featur
 		} // loop words
 
 		for (WordIdx word_idx = 1; word_idx <= num_words; word_idx++) {
-			if (hyp[word_idx][num_states[word_idx]].score < book[feature_counter].score) {
-				book[feature_counter].score = hyp[word_idx][num_states[word_idx]].score;
-				book[feature_counter].bkp 	= hyp[word_idx][num_states[word_idx]].bkp;
-				book[feature_counter].word  = word_idx;
+			if (hyp[word_idx][num_states_word[word_idx]].score < book[frame_counter].score) {
+				book[frame_counter].score = hyp[word_idx][num_states_word[word_idx]].score;
+				book[frame_counter].bkp 	= hyp[word_idx][num_states_word[word_idx]].bkp;
+				book[frame_counter].word  = word_idx;
 
 			}
 		}
@@ -153,7 +147,7 @@ void Recognizer::recognizeSequence(FeatureIter feature_begin, FeatureIter featur
 
 	// trace back
 	size_t count = 1;
-	size_t feature_index = feature_number - 1;
+	size_t feature_index = num_features - 1;
 
 	while (feature_index > 0) {
 		output[count] = book[feature_index].word;
