@@ -29,18 +29,6 @@ namespace {
     }
     return FeedForwardLayer::Nonlinearity::None;
   }
-
-  double sigmoid(double x) {
-	  return 1 / (1 + exp(-x));
-  }
-
-  double tanh(double x) {
-	  return 2 * sigmoid(2*x) - 1;
-  }
-
-  double relu(double x) {
-	  return std::max(0.0, x);
-  }
 }
 
 const ParameterString FeedForwardLayer::paramNonlinearity("nonlinearity", "");
@@ -91,12 +79,8 @@ void FeedForwardLayer::forward(std::valarray<float>& output, std::gslice const& 
     }
   }
 
-  // Go over every time step
-	for (size_t time_idx = 0; time_idx < max_seq_length_; time_idx++) {
-	  if (time_idx > max_time_step) {
-	    break;
-	  }
-
+#pragma omp parallel for
+  for (size_t time_idx = 0; time_idx < max_time_step; time_idx++) {
 	  // Slice of size B x D. This in the input to the layer
     std::gslice input_slice(time_idx  * batch_size_ * feature_size_,
                            {batch_size_, feature_size_},
@@ -217,131 +201,104 @@ void FeedForwardLayer::backward(std::valarray<float>& output, std::valarray<floa
   // Matrix of size H x D
   std::gslice weights_slice(0, {output_size_, feature_size_}, {feature_size_, 1});
   std::valarray<float> weights = params_[weights_slice];
+  std::valarray<float> ones (1.0f, slice.size()[1]* slice.size()[2]);
+  std::valarray<float> inner_gradients(0.0f, slice.size()[1]* slice.size()[2]);
 
   // Go over every time step
-	for (size_t time_idx = 0; time_idx < max_seq_length_; time_idx++) {
-	  if (time_idx > max_time_step) {
-	    break;
-	  }
+#pragma omp parallel for
+  for (size_t time_idx = 0; time_idx < max_time_step; time_idx++) {
+  	std::gslice input_slice(time_idx  * batch_size_ * feature_size_,
+  			{batch_size_, feature_size_},
+  			{feature_size_, 1});
 
-	  std::gslice input_slice(time_idx  * batch_size_ * feature_size_,
-	                             {batch_size_, feature_size_},
-	                             {feature_size_, 1});
+  	std::valarray<float> input = input_buffer_[input_slice];
 
-	  std::valarray<float> input = input_buffer_[input_slice];
+  	// Slice of size B x H
+  	std::gslice output_slice(time_idx * slice.size()[1] * slice.size()[2],
+  			{slice.size()[1], slice.size()[2]},
+  			{slice.stride()[1], slice.stride()[2]});
 
-    // Slice of size B x H
-	  std::gslice output_slice(time_idx * slice.size()[1] * slice.size()[2],
-	  		{slice.size()[1], slice.size()[2]},
-	  		{slice.stride()[1], slice.stride()[2]});
+  	std::valarray<float> current_error = error[output_slice];
+  	std::valarray<float> out_slice     = output[output_slice];
 
-	  std::valarray<float> current_error = error[output_slice];
-	  std::valarray<float> out_slice     = output[output_slice];
+  	std::valarray<float> inner_gradients(0.0f, slice.size()[1]* slice.size()[2]);
+  	switch (nonlinearity_) {
+  	case Nonlinearity::None:
+  		inner_gradients = 1.0f;
+  		break;
+  	case Nonlinearity::Sigmoid:
+  		inner_gradients = out_slice*(ones - out_slice);
+  		break;
+  	case Nonlinearity::Tanh:
+  		inner_gradients = 1 - (out_slice * out_slice);
+  		break;
+  	case Nonlinearity::ReLU:
+  		inner_gradients = out_slice.apply([](float n)->float {
+  			if (n>0)
+  				return 1;
+  			else
+  				return 0;
+  		});
+  		break;
+  	default:
+  		break;
+  	}
+  	current_error*=inner_gradients;
 
+  	std::valarray<float> bias_gradient(0.0f, output_size_);
+  	for (size_t i = 0;i<output_size_;i++){
+  		std::gslice temp_slice(i,{batch_size_},{output_size_});
+  		std::valarray<float> temp_error = current_error[temp_slice];
+  		bias_gradient[i] = temp_error.sum();
+  	}
 
-	  std::valarray<float> ones (1.0f, out_slice.size());
-	  std::valarray<float> inner_gradients(0.0f, out_slice.size());
-	  switch (nonlinearity_) {
-	  case Nonlinearity::None:
-	  	inner_gradients = 1.0f;
-	  	break;
-	  case Nonlinearity::Sigmoid:
-	  	inner_gradients = out_slice*(ones - out_slice);
-	  	break;
-	  case Nonlinearity::Tanh:
-	  	inner_gradients = 1 - (out_slice * out_slice);
-	  	break;
-	  case Nonlinearity::ReLU:
-	  	inner_gradients = out_slice.apply([](float n)->float {
-	  		if (n>0)
-	  			return 1;
-	  		else
-	  			return 0;
-	  	});
-	  	break;
-	  default:
-	  	break;
-		}
-		/*
-		std::cerr << inner_gradients.size() << std::endl;
-		std::cerr << current_error.size() << std::endl;
-		std::cerr << out_slice.size() << std::endl;
-		 */
-	  current_error*=inner_gradients;
-	  // Perform the following calculation:
-	  // gradient^(HxD) = current_error^(BxH) * input^(BxD)
-	  // current error has to be transposed
+  	std::gslice bias_slice(output_size_*feature_size_, {output_size_}, {1});
+  	std::valarray<float> weight_gradients = gradient_[weights_slice];
 
-	  cblas_sgemm(CblasRowMajor,
-	  		CblasTrans,
-	  		CblasNoTrans,
-	  		output_size_,
-	  		feature_size_,
-	  		batch_size_,
-	  		1.0f,
-	  		&current_error[0], // H x B
-	  		output_size_,      // # columns in the error (untransposed)
-	  		&input[0],         // B x D
-	  		feature_size_,     // # columns in the input
-	  		1.0f,
-	  		&gradient_[0],     // HxD
-	  		feature_size_);    // # columns in the gradient
-
-	  /*
-		std::cerr << "Gradients : " << std::endl;
-		for (size_t feature_idx = 0; feature_idx < feature_size_; feature_idx++) {
-			for (size_t output_idx = 0; output_idx < output_size_; output_idx++) {
-				std::cerr << gradient_[output_idx * feature_size_ + feature_idx] << " " ;
-		  }
-		  std::cerr << std::endl;
-		}
-		 */
-
-		std::valarray<float> bias_gradient(0.0f, output_size_);
-		for (size_t i = 0;i<output_size_;i++){
-			std::gslice temp_slice(i,{batch_size_},{output_size_});
-			std::valarray<float> temp_error = current_error[temp_slice];
-			bias_gradient[i] = temp_error.sum();
-		}
-
-		std::gslice bias_slice(output_size_*feature_size_, {output_size_}, {1});
-		gradient_[bias_slice] += bias_gradient;
+  	// Perform the following calculation:
+  	// gradient^(HxD) = current_error^(BxH) * input^(BxD)
+  	// current error has to be transposed
+  	cblas_sgemm(CblasRowMajor,
+  			CblasTrans,
+  			CblasNoTrans,
+  			output_size_,
+  			feature_size_,
+  			batch_size_,
+  			1.0f,
+  			&current_error[0], // H x B
+  			output_size_,      // # columns in the error (untransposed)
+  			&input[0],         // B x D
+  			feature_size_,     // # columns in the input
+  			0.0f,
+  			&weight_gradients[0],     // HxD
+  			feature_size_);    // # columns in the gradient
 
 
-		/*
-		for (size_t output_idx = 0; output_idx < output_size_; output_idx++) {
-						std::cerr << gradient_[output_size_*feature_size_+output_idx] << " " ;
-		}
-		std::cerr << std::endl;
-		*/
-		// compute error if need
-		/*
-		std::gslice error_buffer_slice(time_idx  * batch_size_ * feature_size_,
-			  	                             {batch_size_, feature_size_},
-			  	                             {feature_size_, 1});
-		error_buffer_[error_buffer_slice] = bias;
-		 */
-		if (input_error_needed_) {
-			// TODO compute error and store in error_buffer_
-			// Perform the following calculation:
-			// error_buffer^(BxD) = current_error^(BxH) * weights^(HxD)
-			cblas_sgemm(CblasRowMajor,
-					CblasNoTrans,
-					CblasNoTrans,
-					batch_size_,
-					feature_size_,
-					output_size_,
-					1.0f,
-					&current_error[0], // B x H
-					output_size_,      // # columns in the current error
-					&weights[0],       // H x D
-					feature_size_,     // # columns in the weights
-					0.0f,
-					&error_buffer_[time_idx  * batch_size_ * feature_size_],	// B x D new errors
-					feature_size_);    // # columns in the bias
+  	if (input_error_needed_) {
+  		// Perform the following calculation:
+  		// error_buffer^(BxD) = current_error^(BxH) * weights^(HxD)
+  		cblas_sgemm(CblasRowMajor,
+  				CblasNoTrans,
+  				CblasNoTrans,
+  				batch_size_,
+  				feature_size_,
+  				output_size_,
+  				1.0f,
+  				&current_error[0], // B x H
+  				output_size_,      // # columns in the current error
+  				&weights[0],       // H x D
+  				feature_size_,     // # columns in the weights
+  				0.0f,
+  				&error_buffer_[time_idx * feature_size_ * batch_size_],	// B x D new errors
+  				feature_size_);    // # columns in the bias
+  	}
 
-		}
-	}
+#pragma omp critical
+  	{
+  		gradient_[weights_slice] += weight_gradients;
+  		gradient_[bias_slice] += bias_gradient;
+  	}
+  }
 }
 
 FeedForwardLayer::FeedForwardLayer(Configuration const& config, Nonlinearity nonlinearity)

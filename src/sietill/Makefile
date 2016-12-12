@@ -20,7 +20,7 @@ TARGETS		= sietill
 #########################################################################
 CXX       = g++
 CXXFLAGS += -Wall -O2 --std=c++11 -pedantic -msse -msse2 -msse3
-DFLAGS    = -g #-fsanitize=address -fno-omit-frame-pointer #-fno-inline
+DFLAGS    = -g -fopenmp #-fsanitize=address -fno-omit-frame-pointer #-fno-inline
 IFLAGS    = -Irapidjson/include/
 LIBS      = -lm -lrt -lgsl -lblas
 SOURCES   = $(wildcard *.cpp)
