@@ -43,12 +43,29 @@ struct EDAccumulator {
   void deletion_error()     { total_count++; delete_count++;     }
 };
 
+struct Book {
+	// back trace information about best ending word for each frame
+	 double score;
+	 uint16_t word;
+	 uint16_t bkp;
+
+	 Book(double score, uint16_t word, uint16_t bkp) : score(score), word(word), bkp(bkp) {}
+
+	 Book(double score, uint16_t bkp) : score(score), word(-1), bkp(bkp) {}
+
+	 Book() : score(0.0), word(0), bkp(0){}
+};
+
 class Recognizer {
 public:
   static const ParameterBool   paramLookahead;
   static const ParameterDouble paramAmThreshold;
   static const ParameterDouble paramLookaheadScale;
   static const ParameterDouble paramWordPenalty;
+
+	// Data structures for a 2D dynamic programming problem
+	typedef std::vector< std::vector<size_t> > 	 BackpointerMatrix;
+	typedef std::vector< std::vector<size_t> > 	 TracebackMatrix;
 
   Recognizer(Configuration const& config, Lexicon const& lexicon, FeatureScorer& scorer, TdpModel const& tdp_model)
             : am_threshold_(paramAmThreshold(config)),
@@ -65,6 +82,8 @@ private:
   Lexicon  const& lexicon_;
   FeatureScorer&  scorer_;
   TdpModel const& tdp_model_;
+
+  void swap(size_t& jump, WordIdx word);
 };
 
 #endif /* __RECOGNIZER_HPP__ */
