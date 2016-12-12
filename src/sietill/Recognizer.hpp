@@ -48,12 +48,13 @@ struct Book {
 	 double score;
 	 uint16_t word;
 	 uint16_t bkp;
+	 int state_idx;
 
-	 Book(double score, uint16_t word, uint16_t bkp) : score(score), word(word), bkp(bkp) {}
+	 Book(double score, uint16_t word, uint16_t bkp) : score(score), word(word), bkp(bkp), state_idx(-1) {}
 
-	 Book(double score, uint16_t bkp) : score(score), word(-1), bkp(bkp) {}
+	 Book(double score, uint16_t bkp) : score(score), word(-1), bkp(bkp), state_idx(-1) {}
 
-	 Book() : score(0.0), word(0), bkp(0){}
+	 Book() : score(0.0), word(0), bkp(0), state_idx(-1) {}
 };
 
 class Recognizer {
@@ -83,7 +84,6 @@ private:
   FeatureScorer&  scorer_;
   TdpModel const& tdp_model_;
 
-  void swap(size_t& jump, WordIdx word);
 };
 
 #endif /* __RECOGNIZER_HPP__ */

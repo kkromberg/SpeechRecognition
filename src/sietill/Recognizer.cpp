@@ -70,20 +70,6 @@ void Recognizer::recognize(Corpus const& corpus) {
   std::cerr << "RTF: " << rtf << std::endl;
 }
 
-
-void Recognizer::swap(size_t& jump, WordIdx word) {
-
-	if (word == lexicon_.silence_idx()) {
-		if (jump == 0) {
-			jump = 1;
-		}
-		else {
-			jump = 0;
-		}
-
-	}
-
-}
 /*****************************************************************************/
 
 void Recognizer::recognizeSequence(FeatureIter feature_begin, FeatureIter feature_end, std::vector<WordIdx>& output) {
@@ -130,11 +116,11 @@ void Recognizer::recognizeSequence(FeatureIter feature_begin, FeatureIter featur
 			hyp[word_idx][0].bkp 	 = frame_counter - 1;
 			// B(t-1,0; w) = t-1
 			current_automaton = lexicon_.get_automaton_for_word(word_idx);
-			for (StateIdx state_idx = current_automaton.first_state(); state_idx <= current_automaton.last_state(); state_idx++) { // loop states
+			for (StateIdx state_idx = 1; state_idx <= current_automaton.num_states(); state_idx++) { // loop states
 				hypTmp[state_idx].score = std::numeric_limits<double>::infinity();
 
 				for (StateIdx pre = std::max(0, state_idx - 2); pre <= state_idx; pre++) { // loop over predecessor states
-					tmp_score = hyp[word_idx][pre].score + tdp_model_.score(state_idx - pre, pre);
+					tmp_score = hyp[word_idx][pre].score + tdp_model_.score(current_automaton[state_idx - pre], pre);
 
 					if (tmp_score < hypTmp[state_idx].score) {
 						hypTmp[state_idx].score = tmp_score;
@@ -142,19 +128,39 @@ void Recognizer::recognizeSequence(FeatureIter feature_begin, FeatureIter featur
 					}
 				}
 
-				// store result
-				for (StateIdx state_idx = current_automaton.first_state(); state_idx <= current_automaton.last_state(); state_idx++) {
+				// store result into hypothesis
+				for (StateIdx state_idx = 1; state_idx <= current_automaton.num_states(); state_idx++) {
 					hyp[word_idx][state_idx].bkp 	 = hypTmp[state_idx].bkp;
-					hyp[word_idx][state_idx].score = hypTmp[state_idx].score + 0//
+					hyp[word_idx][state_idx].score = hypTmp[state_idx].score + scorer_.score(iter, current_automaton[state_idx]);
 				}
 
-
+				book[frame_counter].score = std::numeric_limits<double>::infinity();
 				// -log p(x_t|\teta)
-				local_distance = scorer_.score(iter, state_idx);
+				local_distance = scorer_.score(iter, current_automaton[state_idx]);
 
 			} // loop states
 		} // loop words
+
+		for (WordIdx word_idx = 1; word_idx <= num_words; word_idx++) {
+			if (hyp[word_idx][num_states[word_idx]].score < book[feature_counter].score) {
+				book[feature_counter].score = hyp[word_idx][num_states[word_idx]].score;
+				book[feature_counter].bkp 	= hyp[word_idx][num_states[word_idx]].bkp;
+				book[feature_counter].word  = word_idx;
+
+			}
+		}
 	} // loop features
+
+	// trace back
+	size_t count = 1;
+	size_t feature_index = feature_number - 1;
+
+	while (feature_index > 0) {
+		output[count] = book[feature_index].word;
+
+		feature_index = book[feature_index].bkp;
+		count++;
+	}
 }
 
 /*****************************************************************************/
