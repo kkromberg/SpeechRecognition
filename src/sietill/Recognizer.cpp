@@ -74,22 +74,17 @@ void Recognizer::recognize(Corpus const& corpus) {
 
 void Recognizer::recognizeSequence(FeatureIter feature_begin, FeatureIter feature_end, std::vector<WordIdx>& output) {
   // TODO: implement
-	static bool first_pass = true;
 	size_t num_features = feature_end - feature_begin;
 	size_t num_states 	= lexicon_.num_states();
 	size_t num_words 		= lexicon_.num_words();
 	size_t num_states_word[num_words];	// contains number of states for each word
-
+	output.resize(0);
 	// save number of states for each word
 	MarkovAutomaton current_automaton;
 	for (WordIdx word_idx = 0; word_idx < num_words; word_idx++) { // loop words
 		current_automaton = lexicon_.get_automaton_for_word(word_idx);
 		num_states_word[word_idx] = current_automaton.num_states() + 1; // one extra state for word boundary
-		if (first_pass) {
-			output.push_back(-1);
-		}
 	}
-	first_pass = false;
 	/*
 	std::cerr << "NUM FEATURES: "    << num_features    << std::endl;
 	std::cerr << "NUM STATES: "      << num_states      << std::endl;
@@ -118,24 +113,27 @@ void Recognizer::recognizeSequence(FeatureIter feature_begin, FeatureIter featur
 		for (WordIdx word_idx = 0; word_idx < num_words; word_idx++) { // loop words
 			// word transition
 			// Q(t-1,0; w) = Q(t-1, S(W(t-1)); W(t-1)) - log p(w)
+			//std::cerr << book[0].score << std::endl;
 			hyp[word_idx][0].score = book[frame_counter-1].score - 1; // -log p(w) = const -> zerogram
+			//std::cerr << "SCORE FOR BETWEEN WORD INIT: " << hyp[word_idx][0].score << std::endl;
 			hyp[word_idx][0].bkp 	 = frame_counter - 1;
 			// B(t-1,0; w) = t-1
 
 			current_automaton = lexicon_.get_automaton_for_word(word_idx);
-
+			char b;
 			for (StateIdx state_idx = 1; state_idx < num_states_word[word_idx]; state_idx++) { // loop states
 				// set score for current state to infinity
+				std::cerr << "CURRENT STATE: " << state_idx << std::endl;
 				hypTmp[state_idx].score = std::numeric_limits<double>::infinity();
 				for (StateIdx pre = std::max(0, state_idx - 2); pre <= state_idx; pre++) { // loop over predecessor states
 					// compute tmp score + tdp
-					//std::cerr << "CURRENT STATE: " << state_idx << std::endl;
-					//std::cerr << "PREVOIS STATE: " << current_automaton[pre] << std::endl;
-					//std::cerr << "JUMP: " << state_idx - pre << std::endl;
-					//std::cerr << "TDP SCORE: " << tdp_model_.score(current_automaton[pre], state_idx - pre) << std::endl;
 
 					tmp_score = hyp[word_idx][pre].score + tdp_model_.score(current_automaton[pre], state_idx - pre);
-					//std::cerr << "TMP SCORE: " << tmp_score << std::endl;
+					std::cerr << "PREVOIS STATE: " << pre << std::endl;
+					std::cerr << "JUMP: " << state_idx - pre << std::endl;
+					std::cerr << "TDP SCORE: " << tdp_model_.score(current_automaton[pre], state_idx - pre) << std::endl;
+					std::cerr << "TMP SCORE: " << tmp_score << std::endl;
+					std::cin >> b;
 					//std::cerr << "HYP SCORE: " << hypTmp[state_idx].score << std::endl;
 					if (tmp_score < hypTmp[state_idx].score) {
 						hypTmp[state_idx].score = tmp_score;
@@ -153,29 +151,39 @@ void Recognizer::recognizeSequence(FeatureIter feature_begin, FeatureIter featur
 		book[frame_counter].score = std::numeric_limits<double>::infinity();
 		// store best score, state and word into book
 		for (WordIdx word_idx = 0; word_idx < num_words; word_idx++) { // loop words
+			//std::cerr << "WORD IDX: " << word_idx << std::endl;
+			//std::cerr << "SCORE: " << hyp[word_idx][num_states_word[word_idx]-1].score << std::endl;
 			//std::cerr << "I AM HERE" << std::endl;
 			//std::cerr << "HYPOTHESIS SCORE: " << hyp[word_idx][num_states_word[word_idx]].score << std::endl;
 			//std::cerr << "BOOK SCORE: " << book[frame_counter].score << std::endl;
-			if (hyp[word_idx][num_states_word[word_idx]].score < book[frame_counter].score) {
-				book[frame_counter].score = hyp[word_idx][num_states_word[word_idx]].score;
-				book[frame_counter].bkp 	= hyp[word_idx][num_states_word[word_idx]].bkp;
+			if (hyp[word_idx][num_states_word[word_idx]-1].score < book[frame_counter].score) {
+
+				//std::cerr << "WORD IDX: " << word_idx << std::endl;
+				book[frame_counter].score = hyp[word_idx][num_states_word[word_idx]-1].score;
+				book[frame_counter].bkp 	= hyp[word_idx][num_states_word[word_idx]-1].bkp;
 				//std::cerr << "Current word idx: " << word_idx << std::endl;
 				book[frame_counter].word  = word_idx;
 				//std::cerr << "Writing word index into book: " << word_idx << std::endl;
 
 			}
 		}
+		//std::cerr << "WRITING WORD IDX: " << book[frame_counter].word << std::endl;
 	} // loop features
 
 	// trace back
-	size_t count = 1;
+	size_t count = 0;
 	size_t feature_index = num_features - 1;
+
 	while (feature_index > 0) {
 		//std::cerr << "WRITING WORD IDX: " << book[feature_index].word << std::endl;
-		output[count] = book[feature_index].word;
+			//output[count] = book[feature_index].word;
+		output.push_back(book[feature_index].word);
+		//std::cerr << "NEW FEATURE IDX: " << book[feature_index].bkp << std::endl;
 		feature_index = book[feature_index].bkp;
 		count++;
 	}
+	//std::cerr << "NUMBER OF WORDS: " << count << std::endl;
+
 }
 
 /*****************************************************************************/
