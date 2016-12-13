@@ -37,7 +37,7 @@ void Recognizer::recognize(Corpus const& corpus) {
   for (SegmentIdx s = 0ul; s < corpus.get_corpus_size(); s++) {
     std::pair<FeatureIter, FeatureIter> features = corpus.get_feature_sequence(s);
     std::pair<WordIter, WordIter> ref_seq = corpus.get_word_sequence(s);
-
+    s.
     recognizeSequence(features.first, features.second, recognized_words);
 
     EDAccumulator ed = editDistance(ref_seq.first, ref_seq.second, recognized_words.begin(), recognized_words.end());
@@ -83,13 +83,16 @@ void Recognizer::recognizeSequence(FeatureIter feature_begin, FeatureIter featur
 	for (WordIdx word_idx = 0; word_idx < lexicon_.num_words(); word_idx++) { // loop words
 		MarkovAutomaton current_automaton = lexicon_.get_automaton_for_word(word_idx);
 		num_states_word[word_idx] = current_automaton.num_states();
+
+		output.push_back(-1);
 	}
+
 	Book book[num_features];
 	Book hyp[num_words][num_states];
 	Book hypTmp[num_states];
 
 	// initialize hypothesis with infinity score
-	for (WordIdx word_idx = 1; word_idx <= num_words; word_idx++) {
+	for (WordIdx word_idx = 0; word_idx < num_words; word_idx++) {
 		for (StateIdx state_idx = 0; state_idx <= num_states; state_idx++) {
 			hyp[word_idx][state_idx].score = std::numeric_limits<double>::infinity();
 		}
@@ -103,17 +106,20 @@ void Recognizer::recognizeSequence(FeatureIter feature_begin, FeatureIter featur
 	MarkovAutomaton current_automaton;
 	double tmp_score;
 	for (FeatureIter iter = feature_begin + 1; iter != feature_end; iter++, frame_counter++) { // loop features
-		for (WordIdx word_idx = 0; word_idx <= num_words; word_idx++) { // loop words
+		for (WordIdx word_idx = 0; word_idx < num_words; word_idx++) { // loop words
 			// word transition
 			// Q(t-1,0; w) = Q(t-1, S(W(t-1)); W(t-1)) - log p(w)
 			hyp[word_idx][0].score = book[frame_counter-1].score - 1; // -log p(w) = const -> zerogram
 			hyp[word_idx][0].bkp 	 = frame_counter - 1;
 			// B(t-1,0; w) = t-1
-			current_automaton = lexicon_.get_automaton_for_word(word_idx);
-			for (StateIdx state_idx = 1; state_idx <= current_automaton.num_states(); state_idx++) { // loop states
-				hypTmp[state_idx].score = std::numeric_limits<double>::infinity();
 
+			current_automaton = lexicon_.get_automaton_for_word(word_idx);
+
+			for (StateIdx state_idx = 0; state_idx < current_automaton.num_states(); state_idx++) { // loop states
+				hypTmp[state_idx].score = std::numeric_limits<double>::infinity();
+				//std::cerr << "Current State: " << state_idx << std::endl;
 				for (StateIdx pre = std::max(0, state_idx - 2); pre <= state_idx; pre++) { // loop over predecessor states
+					//std::cerr << "Looping pre states: " << pre << std::endl;
 					tmp_score = hyp[word_idx][pre].score + tdp_model_.score(current_automaton[state_idx - pre], pre);
 
 					if (tmp_score < hypTmp[state_idx].score) {
@@ -121,9 +127,8 @@ void Recognizer::recognizeSequence(FeatureIter feature_begin, FeatureIter featur
 						hypTmp[state_idx].bkp   = hyp[word_idx][pre].bkp;
 					}
 				}
-
 				// store result into hypothesis
-				for (StateIdx state_idx = 1; state_idx <= current_automaton.num_states(); state_idx++) {
+				for (StateIdx state_idx = 0; state_idx < current_automaton.num_states(); state_idx++) {
 					hyp[word_idx][state_idx].bkp 	 = hypTmp[state_idx].bkp;
 					hyp[word_idx][state_idx].score = hypTmp[state_idx].score + scorer_.score(iter, current_automaton[state_idx]);
 				}
@@ -135,7 +140,8 @@ void Recognizer::recognizeSequence(FeatureIter feature_begin, FeatureIter featur
 			} // loop states
 		} // loop words
 
-		for (WordIdx word_idx = 1; word_idx <= num_words; word_idx++) {
+		for (WordIdx word_idx = 0; word_idx < num_words; word_idx++) {
+
 			if (hyp[word_idx][num_states_word[word_idx]].score < book[frame_counter].score) {
 				book[frame_counter].score = hyp[word_idx][num_states_word[word_idx]].score;
 				book[frame_counter].bkp 	= hyp[word_idx][num_states_word[word_idx]].bkp;
@@ -147,11 +153,10 @@ void Recognizer::recognizeSequence(FeatureIter feature_begin, FeatureIter featur
 
 	// trace back
 	size_t count = 1;
-	size_t feature_index = num_features - 1;
+	size_t feature_index = num_features;
 
 	while (feature_index > 0) {
 		output[count] = book[feature_index].word;
-
 		feature_index = book[feature_index].bkp;
 		count++;
 	}
