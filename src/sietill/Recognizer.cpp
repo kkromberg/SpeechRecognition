@@ -34,6 +34,8 @@ void Recognizer::recognize(Corpus const& corpus) {
   size_t sentence_errors = 0ul;
   std::vector<WordIdx> recognized_words;
 
+  testEditDistance();
+
   for (SegmentIdx s = 0ul; s < corpus.get_corpus_size(); s++) {
     std::pair<FeatureIter, FeatureIter> features = corpus.get_feature_sequence(s);
     std::pair<WordIter, WordIter> ref_seq = corpus.get_word_sequence(s);
@@ -47,7 +49,7 @@ void Recognizer::recognize(Corpus const& corpus) {
       sentence_errors++;
     }
 
-    const double wer = (static_cast<double>(acc.total_count) / static_cast<double>(ref_total)) * 100.0;
+    const double wer = (static_cast<double>(ed.total_count) / static_cast<double>(ref_seq.second - ref_seq.first)) * 100.0;
     std::cerr << (s + 1ul) << "/" << corpus.get_corpus_size()
               << " WER: " << std::setw(6) << std::fixed << wer << std::setw(0)
               << "% (S/I/D) " << ed.substitute_count << "/" << ed.insert_count << "/" << ed.delete_count << " | ";
@@ -215,13 +217,13 @@ EDAccumulator Recognizer::editDistance(WordIter ref_begin, WordIter ref_end, Wor
   // Initialize the vectors containing the accumulators
   // with the dynamic programming initialization equations
   std::vector<EDAccumulator> current_rates(1+ref_size, EDAccumulator());
-  for (size_t ref_idx = 1; ref_idx < ref_size; ref_idx++) {
+  for (size_t ref_idx = 1; ref_idx <= ref_size; ref_idx++) {
   	current_rates[ref_idx] = current_rates[ref_idx-1];
   	current_rates[ref_idx].deletion_error();
   }
   std::vector<EDAccumulator> previous_rates (1+ref_size, EDAccumulator());
 
-  for (size_t hyp_idx = 1; hyp_idx < hyp_size; hyp_idx++) {
+  for (size_t hyp_idx = 1; hyp_idx <= hyp_size; hyp_idx++) {
   	// reset accumulators
   	current_rates.swap(previous_rates);
 
@@ -229,38 +231,52 @@ EDAccumulator Recognizer::editDistance(WordIter ref_begin, WordIter ref_end, Wor
   	current_rates[0].insertion_error();
 
   	// parse through all reference indices
-  	for (size_t ref_idx = 1; ref_idx < ref_size; ref_idx++) {
+  	for (size_t ref_idx = 1; ref_idx <= ref_size; ref_idx++) {
   		uint16_t best_count = 0xFFFF;
 
   		// Words are equal -> move diagonally (with no error)
-  		if (previous_rates[ref_idx-1].total_count < best_count && *(ref_begin+ref_idx) == *(rec_begin+hyp_idx)) {
+  		if (previous_rates[ref_idx-1].total_count < best_count && *(ref_begin+ref_idx-1) == *(rec_begin+hyp_idx-1)) {
   			current_rates[ref_idx] = previous_rates[ref_idx-1];
+  			best_count = current_rates[ref_idx].total_count;
   		}
 
   		// Move diagonally and account for a substitution error
   		if (previous_rates[ref_idx-1].total_count + 1 < best_count) {
   			current_rates[ref_idx] = previous_rates[ref_idx-1];
   			current_rates[ref_idx].substitution_error();
+  			best_count = current_rates[ref_idx].total_count;
   		}
 
   		// Move vertically and account for an insertion error
   		if (previous_rates[ref_idx].total_count + 1 < best_count) {
   			current_rates[ref_idx] = previous_rates[ref_idx];
   			current_rates[ref_idx].insertion_error();
+  			best_count = current_rates[ref_idx].total_count;
   		}
 
-  		// Move horizontally and account for an deletion error
+  		// Move horizontally and account for a deletion error
   		if (current_rates[ref_idx-1].total_count + 1 < best_count) {
   			current_rates[ref_idx] = current_rates[ref_idx-1];
   			current_rates[ref_idx].deletion_error();
+  			best_count = current_rates[ref_idx].total_count;
   		}
   	}
   }
 
   // In this position we have calculated the optimal distance between the two word sequences
   result = current_rates[ref_size];
-
   return result;
 }
 
+void Recognizer::testEditDistance() {
+	std::vector<WordIdx> v1 = {8, 11, 5};
+	std::vector<WordIdx> v2 = {8, 11, 5};
+
+	EDAccumulator res = editDistance(v1.begin(), v1.end(), v2.begin(), v2.end());
+
+  const double wer = (static_cast<double>(res.total_count) / static_cast<double>(v2.size())) * 100.0;
+
+  std::cerr << "WER: " << std::setw(6) << std::fixed << wer << std::setw(0)
+            << "% (S/I/D) " << res.substitute_count << "/" << res.insert_count << "/" << res.delete_count << std::endl;
+}
 /*****************************************************************************/

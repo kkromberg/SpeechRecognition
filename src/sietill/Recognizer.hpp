@@ -84,6 +84,7 @@ private:
   FeatureScorer&  scorer_;
   TdpModel const& tdp_model_;
 
+  void testEditDistance();
 };
 
 #endif /* __RECOGNIZER_HPP__ */
