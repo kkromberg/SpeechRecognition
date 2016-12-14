@@ -79,7 +79,57 @@ void Recognizer::recognizeSequence(FeatureIter feature_begin, FeatureIter featur
 
 EDAccumulator Recognizer::editDistance(WordIter ref_begin, WordIter ref_end, WordIter rec_begin, WordIter rec_end) {
   EDAccumulator result;
-  // TODO: implement
+  size_t ref_size = ref_end - ref_begin;
+  size_t hyp_size = rec_end - rec_begin;
+
+  // Initialize the vectors containing the accumulators
+  // with the dynamic programming initialization equations
+  std::vector<EDAccumulator> current_rates(1+ref_size, EDAccumulator());
+  for (size_t ref_idx = 1; ref_idx < ref_size; ref_idx++) {
+  	current_rates[ref_idx] = current_rates[ref_idx-1];
+  	current_rates[ref_idx].deletion_error();
+  }
+  std::vector<EDAccumulator> previous_rates (1+ref_size, EDAccumulator());
+
+  for (size_t hyp_idx = 1; hyp_idx < hyp_size; hyp_idx++) {
+  	// reset accumulators
+  	current_rates.swap(previous_rates);
+
+  	// add an insertion error for the very first accumulator (DP initialization)
+  	current_rates[0].insertion_error();
+
+  	// parse through all reference indices
+  	for (size_t ref_idx = 1; ref_idx < ref_size; ref_idx++) {
+  		uint16_t best_count = 0xFFFF;
+
+  		// Words are equal -> move diagonally (with no error)
+  		if (previous_rates[ref_idx-1].total_count < best_count && *(ref_begin+ref_idx) == *(rec_begin+hyp_idx)) {
+  			current_rates[ref_idx] = previous_rates[ref_idx-1];
+  		}
+
+  		// Move diagonally and account for a substitution error
+  		if (previous_rates[ref_idx-1].total_count + 1 < best_count) {
+  			current_rates[ref_idx] = previous_rates[ref_idx-1];
+  			current_rates[ref_idx].substitution_error();
+  		}
+
+  		// Move vertically and account for an insertion error
+  		if (previous_rates[ref_idx].total_count + 1 < best_count) {
+  			current_rates[ref_idx] = previous_rates[ref_idx];
+  			current_rates[ref_idx].insertion_error();
+  		}
+
+  		// Move horizontally and account for an deletion error
+  		if (current_rates[ref_idx-1].total_count + 1 < best_count) {
+  			current_rates[ref_idx] = current_rates[ref_idx-1];
+  			current_rates[ref_idx].deletion_error();
+  		}
+  	}
+  }
+
+  // In this position we have calculated the optimal distance between the two word sequences
+  result = current_rates[ref_size];
+
   return result;
 }
 
