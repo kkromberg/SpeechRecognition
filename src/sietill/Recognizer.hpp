@@ -43,6 +43,25 @@ struct EDAccumulator {
   void deletion_error()     { total_count++; delete_count++;     }
 };
 
+
+struct Hypothesis {
+  Hypothesis *ancestor_;
+  double      score_;
+  StateIdx    state_;
+  WordIdx     word_;
+  bool        new_word_;
+
+  Hypothesis() :
+    ancestor_(nullptr), score_(0.0), state_(0), word_(0), new_word_(false) {}
+
+  Hypothesis(Hypothesis *ancestor, double score, StateIdx state, WordIdx word, bool new_word) :
+    ancestor_(ancestor), score_(score), state_(state), word_(word), new_word_(new_word){}
+
+  Hypothesis(const Hypothesis &hyp) :
+    ancestor_(hyp.ancestor_), score_(hyp.score_), state_(hyp.state_), word_(hyp.word_), new_word_(hyp.new_word_) {}
+
+};
+
 class Recognizer {
 public:
   static const ParameterBool   paramLookahead;
@@ -65,6 +84,9 @@ private:
   Lexicon  const& lexicon_;
   FeatureScorer&  scorer_;
   TdpModel const& tdp_model_;
+
+  typedef std::vector<Hypothesis*> Beam;
+  typedef std::vector<Hypothesis*>::iterator BeamIterator;
 };
 
 #endif /* __RECOGNIZER_HPP__ */
