@@ -49,7 +49,7 @@ void Recognizer::recognize(Corpus const& corpus) {
       sentence_errors++;
     }
 
-    const double wer = (static_cast<double>(acc.total_count) / static_cast<double>(ref_total)) * 100.0;
+    const double wer = (static_cast<double>(ed.total_count) / static_cast<double>(ref_seq.second - ref_seq.first)) * 100.0;
     std::cerr << (s + 1ul) << "/" << corpus.get_corpus_size()
               << " WER: " << std::setw(6) << std::fixed << wer << std::setw(0)
               << "% (S/I/D) " << ed.substitute_count << "/" << ed.insert_count << "/" << ed.delete_count << " | ";
@@ -261,7 +261,6 @@ EDAccumulator Recognizer::editDistance(WordIter ref_begin, WordIter ref_end, Wor
 
   // In this position we have calculated the optimal distance between the two word sequences
   result = current_rates[ref_size];
-
   return result;
 }
 
