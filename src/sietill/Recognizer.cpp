@@ -188,11 +188,15 @@ void Recognizer::recognizeSequence(FeatureIter feature_begin, FeatureIter featur
 	while (feature_index > 0) {
 		//std::cerr << "WRITING WORD IDX: " << book[feature_index].word << std::endl;
 			//output[count] = book[feature_index].word;
-		output.push_back(book[feature_index].word);
+		if (book[feature_index].word != lexicon_.silence_idx()){
+			output.push_back(book[feature_index].word);
+			count++;
+		}
 		//std::cerr << "NEW FEATURE IDX: " << book[feature_index].bkp << std::endl;
 		feature_index = book[feature_index].bkp;
-		count++;
+
 	}
+	std::reverse(output.begin(), output.end());
 	//std::cerr << "NUMBER OF WORDS: " << count << std::endl;
 
 }
