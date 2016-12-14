@@ -12,6 +12,8 @@
 #include "Mixtures.hpp"
 #include "TdpModel.hpp"
 
+#include <memory>
+
 struct EDAccumulator {
   uint16_t total_count;
   uint16_t substitute_count;
@@ -60,7 +62,13 @@ struct Hypothesis {
   Hypothesis(const Hypothesis &hyp) :
     ancestor_(hyp.ancestor_), score_(hyp.score_), state_(hyp.state_), word_(hyp.word_), new_word_(hyp.new_word_) {}
 
+  bool is_initial() {
+  	return ancestor_ == nullptr ? true : false;
+  }
+
 };
+
+typedef std::shared_ptr<Hypothesis> HypothesisPtr;
 
 class Recognizer {
 public:
