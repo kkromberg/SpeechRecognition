@@ -45,18 +45,20 @@ struct EDAccumulator {
   void deletion_error()     { total_count++; delete_count++;     }
 };
 
+struct Hypothesis;
+typedef std::shared_ptr<Hypothesis> HypothesisPtr;
 
 struct Hypothesis {
-  Hypothesis *ancestor_;
-  double      score_;
-  StateIdx    state_;
-  WordIdx     word_;
-  bool        new_word_;
+	HypothesisPtr ancestor_;
+  double        score_;
+  StateIdx      state_;
+  WordIdx       word_;
+  bool          new_word_;
 
   Hypothesis() :
     ancestor_(nullptr), score_(0.0), state_(0), word_(0), new_word_(false) {}
 
-  Hypothesis(Hypothesis *ancestor, double score, StateIdx state, WordIdx word, bool new_word) :
+  Hypothesis(HypothesisPtr ancestor, double score, StateIdx state, WordIdx word, bool new_word) :
     ancestor_(ancestor), score_(score), state_(state), word_(word), new_word_(new_word){}
 
   Hypothesis(const Hypothesis &hyp) :
@@ -68,7 +70,6 @@ struct Hypothesis {
 
 };
 
-typedef std::shared_ptr<Hypothesis> HypothesisPtr;
 
 class Recognizer {
 public:
@@ -83,6 +84,8 @@ public:
 
   void recognize(Corpus const& corpus);
   void recognizeSequence(FeatureIter feature_begin, FeatureIter feature_end, std::vector<WordIdx>& output);
+  void recognizeSequence_pruned(FeatureIter feature_begin, FeatureIter feature_end, std::vector<WordIdx>& output);
+
 
   EDAccumulator editDistance(WordIter ref_begin, WordIter ref_end, WordIter rec_begin, WordIter rec_end);
 private:
@@ -93,8 +96,8 @@ private:
   FeatureScorer&  scorer_;
   TdpModel const& tdp_model_;
 
-  typedef std::vector<Hypothesis*> Beam;
-  typedef std::vector<Hypothesis*>::iterator BeamIterator;
+  typedef std::vector<HypothesisPtr> Beam;
+  typedef std::vector<HypothesisPtr>::iterator BeamIterator;
 };
 
 #endif /* __RECOGNIZER_HPP__ */
