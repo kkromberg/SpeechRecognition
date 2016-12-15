@@ -88,11 +88,12 @@ struct Book {
 
 class Recognizer {
 public:
-  static const ParameterBool   paramLookahead;
-  static const ParameterDouble paramAmThreshold;
-  static const ParameterDouble paramLookaheadScale;
-  static const ParameterDouble paramWordPenalty;
-  static const ParameterBool   paramPrunedSearch;
+  static const ParameterBool    paramLookahead;
+  static const ParameterDouble  paramAmThreshold;
+  static const ParameterDouble  paramLookaheadScale;
+  static const ParameterDouble  paramWordPenalty;
+  static const ParameterBool    paramPrunedSearch;
+  static const ParameterInt     paramMaxRecognitionRuns;
 
 	// Data structures for a 2D dynamic programming problem
 	typedef std::vector< std::vector<size_t> > 	 BackpointerMatrix;
@@ -102,6 +103,7 @@ public:
             : am_threshold_(paramAmThreshold(config)),
               word_penalty_(paramWordPenalty(config)),
               pruned_search_(paramPrunedSearch(config)),
+              max_recognition_runs_(paramMaxRecognitionRuns(config)),
               lexicon_(lexicon), scorer_(scorer), tdp_model_(tdp_model) {}
 
   void recognize(Corpus const& corpus);
@@ -114,6 +116,7 @@ private:
   const double am_threshold_;
   const double word_penalty_;
   const bool   pruned_search_;
+  const size_t max_recognition_runs_;
 
   Lexicon  const& lexicon_;
   FeatureScorer&  scorer_;
