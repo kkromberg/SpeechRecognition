@@ -12,10 +12,13 @@
 #include <numeric>
 #include <algorithm>    // std::move (ranges)
 #include <utility>      // std::move (objects)
+#include <sstream>
+#include <fstream>
 
 #include "Recognizer.hpp"
 #include "TdpModel.hpp"
 #include "Timer.hpp"
+#include "Util.hpp"
 
 
 /*****************************************************************************/
@@ -38,7 +41,13 @@ void Recognizer::recognize(Corpus const& corpus) {
   size_t ref_total = 0ul;
   size_t sentence_errors = 0ul;
   std::vector<WordIdx> recognized_words;
+  /*
+  std::ostringstream sstream;
+  sstream << am_threshold_;
+  std::string file_name = sstream.str() + "_test.data";
 
+  std::ofstream file(file_name.c_str(), std::ios::out | std::ios::trunc);
+  */
   for (SegmentIdx s = 0ul; s < std::min(corpus.get_corpus_size(), max_recognition_runs_); s++) {
     std::pair<FeatureIter, FeatureIter> features = corpus.get_feature_sequence(s);
     std::pair<WordIter, WordIter> ref_seq = corpus.get_word_sequence(s);
@@ -59,6 +68,7 @@ void Recognizer::recognize(Corpus const& corpus) {
     }
 
     const double wer = (static_cast<double>(ed.total_count) / static_cast<double>(ref_seq.second - ref_seq.first)) * 100.0;
+    //file << s << " " << wer << "\n";
     std::cerr << (s + 1ul) << "/" << corpus.get_corpus_size()
               << " WER: " << std::setw(6) << std::fixed << wer << std::setw(0)
               << "% (S/I/D) " << ed.substitute_count << "/" << ed.insert_count << "/" << ed.delete_count << " | ";
@@ -67,6 +77,7 @@ void Recognizer::recognize(Corpus const& corpus) {
     std::cerr << "| ";
     std::copy(ref_seq.first,            ref_seq.second,         std::ostream_iterator<WordIdx>(std::cerr, " "));
     std::cerr << std::endl;
+
   }
 
   const double wer = (static_cast<double>(acc.total_count) / static_cast<double>(ref_total)) * 100.0;
@@ -79,6 +90,11 @@ void Recognizer::recognize(Corpus const& corpus) {
   std::cerr << "SER: " << std::setw(6) << std::fixed << ser << "%" << std::endl;
   std::cerr << "Time: " << time << " seconds" << std::endl;
   std::cerr << "RTF: " << rtf << std::endl;
+  /*
+  file << max_recognition_runs_     << " " << wer << "\n";
+  file << max_recognition_runs_ + 1 << " " << time;
+  file.close();
+  */
 }
 
 /*****************************************************************************/
@@ -340,7 +356,7 @@ void Recognizer::recognizeSequence(FeatureIter feature_begin, FeatureIter featur
 	// costs for virtual state
 	book[0].score = 0.0;
 	size_t frame_counter = 1;
-	double word_penalty =0;
+	//double word_penalty =0;
 	double tmp_score;
 	for (FeatureIter iter = feature_begin; iter != feature_end; iter++, frame_counter++) { // loop features
 
