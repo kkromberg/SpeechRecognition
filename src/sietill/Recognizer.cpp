@@ -333,16 +333,20 @@ void Recognizer::recognizeSequence(FeatureIter feature_begin, FeatureIter featur
 	// costs for virtual state
 	book[0].score = 0.0;
 	size_t frame_counter = 1;
+	double word_penalty =0;
 	double tmp_score;
-	for (FeatureIter iter = feature_begin +1; iter != feature_end; iter++, frame_counter++) { // loop features
+	for (FeatureIter iter = feature_begin; iter != feature_end; iter++, frame_counter++) { // loop features
+
 		//std::cerr << "FRAME: " << frame_counter << std::endl;
 		for (WordIdx word_idx = 0; word_idx < num_words; word_idx++) { // loop words
 			//std::cerr << "WORD: " << word_idx << std::endl;
 			// word transition
 			// Q(t-1,0; w) = Q(t-1, S(W(t-1)); W(t-1)) - log p(w)
 			//std::cerr << book[0].score << std::endl;
-			hyp[word_idx][0].score = book[frame_counter-1].score + 1; // -log p(w) = const -> zerogram
+			double current_word_penalty = word_idx != lexicon_.silence_idx() ? word_penalty_ : 0.0;
+			hyp[word_idx][0].score = book[frame_counter-1].score + current_word_penalty; // -log p(w) = const -> zerogram
 			//std::cerr << "SCORE FOR BETWEEN WORD INIT: " << hyp[word_idx][0].score << std::endl;
+			//std::cin >> b;
 			hyp[word_idx][0].bkp 	 = frame_counter - 1;
 			// B(t-1,0; w) = t-1
 
@@ -482,7 +486,6 @@ EDAccumulator Recognizer::editDistance(WordIter ref_begin, WordIter ref_end, Wor
 
   // In this position we have calculated the optimal distance between the two word sequences
   result = current_rates[ref_size];
-
   return result;
 }
 
