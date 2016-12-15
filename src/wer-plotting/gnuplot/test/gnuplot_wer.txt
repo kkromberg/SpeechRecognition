@@ -1,0 +1,10 @@
+set xlabel "Time"
+set ylabel "WER"
+set samples 1001
+plot "25_test.data" using 1:($2/1) with linespoints title 'AM THRESHOLD 25',\
+"50_test.data" using 1:($2/1) with linespoints title 'AM THRESHOLD 50',\
+"100_test.data" using 1:($2/1) with linespoints title 'AM THRESHOLD 100',\
+"250_test.data" using 1:($2/1) with linespoints title 'AM THRESHOLD 250',\
+"500_test.data" using 1:($2/1) with linespoints title 'AM THRESHOLD 500',\
+"1e+06_test.data" using 1:($2/1) with linespoints title 'AM THRESHOLD 1e+06'
+

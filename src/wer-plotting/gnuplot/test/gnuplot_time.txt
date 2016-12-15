@@ -1,0 +1,4 @@
+set xlabel "AM THRESHOLD"
+set ylabel "TIME"
+set samples 1001
+plot "time.data" using 1:($2/1) with linespoints title 'Runtime'
