@@ -135,6 +135,11 @@ void Recognizer::recognizeSequence_pruned(FeatureIter feature_begin, FeatureIter
                                                          current_score + current_word_penalty,
                                                          virtual_state, next_word, true));
 
+            if (current_hyp->is_initial()) {
+            	hyp_expansions[next_word]->score_ += scorer_.score(feature_iter,
+            				                               lexicon_.get_automaton_for_word(next_word).first_state());
+						}
+
             // update the beam boundaries to account for the new hypothesis
             beam_boundaries[t+1]++;
           } else if (current_score + current_word_penalty < hyp_expansions[next_word]->score_) {
@@ -218,7 +223,7 @@ void Recognizer::recognizeSequence_pruned(FeatureIter feature_begin, FeatureIter
         }
 
         // update the best score in the hypothesis
-        best_score_in_hyp = std::min(new_hyp->score_, best_score_in_hyp);
+        best_score_in_hyp = std::min(hyp_expansions[container_index]->score_, best_score_in_hyp);
       } // for(int jump = 0; ...)
     } // for(BeamIterator hypothesis_it = ...)
 
@@ -243,8 +248,8 @@ void Recognizer::recognizeSequence_pruned(FeatureIter feature_begin, FeatureIter
     																			<< hyp->state_ << " "
     			                                << hyp->ancestor_ << " "
     			                                << hyp << " "
-    			                                << (!hyp->new_word_ ? "false" : "true");
-	*/
+    			                                << (!hyp->new_word_ ? "false" : "true") << std::endl;
+    	*/
       if (hyp->score_ > best_score_in_hyp + am_threshold_) {
       	hypotheses_pruned++;
       	//std::cout << " Pruned" << std::endl;
@@ -269,7 +274,7 @@ void Recognizer::recognizeSequence_pruned(FeatureIter feature_begin, FeatureIter
     std::cout << "Pruning information: " << hypotheses_pruned     << " pruned. "
     		                                 << hypothesis_expansions << " kept at time step " << t << " "
     		                                 << "Best score: " << best_score_in_hyp << std::endl;
-	*/
+		*/
     hypotheses_pruned = hypothesis_expansions = 0;
   }
 
@@ -283,7 +288,7 @@ void Recognizer::recognizeSequence_pruned(FeatureIter feature_begin, FeatureIter
     }
   }
 
-	std::cout << "Best score (pruned): " << best_hyp->score_ << std::endl;
+	//std::cout << "Best score (pruned): " << best_hyp->score_ << std::endl;
 
   // Perform back tracking to extract the word sequence
   output.clear();
@@ -405,6 +410,7 @@ void Recognizer::recognizeSequence(FeatureIter feature_begin, FeatureIter featur
 				book[frame_counter].word  = word_idx;
 				//std::cerr << "Writing word index into book: " << word_idx << std::endl;
 
+				//std::cout << "Unpruned search beam: " << frame_counter - 1 << " " << book[frame_counter].score << std::endl;
 			}
 		}
 		//std::cerr << "WRITING WORD IDX: " << book[frame_counter].word << std::endl;
@@ -413,9 +419,9 @@ void Recognizer::recognizeSequence(FeatureIter feature_begin, FeatureIter featur
 
 	// trace back
 	size_t count = 0;
-	size_t feature_index = num_features - 1;
+	size_t feature_index = num_features;
 
-	std::cout << "Best score (unpruned): " << book[feature_index].score << std::endl;
+	//std::cout << "Best score (unpruned): " << book[feature_index].score << std::endl;
 	while (feature_index > 0) {
 		//std::cerr << "WRITING WORD IDX: " << book[feature_index].word << std::endl;
 			//output[count] = book[feature_index].word;
