@@ -13,6 +13,7 @@
 #include <iostream>
 #include <limits>
 #include <numeric>
+#include <istream>
 
 #include "emmintrin.h"
 #include "pmmintrin.h"
@@ -162,22 +163,29 @@ MixtureModel::MixtureModel(Configuration const& config, size_t dimension, size_t
               verbosity_(get_verbosity_from_string(paramVerbosity(config))) {
   // TODO: implement
   print_coding_progress();
+  std::string mixture = paramLoadMixturesFrom(config);
+  if (mixture != "") { // read mixture from file
+    std::ifstream loadMixtureFrom (mixture, std::ifstream::binary);
+  	read(loadMixtureFrom);
+  }
+  else {
+  	for (size_t mixture_counter = 0; mixture_counter < num_mixtures; mixture_counter++) {
+      // create one mixture density for each mixture
 
-	for (size_t mixture_counter = 0; mixture_counter < num_mixtures; mixture_counter++) {
-    // create one mixture density for each mixture
+  		MixtureDensity mixture_density(0, 0);
+  		if (var_model != GLOBAL_POOLING) {
+  		  mixture_density = create_mixture_density(mean_refs_.size(), var_refs_.size());
+  		} else {
+  		  // pool all variances in the first mixture
+  	    mixture_density = create_mixture_density(mean_refs_.size(), 0);
+  		}
 
-		MixtureDensity mixture_density(0, 0);
-		if (var_model != GLOBAL_POOLING) {
-		  mixture_density = create_mixture_density(mean_refs_.size(), var_refs_.size());
-		} else {
-		  // pool all variances in the first mixture
-	    mixture_density = create_mixture_density(mean_refs_.size(), 0);
-		}
+      Mixture mixture;
+      mixture.push_back(mixture_density);
+  		mixtures_[mixture_counter] = mixture;
+  	}
+  }
 
-    Mixture mixture;
-    mixture.push_back(mixture_density);
-		mixtures_[mixture_counter] = mixture;
-	}
 }
 
 void MixtureModel::print_coding_progress() {
@@ -354,13 +362,13 @@ void MixtureModel::accumulate(ConstAlignmentIter alignment_begin, ConstAlignment
 }
 
 void MixtureModel::finalize() {
+
   if (verbosity_ > noLog) {
     std::cout<<"Maximization step"<<std::endl;
   }
 
   double total_observations = 0.0;
   for (StateIdx m = 0; m < mixtures_.size(); m++) {
-
     double total_mixture_observations = 0.0;
     for (DensityIdx d = 0; d < mixtures_[m].size(); d++) {
       DensityIdx mean_idx = mixtures_[m][d].mean_idx;
@@ -381,12 +389,12 @@ void MixtureModel::finalize() {
       }
 
     }
-
     // Calculate the density weights
     for (DensityIdx d = 0; d < mixtures_[m].size(); d++) {
       DensityIdx mean_idx         = mixtures_[m][d].mean_idx;
       mean_weights_[mean_idx]     = mean_weight_accumulators_[mean_idx] / total_mixture_observations;
       mean_weights_log_[mean_idx] = log(mean_weights_[mean_idx]);
+
     }
 
     if (var_model == MIXTURE_POOLING) {
@@ -677,6 +685,7 @@ void MixtureModel::read(std::istream& in) {
   read_accumulator(in, dimension, mean_refs_, mean_accumulators_, mean_weight_accumulators_);
   test(mean_refs_.size() < (1ul << 16),               "Too many means, mean indices are 16bit ints");
   mean_weights_.resize(mean_weight_accumulators_.size());
+  mean_weights_log_.resize(mean_weight_accumulators_.size());
   means_.resize(mean_accumulators_.size());
 
   read_accumulator(in, dimension, var_refs_,  var_accumulators_,  var_weight_accumulators_);
@@ -687,7 +696,6 @@ void MixtureModel::read(std::istream& in) {
   uint32_t density_count;
   in.read(reinterpret_cast<char*>(&density_count), sizeof(density_count));
   test(in.gcount() == sizeof(density_count),          "Error reading density count");
-  std::cerr << "Num densities: " << density_count << std::endl;
 
   std::vector<MixtureDensity> densities;
   densities.reserve(density_count);

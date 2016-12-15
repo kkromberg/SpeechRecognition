@@ -12,6 +12,7 @@
 #include "Mixtures.hpp"
 #include "TdpModel.hpp"
 
+
 #include <memory>
 
 struct EDAccumulator {
@@ -56,7 +57,7 @@ struct Hypothesis {
   bool          new_word_;
 
   Hypothesis() :
-    ancestor_(nullptr), score_(0.0), state_(0), word_(0), new_word_(false) {}
+    ancestor_(HypothesisPtr(nullptr)), score_(0.0), state_(0), word_(0), new_word_(false) {}
 
   Hypothesis(HypothesisPtr ancestor, double score, StateIdx state, WordIdx word, bool new_word) :
     ancestor_(ancestor), score_(score), state_(state), word_(word), new_word_(new_word){}
@@ -71,16 +72,37 @@ struct Hypothesis {
 };
 
 
+struct Book {
+	// back trace information about best ending word for each frame
+	 double score;
+	 uint16_t word;
+	 uint16_t bkp;
+	 int state_idx;
+
+	 Book(double score, uint16_t word, uint16_t bkp) : score(score), word(word), bkp(bkp), state_idx(-1) {}
+
+	 Book(double score, uint16_t bkp) : score(score), word(-1), bkp(bkp), state_idx(-1) {}
+
+	 Book() : score(0.0), word(0), bkp(0), state_idx(-1) {}
+};
+
 class Recognizer {
 public:
   static const ParameterBool   paramLookahead;
   static const ParameterDouble paramAmThreshold;
   static const ParameterDouble paramLookaheadScale;
   static const ParameterDouble paramWordPenalty;
+  static const ParameterBool   paramPrunedSearch;
+
+	// Data structures for a 2D dynamic programming problem
+	typedef std::vector< std::vector<size_t> > 	 BackpointerMatrix;
+	typedef std::vector< std::vector<size_t> > 	 TracebackMatrix;
 
   Recognizer(Configuration const& config, Lexicon const& lexicon, FeatureScorer& scorer, TdpModel const& tdp_model)
             : am_threshold_(paramAmThreshold(config)),
-              word_penalty_(paramWordPenalty(config)), lexicon_(lexicon), scorer_(scorer), tdp_model_(tdp_model) {}
+              word_penalty_(paramWordPenalty(config)),
+              pruned_search_(paramPrunedSearch(config)),
+              lexicon_(lexicon), scorer_(scorer), tdp_model_(tdp_model) {}
 
   void recognize(Corpus const& corpus);
   void recognizeSequence(FeatureIter feature_begin, FeatureIter feature_end, std::vector<WordIdx>& output);
@@ -91,6 +113,7 @@ public:
 private:
   const double am_threshold_;
   const double word_penalty_;
+  const bool   pruned_search_;
 
   Lexicon  const& lexicon_;
   FeatureScorer&  scorer_;
