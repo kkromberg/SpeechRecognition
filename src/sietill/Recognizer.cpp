@@ -25,10 +25,10 @@ namespace {
 
 /*****************************************************************************/
 
-const ParameterDouble Recognizer::paramAmThreshold    ("am-threshold" ,   20.0);
-const ParameterDouble Recognizer::paramWordPenalty    ("word-penalty" ,   10.0);
-const ParameterBool   Recognizer::paramPrunedSearch   ("pruned-search",   true);
-
+const ParameterDouble    Recognizer::paramAmThreshold          ("am-threshold" ,   20.0);
+const ParameterDouble    Recognizer::paramWordPenalty          ("word-penalty" ,   10.0);
+const ParameterBool      Recognizer::paramPrunedSearch         ("pruned-search",   true);
+const ParameterInt       Recognizer::paramMaxRecognitionRuns   ("max-recognition-runs",   1000);
 
 /*****************************************************************************/
 
@@ -39,7 +39,7 @@ void Recognizer::recognize(Corpus const& corpus) {
   size_t sentence_errors = 0ul;
   std::vector<WordIdx> recognized_words;
 
-  for (SegmentIdx s = 0ul; s < corpus.get_corpus_size(); s++) {
+  for (SegmentIdx s = 0ul; s < std::min(corpus.get_corpus_size(), max_recognition_runs_); s++) {
     std::pair<FeatureIter, FeatureIter> features = corpus.get_feature_sequence(s);
     std::pair<WordIter, WordIter> ref_seq = corpus.get_word_sequence(s);
 
@@ -70,7 +70,7 @@ void Recognizer::recognize(Corpus const& corpus) {
   }
 
   const double wer = (static_cast<double>(acc.total_count) / static_cast<double>(ref_total)) * 100.0;
-  const double ser = (static_cast<double>(sentence_errors) / static_cast<double>(corpus.get_corpus_size())) * 100;
+  const double ser = (static_cast<double>(sentence_errors) / static_cast<double>(std::min(corpus.get_corpus_size(), max_recognition_runs_))) * 100;
   const double time = search_timer.secs(); // TODO: compute
   const double rtf = 0.0; // TODO: compute
 
@@ -283,6 +283,8 @@ void Recognizer::recognizeSequence_pruned(FeatureIter feature_begin, FeatureIter
     }
   }
 
+	std::cout << "Best score (pruned): " << best_hyp->score_ << std::endl;
+
   // Perform back tracking to extract the word sequence
   output.clear();
   while (1) {
@@ -409,6 +411,7 @@ void Recognizer::recognizeSequence(FeatureIter feature_begin, FeatureIter featur
 	size_t count = 0;
 	size_t feature_index = num_features - 1;
 
+	std::cout << "Best score (unpruned): " << book[feature_index].score << std::endl;
 	while (feature_index > 0) {
 		//std::cerr << "WRITING WORD IDX: " << book[feature_index].word << std::endl;
 			//output[count] = book[feature_index].word;
