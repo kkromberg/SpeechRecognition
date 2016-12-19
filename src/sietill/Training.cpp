@@ -33,9 +33,11 @@ const ParameterString Trainer::paramMixturePath      ("mixture-path",        "")
 const ParameterString Trainer::paramAlignmentPath    ("alignment-path",      "");
 const ParameterString Trainer::paramTrainingStatsPath("training-stats-path", "");
 
-const ParameterBool Trainer::paramWriteLinearSegmentation("write-linear-segmentation", false);
-const ParameterBool Trainer::paramRealign                ("realign",                   true);
-const ParameterBool Trainer::paramAlignmentPruning       ("alignment-pruning",         true);
+const ParameterBool Trainer::paramWriteLinearSegmentation ("write-linear-segmentation", false);
+const ParameterBool Trainer::paramRealign                 ("realign",                   true);
+const ParameterBool Trainer::paramAlignmentPruning        ("alignment-pruning",         true);
+const ParameterBool Trainer::paramLinearSegmentationApprox("approx-linear-segmentation",true);
+
 
 /*****************************************************************************/
 
@@ -78,13 +80,24 @@ void Trainer::train(Corpus const& corpus) {
   	//std::cerr << corpus.get_file_name(s) << std::endl;
     std::pair<FeatureIter, FeatureIter> features = corpus.get_feature_sequence(s);
     align_timer.tick();
-    std::pair<size_t, size_t> boundaries = linear_segmentation_approximation(
-        segment_automata[s],
-        features.first,
-        features.second,
-        AlignmentIter(&*(alignment.begin() + segment_offsets[s     ] * num_max_aligns_), num_max_aligns_),
-        AlignmentIter(&*(alignment.begin() + segment_offsets[s + 1u] * num_max_aligns_), num_max_aligns_)
-    );
+    std::pair<size_t, size_t> boundaries;
+
+    if (approx_linear_segmentation_) {
+      boundaries = linear_segmentation_approximation(
+          segment_automata[s],
+          features.first,
+          features.second,
+          AlignmentIter(&*(alignment.begin() + segment_offsets[s     ] * num_max_aligns_), num_max_aligns_),
+          AlignmentIter(&*(alignment.begin() + segment_offsets[s + 1u] * num_max_aligns_), num_max_aligns_));
+    } else {
+      boundaries = linear_segmentation_running_sums(
+         segment_automata[s],
+         features.first,
+         features.second,
+         AlignmentIter(&*(alignment.begin() + segment_offsets[s     ] * num_max_aligns_), num_max_aligns_),
+         AlignmentIter(&*(alignment.begin() + segment_offsets[s + 1u] * num_max_aligns_), num_max_aligns_));
+    }
+
     align_timer.tock();
     if (write_linear_segmentation_) {
       io_timer.tick();

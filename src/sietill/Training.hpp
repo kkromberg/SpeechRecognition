@@ -40,6 +40,7 @@ public:
   static const ParameterBool paramRealign;
   static const ParameterBool paramAlignmentPruning;
   static const ParameterBool paramBWTraining;
+  static const ParameterBool paramLinearSegmentationApprox;
 
   Trainer(Configuration const& config, Lexicon const& lexicon, MixtureModel& mixtures, TdpModel const& tdp_model, bool max_approx)
          : min_obs_(paramMinObs(config)), num_splits_(paramNumSplits(config)), num_aligns_(paramNumAligns(config)),
@@ -47,6 +48,7 @@ public:
            pruning_threshold_(paramPruningThreshold(config)), mixture_path_(paramMixturePath(config)),
            alignment_path_(paramAlignmentPath(config)), training_stats_path_(paramTrainingStatsPath(config)),
            max_approx_(max_approx), write_linear_segmentation_(paramWriteLinearSegmentation(config)),
+           approx_linear_segmentation_(paramLinearSegmentationApprox(config)),
            realign_(paramRealign(config)), alignment_pruning_(paramAlignmentPruning(config)),
            lexicon_(lexicon), mixtures_(mixtures), aligner_(mixtures_, tdp_model, num_max_aligns_) {}
 
@@ -87,6 +89,7 @@ private:
 
   const bool max_approx_;
   const bool write_linear_segmentation_;
+  const bool approx_linear_segmentation_;
   const bool realign_;
   const bool alignment_pruning_;
 

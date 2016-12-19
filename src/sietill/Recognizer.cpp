@@ -304,7 +304,7 @@ void Recognizer::recognizeSequence_pruned(FeatureIter feature_begin, FeatureIter
     }
   }
 
-	//std::cout << "Best score (pruned): " << best_hyp->score_ << std::endl;
+  std::cout << "Best score (pruned): " << best_hyp->score_ << std::endl;
 
   // Perform back tracking to extract the word sequence
   output.clear();
