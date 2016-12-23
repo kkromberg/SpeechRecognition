@@ -82,6 +82,8 @@ private:
   std::vector<Mixture> mixtures_;
 
   Verbosity verbosity_;
+
+  double minimal_variance_value_;
 };
 
 #endif /* __MIXTURES_HPP__ */
