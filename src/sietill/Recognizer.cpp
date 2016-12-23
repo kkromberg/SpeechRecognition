@@ -41,13 +41,6 @@ void Recognizer::recognize(Corpus const& corpus) {
   size_t ref_total = 0ul;
   size_t sentence_errors = 0ul;
   std::vector<WordIdx> recognized_words;
-  /*
-  std::ostringstream sstream;
-  sstream << am_threshold_;
-  std::string file_name = sstream.str() + "_test.data";
-
-  std::ofstream file(file_name.c_str(), std::ios::out | std::ios::trunc);
-  */
   for (SegmentIdx s = 0ul; s < std::min(corpus.get_corpus_size(), max_recognition_runs_); s++) {
     std::pair<FeatureIter, FeatureIter> features = corpus.get_feature_sequence(s);
     std::pair<WordIter, WordIter> ref_seq = corpus.get_word_sequence(s);
@@ -68,7 +61,6 @@ void Recognizer::recognize(Corpus const& corpus) {
     }
 
     const double wer = (static_cast<double>(ed.total_count) / static_cast<double>(ref_seq.second - ref_seq.first)) * 100.0;
-    //file << s << " " << wer << "\n";
     std::cerr << (s + 1ul) << "/" << corpus.get_corpus_size()
               << " WER: " << std::setw(6) << std::fixed << wer << std::setw(0)
               << "% (S/I/D) " << ed.substitute_count << "/" << ed.insert_count << "/" << ed.delete_count << " | ";
@@ -77,24 +69,18 @@ void Recognizer::recognize(Corpus const& corpus) {
     std::cerr << "| ";
     std::copy(ref_seq.first,            ref_seq.second,         std::ostream_iterator<WordIdx>(std::cerr, " "));
     std::cerr << std::endl;
-
   }
 
   const double wer = (static_cast<double>(acc.total_count) / static_cast<double>(ref_total)) * 100.0;
   const double ser = (static_cast<double>(sentence_errors) / static_cast<double>(std::min(corpus.get_corpus_size(), max_recognition_runs_))) * 100;
   const double time = search_timer.secs(); // TODO: compute
-  const double rtf = 0.0; // TODO: compute
+  const double rtf = time / (corpus.get_frame_duration() * corpus.get_total_frame_count()); // TODO: compute
 
   std::cerr << "WER: " << std::setw(6) << std::fixed << wer << std::setw(0)
             << "% (S/I/D) " << acc.substitute_count << "/" << acc.insert_count << "/" << acc.delete_count << std::endl;
   std::cerr << "SER: " << std::setw(6) << std::fixed << ser << "%" << std::endl;
   std::cerr << "Time: " << time << " seconds" << std::endl;
   std::cerr << "RTF: " << rtf << std::endl;
-  /*
-  file << max_recognition_runs_     << " " << wer << "\n";
-  file << max_recognition_runs_ + 1 << " " << time;
-  file.close();
-  */
 }
 
 /*****************************************************************************/
@@ -304,7 +290,7 @@ void Recognizer::recognizeSequence_pruned(FeatureIter feature_begin, FeatureIter
     }
   }
 
-  std::cout << "Best score (pruned): " << best_hyp->score_ << std::endl;
+  //std::cout << "Best score (pruned): " << best_hyp->score_ << std::endl;
 
   // Perform back tracking to extract the word sequence
   output.clear();
