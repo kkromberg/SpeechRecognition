@@ -620,8 +620,8 @@ double MixtureModel::add_double_sse_register(__m128d vsum) const {
 	// accumulate the vertical sums of the loop
 	double hsum[2] = { 0.0, 0.0 };
 	_mm_store_pd(&hsum[0], vsum);
-	double distance_factor = hsum[0] + hsum[1];
-	return distance_factor;
+
+	return hsum[0] + hsum[1];
 }
 
 /*****************************************************************************/
