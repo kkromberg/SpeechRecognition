@@ -16,6 +16,10 @@ public:
 
   virtual void forward (std::valarray<float>& output, std::gslice const& slice, std::vector<unsigned> const& mask) const;
 private:
+
+  float shifted_exp_sum_(const float shift_value, std::valarray<float>& values) const;
+  void  log_space_normalization_(const float norm, std::valarray<float>& values) const;
+  void  softmax_(std::valarray<float>& values) const;
 };
 
 // -------------------- inline functions --------------------
