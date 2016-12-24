@@ -44,6 +44,8 @@ public:
   size_t num_densities() const;
 
   double                        density_score  (FeatureIter const& iter, StateIdx mixture_idx, DensityIdx density_idx) const;
+  double 												density_score_sse(FeatureIter const& iter, StateIdx mixture_idx, DensityIdx density_idx) const;
+
   std::pair<double, DensityIdx> min_score      (FeatureIter const& iter, StateIdx mixture_idx) const;
   double                        sum_score      (FeatureIter const& iter, StateIdx mixture_idx, std::vector<double>* weights) const;
 
@@ -59,6 +61,7 @@ private:
   MixtureDensity create_mixture_density(DensityIdx mean_index, DensityIdx var_index);
   void           update_split_densities(MixtureDensity& md_original, MixtureDensity& md_split);
   void           print_coding_progress();
+	double add_double_sse_register(__m128d vsum) const;
 
   static const char     magic[8];
   static const uint32_t version;

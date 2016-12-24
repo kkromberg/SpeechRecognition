@@ -296,7 +296,7 @@ void MixtureModel::accumulate(ConstAlignmentIter alignment_begin, ConstAlignment
         // set the membership probability to 1 for the max_approx case
         membership_probabilities[d] = 1.0;
       } else if (!max_approx) {
-        membership_probabilities[d] = exp(-1 *density_score(feature_iterator, m , d));
+        membership_probabilities[d] = exp(-1 *density_score_sse(feature_iterator, m , d));
       }
     }
 
@@ -526,11 +526,6 @@ void MixtureModel::update_split_densities(MixtureDensity& md_original, MixtureDe
     		      norm_.begin() + var_idx_split);
 
     //calculate_variance(var_idx_original, means_.begin() + mean_idx_original * dimension);
-    if (verbosity_ > noLog) {
-			std::cout << "Split output1: " << std::endl;
-			std::cout << "vars_" << std::endl;
-			dump_vector<double>(std::cout, vars_);
-		}
     //calculate_variance(var_idx_split   , means_.begin() + mean_idx_split    * dimension);
   }
 
@@ -593,6 +588,7 @@ double MixtureModel::density_score(FeatureIter const& iter, StateIdx mixture_idx
 		distance_from_mean = (*iter)[feature_idx] - means_[mean_index + feature_idx];
 		distance_factor    += distance_from_mean * distance_from_mean / vars_[variance_index + feature_idx];
 
+		/*
 		if (verbosity_ > noLog) {
 			std::cout << "Current mean / variance " << means_[mean_index + feature_idx] << " "
                                               << vars_[variance_index + feature_idx] << " "
@@ -600,9 +596,71 @@ double MixtureModel::density_score(FeatureIter const& iter, StateIdx mixture_idx
                                               << std::endl;
 			std::cout << "Current distance_factor " << distance_factor << std::endl;
 		}
+		*/
 
 	}
 
+	// apply operations on the end product of the terms and sum them
+	score = norm_[mixtures_[mixture_idx][density_idx].var_idx] + distance_factor / 2;
+	score -= mean_weights_log_[mixtures_[mixture_idx][density_idx].mean_idx];
+	if (verbosity_ > noLog) {
+		std::cout << "Score of density: " << score
+		          << " Probability:     " << exp(-1 * score)
+							<< " Mixture idx:     " << mixture_idx
+							<< " Density idx:     " << density_idx
+							<< std::endl;
+	}
+
+  return score;
+}
+
+/*****************************************************************************/
+
+double MixtureModel::add_double_sse_register(__m128d vsum) const {
+	// accumulate the vertical sums of the loop
+	double hsum[2] = { 0.0, 0.0 };
+	_mm_store_pd(&hsum[0], vsum);
+	double distance_factor = hsum[0] + hsum[1];
+	return distance_factor;
+}
+
+/*****************************************************************************/
+
+// computes the score (probability in negative log space) for a feature vector
+// given a mixture density. Mimics the implementation of density_score, but uses sse registers to increase throughput
+double MixtureModel::density_score_sse(FeatureIter const& iter, StateIdx mixture_idx, DensityIdx density_idx) const {
+	// Positions of beginning of the mean / variance of the density in the flat array
+	double mean_index     = mixtures_[mixture_idx][density_idx].mean_idx * dimension;
+	double variance_index = mixtures_[mixture_idx][density_idx].var_idx  * dimension;
+
+	__m128d vsum = _mm_set1_pd((double) 0.0);
+	for (size_t feature_idx = 0; feature_idx < dimension - dimension % 2; feature_idx += 2) {
+		// get the features in float and convert them to double values
+    __m128  features_float = _mm_loadu_ps((float*) &(*iter)[feature_idx]);
+    __m128d features       = _mm_cvtps_pd (features_float);
+
+    // get the means and variances for the next two loop iterations
+    __m128d means    = _mm_loadu_pd((double*) &means_[mean_index + feature_idx]);
+    __m128d vars     = _mm_loadu_pd((double*) &vars_ [variance_index + feature_idx]);
+
+    // calculate of the feature from the mean and divide by the variance
+    __m128d current_score = _mm_sub_pd(features, means);
+    current_score = _mm_mul_pd(current_score, current_score);
+    current_score = _mm_div_pd(current_score, vars);
+
+    // accumulate the score
+    vsum = _mm_add_pd(vsum, current_score);
+	}
+	// accumulate the vertical sums of the loop
+	double distance_factor = add_double_sse_register(vsum);
+
+	// Unroll the loop in case the feature dimension is odd
+	if (dimension % 2 == 1) {
+		double current_score  = (*iter)[dimension-1] - means_[mean_index + dimension-1];
+		distance_factor      += current_score * current_score / vars_[variance_index + dimension-1];
+	}
+
+	double score = 0.0;
 	// apply operations on the end product of the terms and sum them
 	score = norm_[mixtures_[mixture_idx][density_idx].var_idx] + distance_factor / 2;
 	score -= mean_weights_log_[mixtures_[mixture_idx][density_idx].mean_idx];
@@ -628,7 +686,7 @@ std::pair<double, DensityIdx> MixtureModel::min_score(FeatureIter const& iter, S
   double     new_score = 0.0;
 
   for (size_t density_idx = 0; density_idx < n_densities; density_idx++) {
-    new_score = density_score(iter, mixture_idx, density_idx);
+    new_score = density_score_sse(iter, mixture_idx, density_idx);
 
     // update density
     if (new_score < min_score) {
@@ -649,7 +707,7 @@ double MixtureModel::sum_score(FeatureIter const& iter, StateIdx mixture_idx, st
   double score       = 0.0;
 
   for (size_t density_idx = 0; density_idx < n_densities; density_idx++) {
-  	score += exp( -1 * density_score(iter, mixture_idx, density_idx));
+  	score += exp( -1 * density_score_sse(iter, mixture_idx, density_idx));
   }
 
   return -1 * log(score);
