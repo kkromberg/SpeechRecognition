@@ -363,7 +363,6 @@ void MixtureModel::accumulate(ConstAlignmentIter alignment_begin, ConstAlignment
 }
 
 void MixtureModel::finalize() {
-
   if (verbosity_ > noLog) {
     std::cout<<"Maximization step"<<std::endl;
   }
@@ -555,6 +554,9 @@ void MixtureModel::eliminate(double min_obs) {
 				if (var_model == NO_POOLING) {
 				  // when using pooling, we do not want to set any variance references to 0
 				  var_refs_[var_ref] = 0ul;
+				} else {
+					// remove one reference to the variance
+					//var_refs_[var_ref]--;
 				}
 			}
 		}
@@ -725,17 +727,6 @@ double MixtureModel::score(FeatureIter const& iter, StateIdx mixture_idx) const 
     return min_score(iter, mixture_idx).first;
   }
   else {
-  	/* Why do we need to compute this for the sum score??
-  	size_t						  n_densities = mixtures_[mixture_idx].size();
-  	size_t							weight_idx = 0;
-  	std::vector<double> weights = new std;
-
-
-  	for (size_t density_idx = 0; density_idx < n_densities; density_idx++) {
-  		weight_idx = mixtures_[mixture_idx][density_idx].mean_idx;
-  		weights.push_back(mean_weights_[weight_idx]);
-  	}
-		*/
     return sum_score(iter, mixture_idx, NULL);
   }
 }
