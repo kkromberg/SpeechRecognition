@@ -43,6 +43,8 @@ public:
 
   const size_t get_feature_size()    const { return feature_size_; };
   const size_t get_max_seq_length_() const { return max_seq_length_; };
+
+  void gradient_test();
 protected:
   const std::string layer_name_;
 

@@ -10,6 +10,7 @@
 #include <fstream>
 #include <iostream>
 #include <map>
+#include <random>
 
 #include "FeedForwardLayer.hpp"
 #include "Util.hpp"
@@ -302,4 +303,11 @@ void NeuralNetwork::load_prior(std::string const& path) {
   }
   log_prior_ = prior_scale_ * std::log(log_prior_);
 }
+
+void NeuralNetwork::gradient_test() {
+  for (size_t l = 0ul; l < layers_.size(); l++) {
+    layers_[l]->gradient_test();
+  }
+}
+
 

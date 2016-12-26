@@ -18,7 +18,15 @@ public:
     ReLU,
   };
 
+  enum struct WeightDecay {
+    None,
+    L1,
+    L2
+  };
+
   static const ParameterString paramNonlinearity;
+  static const ParameterString paramWeightDecay;
+  static const ParameterDouble paramWeightDecayFactor;
 
   FeedForwardLayer(Configuration const& config);
   virtual ~FeedForwardLayer();
@@ -33,8 +41,13 @@ public:
                         std::gslice const& slice, std::vector<unsigned> const& mask);
 protected:
   FeedForwardLayer(Configuration const& config, Nonlinearity nonlinearity);
+  FeedForwardLayer(Configuration const& config, Nonlinearity nonlinearity,
+  																	 WeightDecay weight_decay,
+  																	 float weight_decay_factor);
 private:
   const Nonlinearity nonlinearity_;
+  WeightDecay        weight_decay_;
+  float              weight_decay_factor_;
 };
 
 #endif /* __FEED_FORWARD_LAYER_HPP__ */

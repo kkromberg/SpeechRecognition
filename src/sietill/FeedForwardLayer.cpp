@@ -29,12 +29,26 @@ namespace {
     }
     return FeedForwardLayer::Nonlinearity::None;
   }
+
+  FeedForwardLayer::WeightDecay weight_decay_from_string(std::string const& str) {
+  	if (str == "l1") {
+      return FeedForwardLayer::WeightDecay::L1;
+    }
+    else if (str == "l2") {
+      return FeedForwardLayer::WeightDecay::L2;
+    }
+    return FeedForwardLayer::WeightDecay::None;
+  }
 }
 
 const ParameterString FeedForwardLayer::paramNonlinearity("nonlinearity", "");
+const ParameterString FeedForwardLayer::paramWeightDecay ("weight-decay", "");
+const ParameterDouble FeedForwardLayer::paramWeightDecayFactor ("weight-decay-factor", 0.0f);
 
 FeedForwardLayer::FeedForwardLayer(Configuration const& config) : NetworkLayer(config),
-                                                                  nonlinearity_(nonlinearity_from_string(paramNonlinearity(config))) {
+                                                                  nonlinearity_(nonlinearity_from_string(paramNonlinearity(config))),
+                                                                  weight_decay_(weight_decay_from_string(paramWeightDecay(config))),
+                                                                  weight_decay_factor_(paramWeightDecayFactor(config)) {
 }
 
 FeedForwardLayer::~FeedForwardLayer() {
@@ -43,8 +57,8 @@ FeedForwardLayer::~FeedForwardLayer() {
 void FeedForwardLayer::init(bool input_error_needed) {
   NetworkLayer::init(input_error_needed);
   params_.resize(feature_size_ * output_size_ + output_size_);
-		gradient_.resize(params_.size());
-	}
+	gradient_.resize(params_.size());
+}
 
 void FeedForwardLayer::init_parameters(std::function<float()> const& generator) {
   for (size_t i = 0ul; i < params_.size(); i++) {
@@ -131,8 +145,8 @@ void FeedForwardLayer::forward(std::valarray<float>& output, std::gslice const& 
       }
       std::cerr << std::endl;
     }
-		*/
 
+		*/
     // Perform the following calculation:
     // output^(BxH) = input^(BxD) * weights^(DxH) + bias^(BxH)
     // The previously computed weights matrix has to be transposed
@@ -160,31 +174,36 @@ void FeedForwardLayer::forward(std::valarray<float>& output, std::gslice const& 
       }
       std::cerr << std::endl;
     }
-    */
+		*/
     //applying different activation functions
     switch(nonlinearity_){
-      case Nonlinearity::None: {
-        output[output_slice] = result;
-        break;
-      }
       case Nonlinearity::Sigmoid: {
-        output[output_slice] = 1/(1+exp(-result));
+        result = 1/(1+exp(-result));
         break;
       }
       case Nonlinearity::Tanh: {
-        output[output_slice] = 2/(1+exp(-2.0f*(result)))-1;
+      	result = 2/(1+exp(-2.0f*(result)))-1;
         break;
       }
       case Nonlinearity::ReLU:{
-        output[output_slice] = result.apply([](float n)->float {
-            if (n>0)
-              return n;
-            else
-              return 0;
-                  });
+      	result = result.apply([](float n)->float { return std::max(n, 0.0f); });
+        break;
+      }
+      case Nonlinearity::None: {
         break;
       }
     }
+
+    output[output_slice] = result;
+    /*
+    std::cerr << "Output (after activations): " << std::endl;
+    for (size_t batch_idx = 0; batch_idx < batch_size_; batch_idx++) {
+      for (size_t output_idx = 0; output_idx < output_size_; output_idx++) {
+        std::cerr << result[output_idx + batch_idx * output_size_] << " " ;
+      }
+      std::cerr << std::endl;
+    }
+    */
 	}
 }
 
@@ -203,6 +222,9 @@ void FeedForwardLayer::backward(std::valarray<float>& output, std::valarray<floa
   std::valarray<float> weights = params_[weights_slice];
   std::valarray<float> ones (1.0f, slice.size()[1]* slice.size()[2]);
   std::valarray<float> inner_gradients(0.0f, slice.size()[1]* slice.size()[2]);
+
+	std::valarray<float> weight_decay = params_[weights_slice];
+
 
   // Go over every time step
 #pragma omp parallel for
@@ -255,6 +277,23 @@ void FeedForwardLayer::backward(std::valarray<float>& output, std::valarray<floa
   	std::gslice bias_slice(output_size_*feature_size_, {output_size_}, {1});
   	std::valarray<float> weight_gradients = gradient_[weights_slice];
 
+  	/*
+    std::cerr << "B: Error (transposed) : " << std::endl;
+    for (size_t batch_idx = 0; batch_idx < batch_size_; batch_idx++) {
+      for (size_t output_idx = 0; output_idx < output_size_; output_idx++) {
+        std::cerr << current_error[batch_idx * output_size_ + output_idx] << " " ;
+      }
+      std::cerr << std::endl;
+    }
+
+    std::cerr << "B: Input: " << std::endl;
+    for (size_t batch_idx = 0; batch_idx < batch_size_; batch_idx++) {
+      for (size_t feature_idx = 0; feature_idx < feature_size_; feature_idx++) {
+        std::cerr << input[feature_idx + batch_idx * feature_size_] << " " ;
+      }
+      std::cerr << std::endl;
+    }
+    */
   	// Perform the following calculation:
   	// gradient^(HxD) = current_error^(BxH) * input^(BxD)
   	// current error has to be transposed
@@ -272,8 +311,15 @@ void FeedForwardLayer::backward(std::valarray<float>& output, std::valarray<floa
   			0.0f,
   			&weight_gradients[0],     // HxD
   			feature_size_);    // # columns in the gradient
-
-
+  	/*
+    std::cerr << "B: Output: " << std::endl;
+    for (size_t output_idx = 0; output_idx < output_size_; output_idx++) {
+      for (size_t feature_idx = 0; feature_idx < feature_size_; feature_idx++) {
+        std::cerr << weight_gradients[feature_idx + output_idx * feature_size_] << " " ;
+      }
+      std::cerr << std::endl;
+    }
+		*/
   	if (input_error_needed_) {
   		// Perform the following calculation:
   		// error_buffer^(BxD) = current_error^(BxH) * weights^(HxD)
@@ -293,15 +339,34 @@ void FeedForwardLayer::backward(std::valarray<float>& output, std::valarray<floa
   				feature_size_);    // # columns in the bias
   	}
 
+  	switch (weight_decay_) {
+  	case WeightDecay::L1: {
+  		weight_decay  = params_[weights_slice];
+  		weight_decay *= weight_decay_factor_ / 2;
+  		weight_decay.apply([](float n)->float { return fabs(n); });
+  		break;
+  	}
+  	case WeightDecay::L2: {
+  		weight_decay  = params_[weights_slice];
+  		weight_decay *= weight_decay_factor_;
+  		break;
+  	}
+  	default:
+  		weight_decay  = 0.0f;
+  		break;
+  	}
 #pragma omp critical
   	{
-  		gradient_[weights_slice] += weight_gradients;
-  		gradient_[bias_slice] += bias_gradient;
+  		gradient_[weights_slice] += weight_gradients + weight_decay;
+  		gradient_[bias_slice]    += bias_gradient;
   	}
   }
 }
 
-FeedForwardLayer::FeedForwardLayer(Configuration const& config, Nonlinearity nonlinearity)
-                                  : NetworkLayer(config), nonlinearity_(nonlinearity) {
+FeedForwardLayer::FeedForwardLayer(Configuration const& config, Nonlinearity nonlinearity,
+																	 WeightDecay weight_decay,
+																	 float weight_decay_factor)
+                                  : NetworkLayer(config), nonlinearity_(nonlinearity), weight_decay_(weight_decay),
+                                    weight_decay_factor_(weight_decay_factor){
 }
 

@@ -64,14 +64,14 @@ public:
   std::map<std::string, std::valarray<float>*> const& get_parameters() const;
   std::map<std::string, std::valarray<float>*> const& get_gradients()  const;
 
-
-
   void init_parameters(std::function<float()> const& generator);
   void forward();
   void backward(std::valarray<float> const& targets);
   void save(std::string const& folder) const;
   void load(std::string const& folder);
   void load_prior(); // only needed when the NN is used as a feature-scorer
+
+  void gradient_test();
 private:
   const size_t feature_size_;
   const size_t batch_size_;
