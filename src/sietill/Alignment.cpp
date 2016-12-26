@@ -327,6 +327,18 @@ void read_alignment(std::istream& in, Alignment& alignment, size_t& max_aligns) 
     it++;
   }
   */
+
+  size_t n_silence_states = 0;
+  size_t total_counter = 0;
+  for (Alignment::iterator it = alignment.begin(); it != alignment.end(); it++) {
+  	if ((*it).state == 0) {
+  		n_silence_states++;
+  	}
+
+  	total_counter++;
+  }
+
+  std::cout << "Alignment has " << ((float) n_silence_states) / total_counter * 100 << "% silence." << std::endl;
 }
 
 /*****************************************************************************/
