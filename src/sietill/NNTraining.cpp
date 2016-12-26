@@ -271,14 +271,22 @@ const ParameterBool   NnTrainer::paramRandomParamInit    ("random-param-init",  
 const ParameterString NnTrainer::paramOutputDir          ("output-dir",             "./models");
 const ParameterString NnTrainer::paramNNTrainingStatsPath("nn-training-stats-path", "");
 const ParameterString NnTrainer::paramNNMethod           ("method",                "no");
+const ParameterBool   NnTrainer::paramGradientCheck      ("gradient-check",        true);
 
 NnTrainer::NnTrainer(Configuration const& config, MiniBatchBuilder& mini_batch_builder, NeuralNetwork& nn)
                            : num_epochs_(paramNumEpochs(config)), start_epoch_(std::max(1u, paramStartEpoch(config))),
                              learning_rate_(paramLearningRate(config)), random_param_init_(paramRandomParamInit(config)),
-														 method(get_method_from_string(paramNNMethod(config))),
                              output_dir_(paramOutputDir(config)), nn_training_stats_path_(paramNNTrainingStatsPath(config)),
+														 method(get_method_from_string(paramNNMethod(config))), gradient_check_(paramGradientCheck(config)),
                              rng_(paramSeed(config)), mini_batch_builder_(mini_batch_builder), nn_(nn),
                              updater_(get_updater(paramUpdater(config), config, nn_.get_parameters(), nn_.get_gradients())) {
+	create_dir(nn_training_stats_path_);
+	nn_training_stats_.open(nn_training_stats_path_);
+	if (!nn_training_stats_.good()) {
+		std::cerr << "Error opening neural network training statistics file " << nn_training_stats_path_ << std::endl;
+	} else {
+		nn_training_stats_ << "Train frame error rate # Cv frame error rate # Time (s)" << std::endl;
+	}
 }
 
 NnTrainer::~NnTrainer() {
@@ -286,6 +294,7 @@ NnTrainer::~NnTrainer() {
 
 
 void NnTrainer::train() {
+	Timer epoch_timer;
   const size_t num_classes = mini_batch_builder_.num_classes();
   const size_t batch_size = mini_batch_builder_.batch_size();
   std::normal_distribution<float> dist(0.0, 0.1);
@@ -297,11 +306,18 @@ void NnTrainer::train() {
     nn_.load(ss.str());
   }
 
+  if (gradient_check_) {
+		std::cerr << "Performing a gradient test: " << std::endl;
+		nn_.gradient_test();
+  }
+
   std::vector<unsigned> mask;
   std::valarray<float> targets;
   double current_error_rate;
   double previous_error_rate = 0;
   for (size_t epoch = start_epoch_; epoch <= num_epochs_; epoch++) {
+  	epoch_timer.reset();
+  	epoch_timer.tick();
     size_t total_frames           = 0ul;
     size_t total_incorrect_frames = 0ul;
     mini_batch_builder_.shuffle();
@@ -387,12 +403,16 @@ void NnTrainer::train() {
         }
       }
     }
+  	epoch_timer.tock();
 
     std::stringstream ss;
     ss << output_dir_ << '/' << epoch << '/';
     nn_.save(ss.str());
-    std::cerr << "Epoch train frame error-rate: " << (static_cast<double>(total_incorrect_frames) / static_cast<double>(total_frames))    << std::endl;
-    std::cerr << "Epoch cv    frame error-rate: " << (static_cast<double>(cv_errors)              / static_cast<double>(cv_total_frames)) << std::endl;
+    const double train_frame_error_rate = (static_cast<double>(total_incorrect_frames) / static_cast<double>(total_frames));
+    const double cv_frame_error_rate    = (static_cast<double>(cv_errors)              / static_cast<double>(cv_total_frames));
+    std::cerr << "Epoch train frame error-rate: " << train_frame_error_rate << std::endl;
+    std::cerr << "Epoch cv    frame error-rate: " << cv_frame_error_rate    << std::endl;
+    nn_training_stats_ << train_frame_error_rate << " # " << cv_frame_error_rate << " # " << epoch_timer.secs() << std::endl;
     if (method == 1 ){
     	//std::cerr << "Newbob" << std::endl;
     	current_error_rate = static_cast<double>(cv_errors) / static_cast<double>(cv_total_frames);

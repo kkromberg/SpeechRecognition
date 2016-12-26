@@ -9,6 +9,7 @@
 
 #include <random>
 #include <valarray>
+#include <fstream>
 
 #include "Config.hpp"
 #include "Corpus.hpp"
@@ -156,6 +157,7 @@ public:
   static const ParameterString paramOutputDir;
   static const ParameterString paramNNTrainingStatsPath;
   static const ParameterString paramNNMethod;
+  static const ParameterBool   paramGradientCheck;
 
 
   NnTrainer(Configuration const& config, MiniBatchBuilder& mini_batch_builder, NeuralNetwork& nn);
@@ -169,7 +171,8 @@ private:
   bool         random_param_init_;
   std::string  output_dir_;
   std::string  nn_training_stats_path_;
-  NNMethod method;
+  NNMethod     method;
+  bool         gradient_check_;
 
   std::mt19937 rng_;
 
@@ -177,7 +180,7 @@ private:
   NeuralNetwork&    nn_;
   std::unique_ptr<ParameterUpdater> updater_;
 
-
+  std::ofstream nn_training_stats_;
   double compute_loss(std::valarray<float>  const& hyp, std::valarray<float>  const& ref, std::vector<unsigned> const& batch_mask,
                       size_t max_frames, size_t batch_size, size_t num_classes) const;
 };

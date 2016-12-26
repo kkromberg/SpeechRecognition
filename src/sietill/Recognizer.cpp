@@ -86,6 +86,7 @@ void Recognizer::recognize(Corpus const& corpus) {
 /*****************************************************************************/
 
 void Recognizer::recognizeSequence_pruned(FeatureIter feature_begin, FeatureIter feature_end, std::vector<WordIdx>& output) {
+	scorer_.prepare_sequence(feature_begin, feature_end);
 
 	// Variables to keep track of pruning information
 	size_t hypotheses_pruned     = 0;
@@ -206,9 +207,6 @@ void Recognizer::recognizeSequence_pruned(FeatureIter feature_begin, FeatureIter
 
         // Get the cached score of the transition
         if (am_cache[next_state] == std::numeric_limits<double>::infinity()) {
-        	// TODO: Account for context frames when using neural models
-        	scorer_.prepare_sequence(feature_iter + 1, feature_iter + 2);
-
         	am_cache[next_state] = scorer_.score(feature_iter + 1, next_state);
         }
         double new_score = am_cache[next_state] + tdp_model_.score(next_state, jump);
@@ -290,7 +288,7 @@ void Recognizer::recognizeSequence_pruned(FeatureIter feature_begin, FeatureIter
     }
   }
 
-  //std::cout << "Best score (pruned): " << best_hyp->score_ << std::endl;
+  std::cout << "Best score (pruned): " << best_hyp->score_ << std::endl;
 
   // Perform back tracking to extract the word sequence
   output.clear();
@@ -313,6 +311,8 @@ void Recognizer::recognizeSequence(FeatureIter feature_begin, FeatureIter featur
 	size_t num_words 		= lexicon_.num_words();
 	// set output size to zero
 	output.resize(0);
+
+	scorer_.prepare_sequence(feature_begin, feature_end);
 
 	// store number of states for each word + one extra state for word boundary
 	size_t num_states_word[num_words];
@@ -380,6 +380,7 @@ void Recognizer::recognizeSequence(FeatureIter feature_begin, FeatureIter featur
 		}
 	} // loop features
 
+	//std::cout << "Best score (unpruned): " << book[num_features].score << std::endl;
 	// trace back
 	size_t count = 0;
 	size_t feature_index = num_features;
