@@ -40,18 +40,20 @@ void Recognizer::recognize(Corpus const& corpus) {
   EDAccumulator acc;
   size_t ref_total = 0ul;
   size_t sentence_errors = 0ul;
-  std::vector<WordIdx> recognized_words;
-  for (SegmentIdx s = 0ul; s < std::min(corpus.get_corpus_size(), max_recognition_runs_); s++) {
+  size_t corpus_size = std::min(corpus.get_corpus_size(), max_recognition_runs_);
+
+  search_timer.tick();
+#pragma omp parallel for ordered schedule(dynamic)
+  for (SegmentIdx s = 0ul; s < corpus_size; s++) {
     std::pair<FeatureIter, FeatureIter> features = corpus.get_feature_sequence(s);
     std::pair<WordIter, WordIter> ref_seq = corpus.get_word_sequence(s);
+    std::vector<WordIdx> recognized_words;
 
-    search_timer.tick();
     if (pruned_search_) {
       recognizeSequence_pruned(features.first, features.second, recognized_words);
     } else {
       recognizeSequence(features.first, features.second, recognized_words);
     }
-    search_timer.tock();
 
     EDAccumulator ed = editDistance(ref_seq.first, ref_seq.second, recognized_words.begin(), recognized_words.end());
     acc += ed;
@@ -60,8 +62,11 @@ void Recognizer::recognize(Corpus const& corpus) {
       sentence_errors++;
     }
 
+#pragma omp ordered
+{
+		search_timer.tock();
     const double wer = (static_cast<double>(ed.total_count) / static_cast<double>(ref_seq.second - ref_seq.first)) * 100.0;
-    std::cerr << (s + 1ul) << "/" << corpus.get_corpus_size()
+    std::cerr << (s + 1ul) << "/" << corpus_size
               << " WER: " << std::setw(6) << std::fixed << wer << std::setw(0)
               << "% (S/I/D) " << ed.substitute_count << "/" << ed.insert_count << "/" << ed.delete_count << " | ";
 
@@ -69,12 +74,15 @@ void Recognizer::recognize(Corpus const& corpus) {
     std::cerr << "| ";
     std::copy(ref_seq.first,            ref_seq.second,         std::ostream_iterator<WordIdx>(std::cerr, " "));
     std::cerr << std::endl;
+    search_timer.tick();
+}
   }
+  search_timer.tock();
 
   const double wer = (static_cast<double>(acc.total_count) / static_cast<double>(ref_total)) * 100.0;
-  const double ser = (static_cast<double>(sentence_errors) / static_cast<double>(std::min(corpus.get_corpus_size(), max_recognition_runs_))) * 100;
+  const double ser = (static_cast<double>(sentence_errors) / static_cast<double>(corpus_size)) * 100;
   const double time = search_timer.secs(); // TODO: compute
-  const double rtf = time / (corpus.get_frame_duration() * corpus.get_total_frame_count()); // TODO: compute
+  const double rtf = time / (corpus.get_frame_duration() * corpus.get_total_frame_count()) ; // TODO: compute
 
   std::cerr << "WER: " << std::setw(6) << std::fixed << wer << std::setw(0)
             << "% (S/I/D) " << acc.substitute_count << "/" << acc.insert_count << "/" << acc.delete_count << std::endl;
@@ -83,227 +91,146 @@ void Recognizer::recognize(Corpus const& corpus) {
   std::cerr << "RTF: " << rtf << std::endl;
 }
 
+void Recognizer::merge_hypothesis(double score, size_t state_idx, size_t t, WordIdx word_idx, Book& target_hyp) {
+	target_hyp.score = score;
+	target_hyp.state_idx = state_idx;
+	target_hyp.bkp = t;
+	target_hyp.word = word_idx;
+}
+
 /*****************************************************************************/
 
 void Recognizer::recognizeSequence_pruned(FeatureIter feature_begin, FeatureIter feature_end, std::vector<WordIdx>& output) {
 	scorer_.prepare_sequence(feature_begin, feature_end);
 
-	// Variables to keep track of pruning information
-	size_t hypotheses_pruned     = 0;
-	size_t hypothesis_expansions = 0;
-  size_t n_frames = feature_end - feature_begin;
+	size_t n_words    = lexicon_.num_words();
+	size_t n_states   = lexicon_.num_states();
+	size_t n_features = feature_end - feature_begin;
 
-  // Build an invalid hypothesis
-  const StateIdx      virtual_state      = lexicon_.num_states();
-  const HypothesisPtr invalid_hypothesis = HypothesisPtr(new Hypothesis(HypothesisPtr(nullptr),
-        std::numeric_limits<double>::infinity(), virtual_state, lexicon_.silence_idx(), false));
+	std::vector<size_t> n_states_per_word(n_words, 0);
+	for (size_t w = 0; w < n_words; w++) {
+		n_states_per_word[w] = lexicon_.get_automaton_for_word(w).num_states();
+	}
+	size_t max_states_per_word = *max_element(n_states_per_word.begin(), n_states_per_word.end());
 
-  // arrays to keep track of the hypotheses that are kept in each time step
-  Beam hyp_expansions(lexicon_.num_states() * lexicon_.num_words(), invalid_hypothesis);
+	std::vector<Book> current_hyps(n_states * max_states_per_word, Book(std::numeric_limits<double>::infinity(), 0, 0, 0));
+	std::vector<Book> next_hyps   (n_states * max_states_per_word, Book(std::numeric_limits<double>::infinity(), 0, 0, 0));
+	std::vector<Book> traceback   (n_features + 1                , Book(0.0, 0, 0, 0));
 
-  // initialize the DP search with an empty hypothesis
-  std::vector<size_t> beam_boundaries(n_frames + 2, 0);
-  beam_boundaries[1] = 1;
-  Beam hypothesis_beams(1, HypothesisPtr(new Hypothesis()));
+	current_hyps[0].score = 0.0;
 
-  std::vector<double> am_cache(lexicon_.num_states(), std::numeric_limits<double>::infinity());
+	int t = 1;
+	std::vector<double> am_cache(n_states, std::numeric_limits<double>::infinity());
+	for (FeatureIter cur_frame = feature_begin; cur_frame != feature_end; cur_frame++, t++) {
+		double best_score = std::numeric_limits<double>::infinity();
+		for (std::vector<Book>::iterator cur_hyp = current_hyps.begin(); cur_hyp != current_hyps.end(); cur_hyp++) {
+			if (cur_hyp->score == std::numeric_limits<double>::infinity()) {
+				continue;
+			}
 
-  size_t t = 0;
-  for (FeatureIter feature_iter = feature_begin; feature_iter != feature_end - 1; feature_iter++, t++) {
-    BeamIterator beam_start = hypothesis_beams.begin() + beam_boundaries[t];
-    BeamIterator beam_end   = hypothesis_beams.begin() + beam_boundaries[t+1];
+			if ((size_t) cur_hyp->state_idx == n_states_per_word[cur_hyp->word] - 1) {
+				// current hypothesis is at a word boundary -> expand it
+				for (WordIdx word_idx = 0; word_idx < n_words; word_idx++) {
 
-    // Attempt to expand all hypotheses in word boundaries to a new word
-    bool did_word_expansions = false;
-    for (BeamIterator hypothesis_it = beam_start; hypothesis_it != beam_end; hypothesis_it++) {
-      HypothesisPtr current_hyp   = *hypothesis_it;
-      StateIdx      current_state = current_hyp->state_;
-      WordIdx       current_word  = current_hyp->word_;
-      double        current_score = current_hyp->score_;
-      StateIdx      max_state     = lexicon_.get_automaton_for_word(current_word).num_states() - 1;
+					double   word_penalty = word_idx != lexicon_.silence_idx() ? word_penalty_ : 0.0;
+					StateIdx first_state  = lexicon_.get_automaton_for_word(word_idx).first_state();
+					for (size_t init_state = 0; init_state <= 1; init_state++) {
 
-      if (current_hyp->is_initial() || max_state == current_state) {
-        did_word_expansions = true;
+						Book&    target_hyp  = next_hyps[max_states_per_word * word_idx + init_state];
+						double   new_score   = cur_hyp->score + word_penalty + tdp_model_.score(first_state, init_state+1);
 
-        // Hypothesis is at a word boundary -> we can start a new word (or silence)
-        for (WordIdx next_word = 0; next_word < lexicon_.num_words(); next_word++) {
-
-        	// silence has a cost of 0, i.e. prob of 1
-          double current_word_penalty = next_word != lexicon_.silence_idx() ? word_penalty_ : 0.0;
-
-          if (hyp_expansions[next_word] == invalid_hypothesis) {
-            // insert a new hypothesis for the word
-          	// TODO: Avoid creating objects in the middle of the search algorithm
-            hyp_expansions[next_word] = HypothesisPtr(new Hypothesis(current_hyp,
-                                                         current_score + current_word_penalty,
-                                                         virtual_state, next_word, true));
-
-            if (current_hyp->is_initial()) {
-            	hyp_expansions[next_word]->score_ += scorer_.score(feature_iter,
-            				                               lexicon_.get_automaton_for_word(next_word).first_state());
+						// check if the hypothesis is already bad enough
+						if (new_score > target_hyp.score) {
+							continue;
 						}
 
-            // update the beam boundaries to account for the new hypothesis
-            beam_boundaries[t+1]++;
-          } else if (current_score + current_word_penalty < hyp_expansions[next_word]->score_) {
-            // replace the previous hypothesis with a better one
-            hyp_expansions[next_word]->ancestor_  = current_hyp->ancestor_;
-            hyp_expansions[next_word]->score_     = current_score + current_word_penalty;
-          }
-        }
-      }
-    }
+						// acoustic model scoring
+						if (am_cache[first_state] == std::numeric_limits<double>::infinity()) {
+							am_cache[first_state] = scorer_.score(cur_frame, first_state);
+						}
+						new_score += am_cache[first_state];
 
-    // move the new word hypotheses into the current beam, if there were word expansions
-    // note there will always be as many word expansions as words in the vocabulary
-    if (did_word_expansions) {
-      did_word_expansions = false;
+						if (target_hyp.score > new_score) {
+							merge_hypothesis(new_score, init_state, t - 1, word_idx, target_hyp);
+							best_score = std::min(best_score, new_score);
+						}
+					}
+				}
+			} else {
 
-      // copy all word expansions into the beam
-      hypothesis_beams.resize(hypothesis_beams.size() + lexicon_.num_words(), invalid_hypothesis);
+				// expand the 0-1-2 topology
+				for (size_t jump = 0; jump <= 2; jump++) {
+					StateIdx next_state_idx = cur_hyp->state_idx + jump;
+					if ((size_t) next_state_idx >= n_states_per_word[cur_hyp->word]) {
+						break;
+					}
 
-      std::copy(hyp_expansions.begin(), hyp_expansions.begin() + lexicon_.num_words(),
-                hypothesis_beams.begin() + hypothesis_beams.size() - lexicon_.num_words());
+					StateIdx automaton_state =  lexicon_.get_automaton_for_word(cur_hyp->word)[next_state_idx];
+					Book&    target_hyp = next_hyps[max_states_per_word * cur_hyp->word + next_state_idx];
+					double   new_score  = cur_hyp->score + tdp_model_.score(automaton_state, jump);
 
-      // reset the expansion container
-      std::fill(hyp_expansions.begin(), hyp_expansions.end(), invalid_hypothesis);
+					// check if the hypothesis is already bad enough
+					if (new_score > target_hyp.score) {
+						continue;
+					}
 
-      // update iterators, since the resizing operation has shifted the boundaries
-      beam_start = hypothesis_beams.begin() + beam_boundaries[t];
-      beam_end   = hypothesis_beams.begin() + beam_boundaries[t+1];
-    }
+					// acoustic model scoring
+					if (am_cache[automaton_state] == std::numeric_limits<double>::infinity()) {
+						am_cache[automaton_state] = scorer_.score(cur_frame, automaton_state);
+					}
+					new_score += am_cache[automaton_state];
 
-    // Skip the empty hypothesis at first
-    if (t == 0) {
-      beam_start++;
-    }
+					if (target_hyp.score > new_score) {
+						merge_hypothesis(new_score, next_state_idx, cur_hyp->bkp, cur_hyp->word, target_hyp);
+						best_score = std::min(best_score, new_score);
+					}
+				}
+			}
+		}
 
-    // keep track of the best score in the beam for pruning afterwards
-    double best_score_in_hyp = std::numeric_limits<double>::infinity();
-    std::fill(am_cache.begin(), am_cache.end(), std::numeric_limits<double>::infinity());
+		traceback[t].score = std::numeric_limits<double>::infinity();
+		for (std::vector<Book>::iterator cur_hyp = next_hyps.begin(); cur_hyp != next_hyps.end(); cur_hyp++) {
 
-    // expand all hypotheses in the beam
-    for (BeamIterator hypothesis_it = beam_start; hypothesis_it != beam_end; hypothesis_it++) {
-      HypothesisPtr current_hyp   = *hypothesis_it;
-      StateIdx      current_state = current_hyp->state_;
-      WordIdx       current_word  = current_hyp->word_;
-      StateIdx      max_state     = lexicon_.get_automaton_for_word(current_word).num_states() - 1;
-      double        current_score = current_hyp->score_;
+			// Prune the current hypothesis
+			if (cur_hyp->score > best_score + am_threshold_) {
+				cur_hyp->score = std::numeric_limits<double>::infinity();
+				continue;
+			}
 
-      // Handle the case when the previous hypothesis was at a word boundary
-      // In this case, we cannot have a forward transition
-      bool ignore_forward_jump = current_state == virtual_state ? true : false;
-      current_state = current_state == virtual_state ? 0 : current_state;
+			// Set the traceback arrays at word endings
+			if ((size_t) cur_hyp->state_idx == lexicon_.get_automaton_for_word(cur_hyp->word).num_states() - 1) {
+				if (traceback[t].score > cur_hyp->score) {
+					traceback[t].score = cur_hyp->score;
+					traceback[t].word  = cur_hyp->word;
+					traceback[t].bkp 	 = cur_hyp->bkp;
+				}
+			}
+		}
+/*
+		std::cout << "Traceback info: " << t << " "
+																		<< traceback[t].score << " "
+																		<< traceback[t].word  << " "
+																		<< traceback[t].bkp   << " "
+																		<< best_score << std::endl;
+																		*/
+		next_hyps.swap(current_hyps);
+		//std::copy(next_hyps.begin(), next_hyps.end(), current_hyps.begin());
+		std::fill(next_hyps.begin(), next_hyps.end(), Book(std::numeric_limits<double>::infinity(), 0, 0, 0));
+		std::fill(am_cache.begin() , am_cache.end() , std::numeric_limits<double>::infinity());
+	}
 
-      for (int jump = 0; jump <= std::min(2, max_state - current_state); jump++) {
-
-        if (max_state < current_state + jump || (ignore_forward_jump && jump == 2)) {
-        	// The current and all subsequent jumps are forbidden. Break the loop
-          break;
-        }
-
-        // This is the literal state of the markov automaton. Not the state position!
-        StateIdx next_state = lexicon_.get_automaton_for_word(current_word)[current_state + jump];
-
-        // Get the cached score of the transition
-        if (am_cache[next_state] == std::numeric_limits<double>::infinity()) {
-        	am_cache[next_state] = scorer_.score(feature_iter + 1, next_state);
-        }
-        double new_score = am_cache[next_state] + tdp_model_.score(next_state, jump);
-
-        size_t container_index = (current_state + jump) * lexicon_.num_words() + current_word;
-        HypothesisPtr new_hyp = hyp_expansions[container_index];
-
-        if (new_hyp == invalid_hypothesis || current_score + new_score < new_hyp->score_) {
-          // Create a new hypothesis or replace the current hypothesis with a better one
-        	// TODO: Avoid creating objects in the middle of the search algorithm
-          hyp_expansions[container_index] = HypothesisPtr(new Hypothesis(current_hyp,
-          		                                               current_score + new_score,
-                                                             current_state + jump, current_word, false));
-        }
-
-        // update the best score in the hypothesis
-        best_score_in_hyp = std::min(hyp_expansions[container_index]->score_, best_score_in_hyp);
-      } // for(int jump = 0; ...)
-    } // for(BeamIterator hypothesis_it = ...)
-
-    // reserve enough space for all new hypothesis in the beam container
-    size_t old_beam_size = hypothesis_beams.size();
-    hypothesis_beams.resize(old_beam_size + lexicon_.num_states() * lexicon_.num_words(), invalid_hypothesis);
-
-    // Do threshold pruning
-    size_t next_hyp_idx = 0;
-    BeamIterator next_hypotheses_begin = hyp_expansions.begin();
-    BeamIterator next_hypotheses_end   = hyp_expansions.end();
-    for (BeamIterator it = next_hypotheses_begin; it != next_hypotheses_end; it++) {
-    	HypothesisPtr hyp = *it;
-
-      if (hyp == invalid_hypothesis || hyp->new_word_ == true) {
-      	continue;
-      }
-
-      /*
-    	std::cout << std::setprecision(6) << "Q / w / s / bp / n: " << hyp->score_ << " "
-    																			<< hyp->word_ << " "
-    																			<< hyp->state_ << " "
-    			                                << hyp->ancestor_ << " "
-    			                                << hyp << " "
-    			                                << (!hyp->new_word_ ? "false" : "true") << std::endl;
-    	*/
-      if (hyp->score_ > best_score_in_hyp + am_threshold_) {
-      	hypotheses_pruned++;
-      	//std::cout << " Pruned" << std::endl;
-        // too bad score
-      } else {
-      	//std::cout << " Kept" << std::endl;
-      	hypothesis_expansions++;
-        // Hypothesis survived pruning
-        hypothesis_beams[old_beam_size + next_hyp_idx] = hyp;
-        next_hyp_idx++;
-      }
-    } // for(BeamIterator it...)
-
-    // Shrink container to fit the new hypotheses
-    hypothesis_beams.resize(old_beam_size + next_hyp_idx);
-    std::fill(hyp_expansions.begin(), hyp_expansions.end(), invalid_hypothesis);
-
-    // update beam boundaries
-    beam_boundaries[t+2] = hypothesis_beams.size();
-
-    /*
-    std::cout << "Pruning information: " << hypotheses_pruned     << " pruned. "
-    		                                 << hypothesis_expansions << " kept at time step " << t << " "
-    		                                 << "Best score: " << best_score_in_hyp << std::endl;
-		*/
-    hypotheses_pruned = hypothesis_expansions = 0;
-  }
-
-  // Find the best hypothesis in the final beam
-  BeamIterator  beam_start = hypothesis_beams.begin() + beam_boundaries[n_frames - 1];
-  BeamIterator  beam_end   = hypothesis_beams.begin() + beam_boundaries[n_frames ];
-  HypothesisPtr best_hyp(*beam_start);
-  for (BeamIterator it = beam_start; it != beam_end; it++) {
-  	if (best_hyp->score_ > (*it)->score_) {
-      best_hyp = *it;
-    }
-  }
-
-  std::cout << "Best score (pruned): " << best_hyp->score_ << std::endl;
-
-  // Perform back tracking to extract the word sequence
-  output.clear();
-  while (1) {
-    if (best_hyp->new_word_ && best_hyp->word_ != lexicon_.silence_idx()) {
-    	// We found a hypothesis in a word boundary
-      output.push_back(best_hyp->word_);
-    }
-    best_hyp = best_hyp->ancestor_;
-
-    if (best_hyp->is_initial()) break;
-  }
-
-  std::reverse(output.begin(), output.end());
+	output.clear();
+	t = n_features;
+	//std::cout << "Best score (pruned): " << traceback[n_features].score << std::endl;
+	while (t > 0) {
+		if (traceback[t].word != lexicon_.silence_idx()){
+			output.push_back(traceback[t].word);
+		}
+		t = traceback[t].bkp;
+	}
+	std::reverse(output.begin(), output.end());
 }
+
 void Recognizer::recognizeSequence(FeatureIter feature_begin, FeatureIter feature_end, std::vector<WordIdx>& output) {
   // TODO: implement
 	size_t num_features = feature_end - feature_begin;
@@ -378,6 +305,12 @@ void Recognizer::recognizeSequence(FeatureIter feature_begin, FeatureIter featur
 				book[frame_counter].word  = word_idx;
 			}
 		}
+/*
+		std::cout << "Traceback info: " << frame_counter<< " "
+																		<< book[frame_counter].score << " "
+																		<< book[frame_counter].word << " "
+																		<< book[frame_counter].bkp << std::endl;
+																		*/
 	} // loop features
 
 	//std::cout << "Best score (unpruned): " << book[num_features].score << std::endl;

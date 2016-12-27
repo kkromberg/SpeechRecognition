@@ -79,6 +79,8 @@ struct Book {
 	 uint16_t bkp;
 	 int state_idx;
 
+	 Book(double score, uint16_t word, uint16_t bkp, int state_idx) : score(score), word(word), bkp(bkp), state_idx(state_idx) {}
+
 	 Book(double score, uint16_t word, uint16_t bkp) : score(score), word(word), bkp(bkp), state_idx(-1) {}
 
 	 Book(double score, uint16_t bkp) : score(score), word(-1), bkp(bkp), state_idx(-1) {}
@@ -124,6 +126,9 @@ private:
 
   typedef std::vector<HypothesisPtr> Beam;
   typedef std::vector<HypothesisPtr>::iterator BeamIterator;
+
+	void merge_hypothesis(double new_score, size_t init_state, size_t t,
+			WordIdx word_idx, Book& target_hyp);
 };
 
 #endif /* __RECOGNIZER_HPP__ */
