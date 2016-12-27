@@ -3,10 +3,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 def plot(train, test):
-    plt.plot(range(1, len(train)+1), train)
-    plt.plot(range(1, len(test)+1), test)
+    plt.plot(range(1, len(train)+1), train, label='Training error')
+    plt.plot(range(1, len(test)+1), test, label='Cross-validation error')
     
-    plt.ylim([0, 1])
+    plt.ylim([0.2, 0.6])
     plt.xticks(range(1, len(train)+1))
         
     plt.xlabel('Epoch')
