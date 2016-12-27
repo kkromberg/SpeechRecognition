@@ -40,7 +40,6 @@ public:
   virtual void backward(std::valarray<float>& output, std::valarray<float>& error,
                         std::gslice const& slice, std::vector<unsigned> const& mask);
 protected:
-  FeedForwardLayer(Configuration const& config, Nonlinearity nonlinearity);
   FeedForwardLayer(Configuration const& config, Nonlinearity nonlinearity,
   																	 WeightDecay weight_decay,
   																	 float weight_decay_factor);
