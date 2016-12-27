@@ -9,6 +9,8 @@ src/sietill/sietill
 .cproject
 .project
 
+../nn-training-plotting/*.png
+../nn-training-plotting/*.tmp
 
 *~
 *.bin
