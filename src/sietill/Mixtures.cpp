@@ -220,6 +220,7 @@ MixtureDensity MixtureModel::create_mixture_density(DensityIdx mean_index, Densi
     var_refs_.push_back(1);
     for (size_t feature_counter = 0; feature_counter < dimension; feature_counter++) {
       vars_.push_back(0.0);
+      vars_inv_.push_back(0.0);
       var_accumulators_.push_back(minimal_variance_value_);
     }
   }
@@ -255,6 +256,11 @@ void MixtureModel::calculate_variance(DensityIdx var_idx, std::vector<double>::i
                  means_iterator_begin,
                  vars_.begin()  + var_idx  * dimension,
                  minus_power<double>());
+
+  std::transform(vars_.begin()      + var_idx  * dimension,
+                 vars_.begin()      + var_idx  * dimension + dimension,
+                 vars_inv_.begin()  + var_idx  * dimension,
+                 std::bind1st(std::divides<double>(), 1));
 
   norm_[var_idx] = std::accumulate(vars_.begin() + var_idx * dimension,
       vars_.begin() + var_idx * dimension + dimension,
@@ -520,6 +526,9 @@ void MixtureModel::update_split_densities(MixtureDensity& md_original, MixtureDe
     std::copy(vars_.begin() + dimension * var_idx_original,
     		      vars_.begin() + dimension * var_idx_original + dimension,
     		      vars_.begin() + dimension * var_idx_split);
+    std::copy(vars_inv_.begin() + dimension * var_idx_original,
+    		      vars_inv_.begin() + dimension * var_idx_original + dimension,
+    		      vars_inv_.begin() + dimension * var_idx_split);
     std::copy(norm_.begin() + var_idx_original,
     		      norm_.begin() + var_idx_original + 1,
     		      norm_.begin() + var_idx_split);
@@ -642,13 +651,13 @@ double MixtureModel::density_score_sse(FeatureIter const& iter, StateIdx mixture
     __m128d features       = _mm_cvtps_pd (features_float);
 
     // get the means and variances for the next two loop iterations
-    __m128d means    = _mm_loadu_pd((double*) &means_[mean_index + feature_idx]);
-    __m128d vars     = _mm_loadu_pd((double*) &vars_ [variance_index + feature_idx]);
+    __m128d means    = _mm_loadu_pd((double*) &means_   [mean_index + feature_idx]);
+    __m128d vars     = _mm_loadu_pd((double*) &vars_inv_[variance_index + feature_idx]);
 
     // calculate of the feature from the mean and divide by the variance
     __m128d current_score = _mm_sub_pd(features, means);
     current_score = _mm_mul_pd(current_score, current_score);
-    current_score = _mm_div_pd(current_score, vars);
+    current_score = _mm_mul_pd(current_score, vars);
 
     // accumulate the score
     vsum = _mm_add_pd(vsum, current_score);
@@ -659,7 +668,7 @@ double MixtureModel::density_score_sse(FeatureIter const& iter, StateIdx mixture
 	// Unroll the loop in case the feature dimension is odd
 	if (dimension % 2 == 1) {
 		double current_score  = (*iter)[dimension-1] - means_[mean_index + dimension-1];
-		distance_factor      += current_score * current_score / vars_[variance_index + dimension-1];
+		distance_factor      += current_score * current_score * vars_inv_[variance_index + dimension-1];
 	}
 
 	double score = 0.0;
@@ -759,6 +768,7 @@ void MixtureModel::read(std::istream& in) {
   read_accumulator(in, dimension, var_refs_,  var_accumulators_,  var_weight_accumulators_);
   test(var_refs_.size() < (1ul << 16),                "Too many variances, var indices are 16bit ints");
   vars_.resize(var_accumulators_.size());
+  vars_inv_.resize(var_accumulators_.size());
   norm_.resize(var_weight_accumulators_.size());
 
   uint32_t density_count;

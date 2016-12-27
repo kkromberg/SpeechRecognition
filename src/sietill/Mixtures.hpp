@@ -76,6 +76,7 @@ private:
   std::vector<size_t> mean_refs_;
 
   std::vector<double> vars_;
+  std::vector<double> vars_inv_;
   std::vector<double> var_accumulators_;
   std::vector<double> var_weight_accumulators_;
   std::vector<size_t> var_refs_;
