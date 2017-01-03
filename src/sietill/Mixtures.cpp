@@ -148,6 +148,7 @@ namespace {
 
 const ParameterString MixtureModel::paramLoadMixturesFrom("load-mixtures-from", "");
 const ParameterString MixtureModel::paramVerbosity			 ("verbosity", "");
+const ParameterString MixtureModel::paramAction					 ("action", "");
 
 const char     MixtureModel::magic[8] = {'M', 'I', 'X', 'S', 'E', 'T', 0, 0};
 const uint32_t MixtureModel::version = 2u;
@@ -165,7 +166,9 @@ MixtureModel::MixtureModel(Configuration const& config, size_t dimension, size_t
   print_coding_progress();
 	minimal_variance_value_ = 1e-4;
   std::string mixture = paramLoadMixturesFrom(config);
-  if (mixture != "") { // read mixture from file
+  std::string action  = paramAction(config);
+  // read mixture from file if mixture path is specified and action is recognize
+  if (mixture != "" &&  action == "recognize") {
     std::ifstream loadMixtureFrom (mixture, std::ifstream::binary);
   	read(loadMixtureFrom);
   }

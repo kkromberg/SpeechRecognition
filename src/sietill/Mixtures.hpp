@@ -25,6 +25,7 @@ public:
 
   static const ParameterString paramLoadMixturesFrom;
   static const ParameterString paramVerbosity;
+  static const ParameterString paramAction;
 
   const size_t dimension;
   const VarianceModel var_model;
