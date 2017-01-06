@@ -1,0 +1,679 @@
+%%
+%% The official i6 slide template _style_
+%% created by Philippe Dreuw and Thomas Deselaers, 2005
+%%
+%%
+%% Possible options for:
+%%  - language       : 'english' (default), 'german'
+%%  - page numbering : 'nonumber', 'lastpage' to enable automatic page n/m numbering, 
+%%                     'userlastpage' to enable a user defined page n/m numbering using \LastPage command,  
+%%                      or leave empty for normal page numbering (default)
+%%  - itemize        : 'triangle' or leave empty for bullets (default)
+%%  - page layout    : 'vertical' to enable vertical centering on each slide using \vfill ... \vfill (default)
+%%  - encoding       : 'utf-8' to enable utf encoding instead of default latin1
+%%  - blackslide     : will create an empty blackslide at the end of the document which will be linked with every slide title (default)
+%%                     use 'noblackslide' to disable
+\def\HyperSlidesVersion{1.11}
+\def\HyperSlidesDate{2008/10/20}
+\typeout{Package: \HyperSlidesDate. v.\HyperSlidesVersion.  HyperSlides: slide style for talks at i6} 
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{NeyDreuwSlides_Oct08}[\HyperSlidesDate. v.\HyperSlidesVersion.  HyperSlides: slide style for talks at i6]
+
+%%% define if variables  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newif\if@english
+\@englishtrue %% default language
+\newif\if@ngerman
+\@ngermanfalse
+\newif\if@lastpage
+\@lastpagefalse
+\newif\if@lastpagelabel
+\@lastpagelabelfalse
+\newif\if@center
+\@centerfalse
+\newif\if@nonumber
+\@nonumberfalse
+\newif\if@usetriangle
+\@usetrianglefalse
+\newif\if@utfencoding
+\@utfencodingfalse
+\newif\if@blackslide
+\@blackslidefalse
+\newif\if@demo
+\@demofalse
+
+
+%%% package options %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\DeclareOption{lastpage}{\@lastpagetrue\@lastpagelabeltrue}
+\DeclareOption{userlastpage}{\@lastpagefalse\@lastpagelabeltrue}
+\DeclareOption{nonumber}{\@nonumbertrue}
+\DeclareOption{triangle}{\@usetriangletrue}
+\DeclareOption{vertical}{\@centertrue}
+\DeclareOption{blackslide}{\@blackslidetrue\typeout{debug: blackslide is true}}
+\DeclareOption{noblackslide}{\@blackslidefalse\typeout{debug: blackslide is false}}
+\DeclareOption{utf-8}{\@utfencodingtrue}
+\DeclareOption{demo}{\@demotrue}
+\DeclareOption{german}{%
+  \PassOptionsToPackage{ngerman}{babel}%
+  \@ngermantrue\@englishfalse%
+}
+\DeclareOption{english}{%
+  \PassOptionsToPackage{\CurrentOption}{babel}%
+  \@englishtrue\@ngermanfalse%
+}
+\DeclareOption*{\PackageWarning{NeyDreuwSlides_Oct08}{Warning -- Unknown Option: \CurrentOption}}
+\ExecuteOptions{english,blackslide}
+\ProcessOptions\relax
+
+%%% package requirements %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\RequirePackage{babel}
+\RequirePackage{ifthen}
+\RequirePackage{xspace}   %%% context sensitive space after macros
+\if@lastpage
+  \RequirePackage{lastpage}
+\fi
+%% \RequirePackage[insection]{minitoc}   %% !should/must be loaded by user at last place!
+
+% graphic %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\if@demo
+\RequirePackage[demo]{graphicx}
+\else
+\RequirePackage{graphicx}
+\fi
+\RequirePackage{epsfig}             % deprecated, wrapper for graphicx
+\RequirePackage{textpos}            % free image positioning
+\setlength{\TPVertModule}{1cm}  % unit for vertical positioning
+\setlength{\TPHorizModule}{1cm} % unit for horizontal positioning 
+
+
+% vertical centering %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% allow vertical centering after a page break by drawing an invisible dot
+\newcommand*{\verticalcenter}{}%
+\if@center
+  \renewcommand*{\verticalcenter}{\rule{0pt}{0pt}}%
+\fi
+\newcommand*{\NewPage}{\clearpage\newpage\verticalcenter}
+\newcommand*{\NewOverlay}{\clearpage\newpage\verticalcenter\addtocounter{page}{-1}}
+
+
+% layout %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\RequirePackage[dvips,verbose,hmargin=5mm,nohead,foot=7mm,top=5mm]{geometry}  
+% geometry liest die landscape und papersize options der documentclass aus in
+% Kombination mit dem dvips driver. Das resultierende PS Dokument wird nun auch
+% richtig im Landscape Modus angezeigt. \special muss/soll nicht mehr gesetzt werden.
+%
+% This might be a problem for /u/hasan/bin/pp -4sup, try -4up
+
+
+% tables %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\RequirePackage{longtable}
+\RequirePackage{tabularx}
+\RequirePackage{rotating}
+\RequirePackage{colortbl}
+\RequirePackage{ragged2e}         % Flattersatz mit Trennung
+\RequirePackage{booktabs}         % Zusätzliche horizontale Linien mit passenden Abständen
+\RequirePackage{array}     
+\RequirePackage{dcolumn}          % Zahlen erst am Dezimalpunkt ausrichten, dann linksbuendig
+\makeatletter 
+\newcolumntype{D}[1]{>{\DC@{.}{.}{#1}}l<{\DC@end}}              % write {.}{,} instead of {.}{.} if you want to substitute the '.' by a ',' -- used for results
+\newcolumntype{E}[1]{>{\scriptsize\DC@{.}{.}{#1}}l<{\DC@end}}   % write {.}{,} instead of {.}{.} if you want to substitute the '.' by a ',' -- like D but in scriptsize
+                                                                % this can be used for values or parameters, not for results
+\makeatother
+\newcolumntype{M}[1]{>{\centering\hspace{0pt}}m{#1}}               % vertical und horizontal zentriert spalte
+\newcolumntype{n}{>{\scriptsize}l}                                 % etwas kleinerer Kopf als normal
+\newcolumntype{N}{>{\normalsize}l}                                 %  normaler Kopf
+\newcolumntype{v}[1]{>{\scriptsize\RaggedRight\hspace{0pt}}p{#1}}  % Flattersatz angegebener Breite; Trennung auch im ersten Wort möglich 
+\newcolumntype{V}[1]{>{\normalsize\RaggedRight\hspace{0pt}}p{#1}}  % Flattersatz angegebener Breite; Trennung auch im ersten Wort möglich 
+\newcolumntype{t}[1]{>{\begin{turn}{90}\begin{minipage}{#1}\scriptsize\RaggedRight\hspace{0pt}}l<{\end{minipage}\end{turn}}}  % Spaltenkopf um 90° gedreht
+\newcolumntype{R}[1]{>{\begin{turn}{90}\begin{minipage}{#1}\normalsize\RaggedRight\hspace{0pt}}l<{\end{minipage}\end{turn}}}  % Spaltenkopf um 90° gedreht
+\newcolumntype{s}[1]{>{\begin{turn}{45}\begin{minipage}{#1}\scriptsize\RaggedRight\hspace{0pt}}l<{\end{minipage}\end{turn}}}  % Spaltenkopf um 45° gedreht
+\newcolumntype{S}[1]{>{\begin{turn}{45}\begin{minipage}{#1}\normalsize\RaggedRight\hspace{0pt}}l<{\end{minipage}\end{turn}}}  % Spaltenkopf um 45° gedreht
+                                                                  % columntype X = p{...}, also raggedright
+\newcolumntype{Y}{>{\raggedleft\arraybackslash}X}                 % tabularx Spalten rechtsbündig ausrichten
+\newcolumntype{Z}{>{\centering\arraybackslash}X}                  % tabularx Spalten zentrieren
+
+% fonts %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\makeatletter 
+\if@utfencoding
+  \RequirePackage{ucs}
+  \RequirePackage[utf8]{inputenc}
+\else
+  \RequirePackage[latin1]{inputenc}
+\fi
+\makeatother
+\RequirePackage[T1]{fontenc}
+\RequirePackage{times}
+%
+% @todo: replace obsolete \usepackage{times} by \usepackage{mathptmx}
+%                                               \usepackage[scaled=.90]{helvet}
+%                                               \usepackage{courier}
+% problem: bold mathfonts; amsmath has a \pmb option for this, but \boldmath is much easier
+%
+\renewcommand*{\familydefault}{\sfdefault}
+\RequirePackage{amsmath,amsthm, amssymb, latexsym}
+%\RequirePackage{sfmath} % for sans serif math fonts; wget http://dtrx.de/od/tex/sfmath.sty
+\boldmath
+\bfseries
+
+% color %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\RequirePackage{xcolor}
+\definecolor{i6blue}{cmyk}{1,0.305,0,0.06}
+\definecolor{i6bluedark}{rgb}{0.0156,0.2578,0.5625} 
+
+\def\isechsblue#1     {\textcolor{i6blue} {#1} }
+\def\isechsbluedark#1 {\textcolor{i6bluedark} {#1} }
+\def\blue#1           {\textcolor{blue} {#1} }
+\def\red#1            {\textcolor{red} {#1} }
+\def\green#1          {\textcolor{green} {#1} }
+\def\magenta#1        {\textcolor{magenta} {#1} }
+
+
+% list and enumerate %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\RequirePackage{paralist}
+\makeatletter
+\if@usetriangle
+  \setdefaultitem{\textcolor{i6bluedark}{$\blacktriangleright$}}{\textcolor{i6bluedark}{$\triangleright$}}{$\circ$}{}
+\else
+  \setdefaultitem{\textbullet}{\normalfont\bfseries \textendash}{\textasteriskcentered}{\textperiodcentered}   %% LaTeX default
+\fi
+\makeatother
+
+\renewcommand*{\descriptionlabel}[1]{%
+  \normalfont\bfseries\isechsbluedark{#1}
+}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% even if \pdfoutput exists, pdfTeX may run in DVI-modus!!! 
+% So one should use the package "ifpdf.sty" instead
+\RequirePackage{ifpdf}
+\newcommand*{\inputfigure}[1]{%
+  \ifpdf%
+  \input{#1.pdf_t}%
+  \else%
+  \input{#1.pstex_t}%
+  \fi
+}
+\newcommand*{\inputfigurex}[3]{%
+  \ifpdf%
+  \resizebox{#1}{#2}{\input{#3.pdf_t}}%
+  \else%
+  \resizebox{#1}{#2}{\input{#3.pstex_t}}%
+  \fi
+}
+
+% directories  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newcommand*{\imagedir}{./images/}
+\newcommand*{\imagetemplatedir}{/u/figures/}
+\newcommand*{\figurepath}{/u/figures/}
+\newcommand*{\xfigdir}{./xfigures/}
+\newcommand*{\logodir}{./logos/}
+\newcommand*{\audiodir}{./audio/}
+\newcommand*{\defaultaudiodir}{\audiodir}
+\newcommand*{\videodir}{./video/}
+\newcommand*{\defaultvideodir}{\videodir}
+\newcommand*{\sourcedir}{./sources/}
+\newcommand*{\defaultsourcedir}{}
+
+% graphic path %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\graphicspath{\imagedir, \xfigdir, \imagetemplatedir, \figurepath}
+\newcommand*{\extendgraphicspath}[1]{%
+  \graphicspath{\imagedir, \xfigdir, \imagetemplatedir, \figurepath, #1}
+}
+%
+% @todo: replace graphicspath by TEXINPUTS which is system independent
+% @todo: check BSTINPUTS and BIBINPUTS
+
+% hyperref %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\RequirePackage[setpagesize=false, % weil sonst das landscape format von 'hyperref.sty' ueberschrieben wird
+    pagebackref,
+    pdfstartview=Fit,
+    colorlinks,            % Text als Link anstatt Box
+    linkcolor=black,       % Linkfarbe, std=red
+    urlcolor=i6bluedark,   % URL Linkfarbe, std=blue
+    filecolor=i6bluedark,  % Color for URLs which open local files
+    citecolor=black,       % cite Linkfarbe, std=green
+    pagecolor=black,       % Color for links to other pages, std=red
+    menucolor=black,       % Color for Acrobat menu items, std=red
+    breaklinks,            % Links über mehrere Zeilen möglich
+    bookmarks,             % Acrobat Bookmarks erstellen
+    bookmarksopen=true,    % Bookmarks alle geöffnet darstellen
+    pdfpagemode=UseNone    % Acrobat Bookmarks beim Öffnen des Dokumentes ausblenden
+    % pdfpagemode=FullScreen % Dokument direkt im Full Screen Modus oeffnen
+]{hyperref}
+
+
+% caption und subfig options %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\RequirePackage[
+  font={small, bf},           % small and bold font
+  labelsep=none, 
+  labelformat=empty,          % empty caption counter, only user label
+  justification=centering,    % Each line of the caption will be centered.
+  %justification=raggedright, % Each line of the caption will be moved to the left margin.
+  %indention=-1cm,            % 
+  aboveskip=1pt,
+  belowskip=0pt,
+  ]{caption}
+
+\captionsetup[figure]{%
+  position=below,
+  aboveskip=1pt,
+  belowskip=0pt,
+}
+
+\captionsetup[table]{%
+  position=above
+}
+
+% define logos and icons %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newcommand*{\rwthlogo}{\logodir logo_hltpr_rgb_RWTH}
+\newcommand*{\isechslogo}{\logodir logo_hltpr_rgb_HLT}
+\newcommand*{\topleftlogo}{}
+\newcommand*{\bottomleftlogo}{}
+\makeatletter
+\newcommand*{\toprightlogo}{\if@blackslide\hyperlink{blackslide}{\includegraphics[height=6mm]{\rwthlogo}}\else\includegraphics[height=6mm]{\rwthlogo}\fi}
+\newcommand*{\bottomrightlogo}{\if@blackslide\hyperlink{blackslide}{\includegraphics[height=12mm]{\isechslogo}}\else\includegraphics[height=12mm]{\isechslogo}\fi}
+\makeatother
+
+\newcommand*{\soundicon}{\includegraphics[height=\baselineskip]{\logodir sound} \space}
+\newcommand*{\videoicon}{\includegraphics[height=\baselineskip]{\logodir video} \space}
+\newcommand*{\cdicon}{\includegraphics[height=\baselineskip]{\logodir cd} \space}
+\newcommand*{\dvdicon}{\includegraphics[height=\baselineskip]{\logodir dvd} \space}
+\newcommand*{\wwwicon}{\includegraphics[height=\baselineskip]{\logodir www} \space}
+\newcommand*{\rwthicon}{\includegraphics[height=\baselineskip]{\rwthlogo} \space}
+\newcommand*{\isechsicon}{\includegraphics[height=\baselineskip]{\isechslogo} \space}
+
+% additional multimedia commands %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newcommand*{\audiofilelogobox}[1]{\href{run:\defaultaudiodir #1}{\fbox{\soundicon \texttt{#1}}}}
+\newcommand*{\audiofilebox}[1]{\href{run:\defaultaudiodir #1}{\fbox{\texttt{#1}}}}
+\newcommand*{\audiofilelogo}[1]{\href{run:\defaultaudiodir #1}{\soundicon \texttt{#1}}}
+\newcommand*{\audiofiletext}[2]{\href{run:\defaultaudiodir #1}{#2}}
+\newcommand*{\audiofile}[1]{\href{run:\defaultaudiodir #1}{\texttt{#1}}}
+
+\newcommand*{\videofilethumbnailbox}[3]{\href{run:\defaultvideodir #1}{\fbox{\includegraphics[#2]{#3}}}}
+\newcommand*{\videofilethumbnail}[3]{\href{run:\defaultvideodir #1}{\includegraphics[#2]{#3}}}
+\newcommand*{\videofilelogobox}[1]{\href{run:\defaultvideodir #1}{\fbox{\videoicon \texttt{#1}}}}
+\newcommand*{\videofilebox}[1]{\href{run:\defaultvideodir #1}{\fbox{\texttt{#1}}}}
+\newcommand*{\videofilelogo}[1]{\href{run:\defaultvideodir #1}{\videoicon \texttt{#1}}}
+\newcommand*{\videofiletext}[2]{\href{run:\defaultvideodir #1}{#2}}
+\newcommand*{\videofile}[1]{\href{run:\defaultvideodir #1}{\texttt{#1}}}
+\newcommand*{\videologo}[1]{\href{run:\defaultvideodir #1}{\videoicon}}
+
+\newcommand*{\sourcefile}[1]{\href{file:\defaultsourcedir #1}{\fbox{show source \texttt{#1}}}}
+
+\newcommand*{\urllogobox}[1]{\fbox{\wwwicon \url{#1}}}
+\newcommand*{\urllogo}[1]{\wwwicon \url{#1}}
+
+% custom environment %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newenvironment{block}{\vfill}{\vfill}
+\newenvironment{hvcenter}{\begin{block}\begin{center}}{\end{center}\end{block}}
+
+% @ environment %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\makeatletter
+
+%%%%% some helpful abbreviations %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\DeclareRobustCommand\onedot{\futurelet\@let@token\@onedot}
+\def\@onedot{\ifx\@let@token.\else.\null\fi\xspace}
+\def\eg{{e.g}\onedot} \def\Eg{{E.g}\onedot}
+\def\ie{{i.e}\onedot} \def\Ie{{I.e}\onedot}
+\def\cf{{c.f}\onedot} \def\Cf{{C.f}\onedot}
+\def\etc{{etc}\onedot} \def\vs{{vs}\onedot} 
+\def\wrt{w.r.t\onedot} \def\dof{d.o.f\onedot}
+\def\etal{{et al}\onedot}
+\def\zB{z.B\onedot} \def\ZB{Z.B\onedot}
+\def\dh{d.h\onedot} \def\Dh{D.h\onedot}
+\def\usw{u.s.w\onedot}
+
+%%%%% figure and table float handling  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\renewcommand*{\fps@figure}{htbp} % zusätzliche option h für figure kann hier zentral gesetzt werden
+\renewcommand*{\fps@table}{htbp}  % zusätzliche option h für table kann hier zentral gesetzt werden
+
+%%%%% font sizes and skips %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newcommand*\@xii@ipt{12.1}
+\newcommand*\@xiv@vpt{14.5}
+\newcommand*\@xvii@iiipt{17.38}
+\newcommand*\@xxxpt{29.86}
+\newcommand*\@xxxvipt{35.83}
+\newcommand*\@xliiipt{43}
+\newcommand*\@lipt{51.60}
+\renewcommand*\normalsize{%
+  \@setfontsize\normalsize\@xxpt\@xxvpt
+  \abovedisplayskip 30\p@ \@plus3\p@ \@minus9\p@
+  \abovedisplayshortskip \z@ \@plus3\p@
+  \belowdisplayshortskip 7\p@ \@plus3\p@ \@minus4\p@
+  \belowdisplayskip \abovedisplayskip}
+\renewcommand*\small{%
+  \@setfontsize\small\@xviipt{22}%
+  \abovedisplayskip 20\p@ \@plus3\p@ \@minus4\p@
+  \abovedisplayshortskip \z@ \@plus2\p@
+  \belowdisplayshortskip 4\p@ \@plus2\p@ \@minus2\p@
+  \belowdisplayskip \abovedisplayskip}
+\renewcommand*\footnotesize{%
+  \@setfontsize\footnotesize\@xivpt{18}%
+  \abovedisplayskip 16\p@ \@plus2\p@ \@minus4\p@
+  \abovedisplayshortskip \z@ \@plus1\p@
+  \belowdisplayshortskip 3\p@ \@plus1\p@ \@minus2\p@
+  \belowdisplayskip \abovedisplayskip}
+\renewcommand*\scriptsize{\@setfontsize\scriptsize\@xiipt{15}}
+\let\tiny=\scriptsize
+\renewcommand*\large{\@setfontsize\large\@xxvpt{32}}
+\renewcommand*\Large{\@setfontsize\Large\@xxxpt{38}}
+\renewcommand*\LARGE{\@setfontsize\LARGE\@xxxvipt{45}}
+\renewcommand*\huge{\@setfontsize\huge\@xliiipt{54}}
+\let\Huge=\huge
+\renewcommand*\@pnumwidth{1.75em}
+\newcommand*\@secalign{\centering}
+\newcommand*\@subsecalign{\centering}
+\newcommand*\@subsubsecalign{\centering}
+\newcommand*\@paralign{\centering}
+\newcommand*\@subparalign{\centering}
+\newcommand*{\sectionalign}[1]{\renewcommand*{\@secalign}{#1}}
+\newcommand*{\subsectionalign}[1]{\renewcommand*{\@subsecalign}{#1}}
+\newcommand*{\subsubsectionalign}[1]{\renewcommand*{\@subsubsecalign}{#1}}
+\newcommand*{\paragraphalign}[1]{\renewcommand*{\@paralign}{#1}}
+\newcommand*{\subparagraphalign}[1]{\renewcommand*{\@subparalign}{#1}}
+\newcommand*\@secsize{\Large}
+\newcommand*\@subsecsize{\large}
+\newcommand*\@subsubsecsize{\normalsize}
+\newcommand*\@parsize{\normalsize}
+\newcommand*\@subparsize{\normalsize}
+\newcommand*{\sectionsize}[1]{\renewcommand*{\@secsize}{#1}}
+\newcommand*{\subsectionsize}[1]{\renewcommand*{\@subsecsize}{#1}}
+\newcommand*{\subsubsectionsize}[1]{\renewcommand*{\@subsubsecsize}{#1}}
+\newcommand*{\paragraphsize}[1]{\renewcommand*{\@parsize}{#1}}
+\newcommand*{\subparagraphsize}[1]{\renewcommand*{\@subparsize}{#1}}
+\renewcommand*\section{\@startsection {section}{1}{\z@}%
+ {-3.5ex \@plus -1ex \@minus -.2ex}%
+ {2.3ex \@plus.2ex}%
+ {\normalfont\@secsize\@secalign\bfseries}}
+\renewcommand*\subsection{\@startsection{subsection}{2}{\z@}%
+ {-3.25ex\@plus -1ex \@minus -.2ex}%
+ {1.5ex \@plus .2ex}%
+ {\normalfont\@subsecsize\@subsecalign\bfseries}}
+\renewcommand*\subsubsection{\@startsection{subsubsection}{3}{\z@}%
+ {-3.25ex\@plus -1ex \@minus -.2ex}%
+ {1.5ex \@plus .2ex}%
+ {\normalfont\@subsubsecsize\@subsubsecalign\bfseries}}
+\renewcommand*\paragraph{\@startsection{paragraph}{4}{\z@}%
+ {3.25ex \@plus1ex \@minus.2ex}%
+ {-1em}%
+ {\normalfont\@parsize\@paralign\bfseries}}
+\renewcommand*\subparagraph{\@startsection{subparagraph}{5}{\parindent}%
+ {3.25ex \@plus1ex \@minus .2ex}%
+ {-1em}%
+ {\normalfont\@subparsize\@subparalign\bfseries}}
+\setlength\parindent{0\p@}
+\makeatother
+
+
+% latex stuff %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Eliminate LaTeX warnings on screen (but put them in the log file):
+\let\GenericWarning\GenericInfo
+% Eliminate warnings about overfull boxes:
+\hfuzz=\maxdimen \vfuzz=\maxdimen
+\newdimen\hfuzz  \let\vfuzz=\hfuzz % prevent resetting by \sloppy
+% Eliminate warnings about underfull boxes:
+\hbadness=10000    \vbadness=10000
+\newcount\hbadness \let\vbadness=\hbadness
+
+% legacy centerline sections commands %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newcommand*{\csection}{\section}
+\newcommand*{\csubsection}{\subsection}
+\newcommand*{\csubsubsection}{\subsubsection}
+\newcommand*{\cparagraph}{\paragraph}
+\newcommand*{\csubparagraph}{\subparagraph}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%        Page settings
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\setcounter{secnumdepth}{2}
+\setlength{\textwidth}     {274mm}     % {280mm}
+\setlength{\textheight}    {183mm}
+\setlength{\headheight}    {13mm}      % no more warnings with fancyhdr, works also with calc package
+\addtolength{\oddsidemargin} {+6mm}    % {+3mm}
+\addtolength{\topmargin}   {-5mm}
+
+\RequirePackage{fancyhdr}
+\pagestyle{fancyplain}
+
+% legacy fancyheadings logos %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newcommand{\Logohead}{\rhead{\raisebox{-7mm}[0mm][0mm]{%
+      {\epsfysize=6mm \epsfbox{/u/figures/logo_rwth_pure_blue.eps}}}}}
+\newcommand{\Logobottom}{\rfoot{\raisebox{2mm}[0mm][0mm]{%
+      {\epsfysize=8mm \epsfbox{/u/figures/logo_i6_small_blue.eps}}}}}
+% \newcommand{\LFoot}[1]{\fancyplain{}{{#1}}}
+
+%%% define the layout for the head %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\renewcommand{\headrulewidth}{0pt}
+\lhead{\topleftlogo}
+\chead{} % empty head, has to be set manually by headline command
+\rhead{\toprightlogo}
+
+%%% define the layout for the footer %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% change left-text of footline
+\lfoot{\fancyplain{}\authorshort \titleshort}
+
+%%% change center-text of footline - pagenumber with acrobat page function %%%%%%
+\makeatletter
+\cfoot{\fancyplain{}{%
+    \if@nonumber
+    % noop
+    \else
+    \vspace{-0.3cm}\Acrobatmenu{GoToPage}{\textsf{\thepage}%
+      \if@lastpagelabel
+      \space/\space\pageref*{LastPage}
+      \fi
+    }
+    \fi
+  }
+}
+\makeatother
+
+%%% change right-text of footline
+\rfoot{\fancyplain{}\occasionshort { } \date \hspace*{0.3cm} \raisebox{0mm}[0mm][0mm]{\bottomrightlogo}}
+
+%%% changing the length of the rule above the footline %%%%%%%%%%%%%%%%%%%%%%%%
+\renewcommand{\footrulewidth}{0.4pt}
+\renewcommand{\footrule}{\vbox to 0pt{\hbox to 262mm{\leaders\hrule height \footrulewidth\hfill}\vss}}
+%\setlength{\footskip}{0pt}       % default ist +30pt - negative Werte nicht moeglich
+%\setlength{\headsep}{-10pt}      % default ist +25pt - negative Werte moeglich
+%\addtolength{\topmargin}{-5mm}   % bewegt den gesamten Inhalt der Seite nach oben
+%\setlength{\textheight}{170mm}   % wenn moeglich nicht veraendern, beinflusst den Inhalt der Seiten und somit auch die Anzahl der Seiten!
+
+
+%%% define predefined page layouts %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\renewcommand*{\title}{}           % main title of the work (used for \TitlePage)
+\newcommand*{\titleshort}{}        % main title of the work (used for \lfoot)
+\newcommand*{\occasion}{}          % occasion (used for \TitlePage) 
+\newcommand*{\occasionshort}{}     % occasion short (used for \rfoot)
+\renewcommand*{\author}{}          % all the authors of the work (used for \TitlePage)      
+\newcommand*{\authorshort}{}       % author short (used for \lfoot)
+\newcommand*{\mainauthor}{}        % the authors who presented the work (used for \FinalPage)
+\renewcommand*{\date}{\today}      % e.g. \renewcommand*{\date}{dd.mm.yyyy} (used for \TitlePage and \rfoot)
+\newcommand*{\email}{\rule{0pt}{0pt}}% all the emails of the work (used for \TitlePage)
+\newcommand*{\mainauthoremail}{}   % presenter mail address(es) (used for \FinalPage)
+\newcommand*{\www}{}               % web address (used for \TitlePage _and_ \FinalPage)
+\newcommand*{\alert}[1]{\color{i6bluedark}{#1}\color{black}\xspace}
+\newcommand*{\institute}{%
+  Human Language Technology and Pattern Recognition \\
+  Lehrstuhl f{\"u}r Informatik 6 \\
+  Computer Science Department \\
+  RWTH Aachen University, Germany\\
+}
+\makeatletter
+\newcommand*{\thankyou}{thankyou}
+\if@english
+  \addto\captionsenglish{%
+    \renewcommand*{\contentsname}{Outline}%
+    \renewcommand*{\figurename}{Fig.}%
+    \renewcommand*{\tablename}{Tab.}%
+    \renewcommand*{\thankyou}{Thank you for your attention}
+  }
+\else
+  \if@ngerman
+    \addto\captionsngerman{%
+      \renewcommand*{\contentsname}{Übersicht}%
+      \renewcommand*{\figurename}{Abb.}%
+      \renewcommand*{\tablename}{Tab.}%
+      \renewcommand*{\thankyou}{Danke für Ihre Aufmerksamkeit}
+    }
+  \fi
+\fi
+\makeatother
+
+% predefined pages -- the title page
+\newcommand*{\TitlePage}{
+  \NewPage
+  \vspace*{\fill}
+  \bf
+  \begin{center}
+    \ifpdf
+    \Acrobatmenu{FullScreen}{\Large{\alert{\title}}}\\[2ex]   %% works only with pdfLaTeX
+    \else
+    \Large{\alert{\title}}\\[2ex]
+    \fi
+  \large
+  \author\\
+  \normalsize
+  \email\\[2ex]
+  \occasion \space \date\\[3ex]
+  \institute
+  \end{center}
+  \vspace*{\fill}
+}
+
+% predefined pages -- the table of contents page
+\newcommand*{\ToC}{
+  \NewPage\tableofcontents
+}
+
+% predefined pages -- the empty last page, useful for correct page numbering 
+\newcommand*{\LastPage}{
+  \NewPage%
+  \markboth{}{}
+  \label{LastPage}%
+  \pdfbookmark{LastPage}{\thepage}%
+}
+
+% predefined pages -- the last page, with a short thankyou msg and necessary information of the mainauthor
+\newcommand*{\FinalPage}{
+  \LastPage
+  \vspace*{\fill}
+  \bf
+  \begin{center}
+  \Large{\alert{\thankyou}}\\[2ex]
+  \large
+  \mainauthor\\[4ex]
+  \normalsize
+  \mainauthoremail\\[2ex]
+  \url{\www}\\[2ex]
+  \end{center}
+  \vspace*{\fill}
+}
+
+% predefined pages -- the BlackSlide page
+\makeatletter
+\newcommand*{\headline}[1]{\pdfbookmark{#1}{\thepage}%
+  \if@blackslide
+  \hyperlink{blackslide}{\centerline{\large #1}}%
+  \else%
+  \centerline{\large #1}%
+  \fi
+  \vspace{+0.8cm}%
+}
+\makeatother
+
+% predefined pages -- a black, e.g to do a proof on the blackboard
+% todo: make the _full_ slide black!
+\newcommand*{\BlackPage}{
+  \NewPage
+  \thispagestyle{empty}
+  \pagecolor{black} % must be reset to \pagecolor{white} afterwards
+  \colorbox{black}{\parbox{\textwidth}{
+      \hypertarget{blackslide}{The Blackslide}
+      \vspace{-2cm}
+      \begin{center}
+        \color{black}
+        \Acrobatmenu{GoBack}{\framebox[\linewidth]{\rule[0mm]{0mm}{\textheight}{\bf GoBack}}}
+      \end{center}
+      \vspace*{\fill}
+    }}
+}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\makeatletter
+\AtEndDocument{%
+  \if@blackslide
+    \BlackPage
+  \fi
+}
+\makeatother
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%\ifpdf
+%\pdfimageresolution=100   % works with pdflatex
+%\pdfcompresslevel=9       % works with pdflatex
+%\fi
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Changelog - Most recent versions
+%%
+%% 2008/10/20 -- added the demo option
+%% 2008/08/12 -- checked tex-live compatibility
+%% 2008/07/22 -- changed blackslide size
+%% 2008/07/17 -- replaced deprecated fancyheadings by fancyhdr
+%%               bugfixed headheight and headsep commands
+%%               removed raisebox from lhead/topleftlogo and rhead/toprightlogo commands, 
+%%                    should be redefined by user if necessary
+%%               bugfixed footrule and footrulewidth
+%%
+%% 2008/06/20 -- removed all math definitions and unused options
+%%               fixed 'noblackslide' option and (missing/referenced links)
+%%               added \rwthicon and \isechsicon
+%%
+%% 2008/04/24 -- fixed empty email problem (no line to end)
+%%
+%% 2008/02/19 -- added 'noblackslide' option
+%%
+%% 2007/11/14 -- new merge with old NeySlides_Feb03 version 
+%%               blackslide on rwth and i6 logo
+%%
+%% 2007/08/08 -- added the blackslide option
+%%               replace some commands by newif
+%%               added font comments for times and some todo hints
+%%               changed \bf to \bfseries
+%%               changed default ExecuteOptions
+%%
+%% 2007/03/28 -- added textpos package for free positioning of images
+%%
+%% 2007/03/07 -- all email commands no longer use the url command. Instead it
+%% 		  should be specified be the user. This allows to handle several email
+%% 		  addresses and to break them over lines
+%%
+%% 2006/10/16 -- geometry reads the landscape und papersize options of the  documentclass in
+%%                combination with dvips driver (will be autom. disabled for pdflatex). 
+%%                The resulting PS document will be displayed in landscape mode. 
+%%                The deprecated \special should not be set.
+%%            -- removed the letter papersize option, see geometry
+%%
+%% 2006/10/09 -- added date and version typeout
+%%            -- fixed 'r' column type, now 't'
+%%            -- added institute command
+%%
+%% 2006/08/29 -- accepted default style for Ney
+%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Im Allgemeinen sollte stets die Stern-Form \newcommand* des 
+%% Befehls \newcommand benutzt werden, weil dann Fehler besser 
+%% behandelt werden. Fehlende schließende Schweifklammern werden 
+%% dadurch von TeX bereits am Absatzende bemerkt.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% flyspell can read the local ispelldict variable to automatically change the dictionary, 
+%% e.g. german-new8
+%%
+%% Local IspellDict: american
+%% Local Variables: 
+%% mode: latex
+%% TeX-master: "slides"
+%% End: 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

@@ -1,0 +1,132 @@
+\documentclass[11pt, a4paper, landscape]{article}
+\usepackage[english,userlastpage,triangle,utf-8]{NeyDreuwSlides_Oct08}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{tikz}
+\usepackage{bbding}
+\usepackage{pifont}
+\usepackage{wasysym}
+\usepackage{amssymb}
+
+\renewcommand*{\title}{ASR Lab Results}                               % main title of the work (used for \TitlePage)
+\renewcommand*{\titleshort}{ASR Lab Results}                    % short title (used for \lfoot)
+\renewcommand*{\occasion}{Presentation} % (used for \TitlePage)
+\renewcommand*{\occasionshort}{~}  % short occasion title (used for \rfoot)
+\renewcommand*{\date}{\today}
+\renewcommand*{\author}{Ilya Sklyar, Konstantin Kromberg, Miguel Gra\c{c}a}                                     % all the authors of the work, can be long (used for \TitlePage)
+\renewcommand*{\authorshort}{Sklyar, Kromberg, Gra\c{c}a~~}                                        % all the authors of the work, should be short (used for \lfoot)
+\renewcommand*{\email}{~}             % all email address(es) of the authors (used for \TitlePage)
+\renewcommand*{\mainauthor}{Ilya Sklyar, Konstantin Kromberg, Miguel Gra\c{c}a}                                 % the author(s) who presented the work (used for \FinalPage)
+\renewcommand*{\mainauthoremail}{\email}                                  % presenter mail address(es) (used for \FinalPage)
+\renewcommand*{\www}{~}            % web address (used for \TitlePage _and_ \FinalPage)
+\newcommand*{\keywords}{Title of Presentation, etc.}      % keywords for pdf summary
+\renewcommand{\arraystretch}{1.2}
+
+% will be set into the PDF document summary
+\hypersetup{
+  pdftitle={\title}, 
+  pdfsubject={\occasion},  
+  pdfauthor={\author}, 
+  pdfkeywords={\keywords}
+}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\usepackage[insection]{minitoc}
+\renewcommand{\stifont}{\normalsize\bf} 
+\renewcommand{\stcfont}{\normalsize\bf}
+\renewcommand{\stcSSfont}{\normalsize\bf}
+
+\begin{document}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\TitlePage
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\NewPage\headline{Overview}
+\vfill
+\begin{itemize}
+  \item Testing Environment
+  \item GMM Tuning
+  \begin{itemize}
+    \item EM Parameters
+    \item Alignment Parameters
+    \item Search Results
+  \end{itemize}
+  \item NN Tuning
+  \begin{itemize}
+    \item Write stuff here
+    \item Search Results
+  \end{itemize}
+\end{itemize}
+\vfill
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\NewPage\headline{Testing Environment}
+\vfill
+Hardware:
+\begin{itemize}
+  \item Intel i5-4690K @ 3.5GHz, Quad Core, SSE2 registers
+  \item 16GB DDR3 1333MHz RAM
+\end{itemize}
+\vspace{20pt}
+Parallelization with OpenMP:
+\begin{itemize}
+  \item In search
+  \item In neural network operations
+\end{itemize} 
+\vfill
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\NewPage\headline{GMM Tuning: EM Parameters}
+\vfill
+Basic setup:
+\begin{itemize}
+  \item Lexicon consists of 106 states
+  \item Exact computation of the linear segmentation
+  \item 6 EM steps
+  \item 4 density splits
+\end{itemize} 
+\vspace{20pt}
+Tunable properties:
+\begin{itemize}
+  \item Minimum observations per density
+  \item Pooling type
+  \item Maximum approximation vs. sum approach
+\end{itemize}
+\vspace{20pt}
+Tuning is based on the likelihood of the training data
+\vfill
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\NewPage\headline{GMM Tuning: EM Parameters}
+\vfill
+\begin{center}
+  Graph of the AM score after each split for pooling type and max approx.. In total 6 curves.
+\end{center}
+
+Remarks:
+\begin{itemize}
+  \item Best performance by the model without pooling and with the max. approximation
+  \item Minimum number of observations per density did not influence the score much
+  \item Due to a software bug, the sum approach does not work properly after the 4th split
+\end{itemize}
+\vfill
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\NewPage\headline{Last week}
+\vfill
+\vfill
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\NewPage\headline{Last week}
+\vfill
+\vfill
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\NewPage\headline{Last week}
+\vfill
+\vfill
+
+
+\FinalPage
+\end{document}
