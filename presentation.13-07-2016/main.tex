@@ -92,6 +92,7 @@ Tunable properties:
   \item Minimum observations per density
   \item Pooling type
   \item Maximum approximation vs. sum approach
+  \item TDP: symmetric vs asymmetric
 \end{itemize}
 \vspace{20pt}
 Tuning is based on the likelihood of the training data
@@ -125,6 +126,35 @@ Mixture approximation:
 \vfill
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\NewPage\headline{GMM Tuning: Alignment Parameters}
+\vfill
+
+Tunable parameters (optimized on whole test corpus):
+\begin{itemize}
+	\item TDP: symmetric vs. asymmetric
+	\item Word penalty: 60-120
+	\item AM threshold: 50-1000
+\end{itemize}
+Optimized parameter values:
+\begin{itemize}
+	\item TDP : 3-0-30
+	\item Word penalty: 80
+	\item AM threshold: 200\\
+\end{itemize}
+\vfill
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\NewPage\headline{Search Results}
+\vfill
+Final results with optimized parameters on test corpus:
+\begin{itemize}
+	\item[=>] WER: 4.703562\%
+	\item[=>] SER: 12.335138\%
+	\item[=>] RFT: 0.437114
+\end{itemize}
+\vfill
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \NewPage\headline{Last week}
 \vfill
 \vfill
@@ -134,6 +164,9 @@ Mixture approximation:
 \vfill
 \vfill
 
-
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\NewPage\headline{Last week}
+\vfill
+\vfill
 \FinalPage
 \end{document}
