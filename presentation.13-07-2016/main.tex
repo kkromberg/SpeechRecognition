@@ -3,10 +3,10 @@
 \usepackage{algorithm}
 \usepackage{algpseudocode}
 \usepackage{tikz}
-\usepackage{bbding}
 \usepackage{pifont}
 \usepackage{wasysym}
 \usepackage{amssymb}
+\usepackage{pdfpages}
 
 \renewcommand*{\title}{ASR Lab Results}                               % main title of the work (used for \TitlePage)
 \renewcommand*{\titleshort}{ASR Lab Results}                    % short title (used for \lfoot)
@@ -46,13 +46,13 @@
 \vfill
 \begin{itemize}
   \item Testing Environment
-  \item GMM Tuning
+  \item Gaussian Mixture Model (GMM) Tuning
   \begin{itemize}
-    \item EM Parameters
+    \item Expectation-Maximization (EM) Parameters
     \item Alignment Parameters
     \item Search Results
   \end{itemize}
-  \item NN Tuning
+  \item Neural Network (NN) Tuning
   \begin{itemize}
     \item Write stuff here
     \item Search Results
@@ -97,24 +97,31 @@ Tunable properties:
 Tuning is based on the likelihood of the training data
 \vfill
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\NewPage\headline{GMM Tuning: EM Parameters}
-\vfill
-\begin{center}
-  Graph of the AM score after each split for pooling type and max approx.. In total 6 curves.
-\end{center}
-
-Remarks:
-\begin{itemize}
-  \item Best performance by the model without pooling and with the max. approximation
-  \item Minimum number of observations per density did not influence the score much
-  \item Due to a software bug, the sum approach does not work properly after the 4th split
-\end{itemize}
-\vfill
+\includepdf[pages=-]{plots/am_score_afterSplit.pdf} 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\NewPage\headline{Last week}
+\NewPage\headline{GMM Tuning: EM Parameters}
 \vfill
+Pooling:
+\begin{itemize}
+	\item No pooling results in better model fitting than using pooling 
+	\item Global and mixture-level pooling perform similarly 
+\end{itemize}
+\vspace{20pt}
+Splitting criterion:
+\begin{itemize}
+	\item Minimum number of observations per density has a small influence
+	\item Sufficient data points per density in a mixture due to:
+	\begin{itemize}
+		\item At most $5$ densities per mixture
+		\item Each density has, in average, $7$K data points.
+	\end{itemize}
+\end{itemize}
+\vspace{20pt}
+Mixture approximation:
+\begin{itemize}
+	\item Better results when using the maximum approximation
+\end{itemize}
 \vfill
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
