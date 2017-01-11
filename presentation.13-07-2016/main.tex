@@ -146,12 +146,23 @@ Tunable parameters (optimized on the best performing EM setup):
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \NewPage\headline{Search Results}
 \vfill
-Final results with optimized parameters on test corpus:
-Word penalty: 60-120
+Optimization performed on the first 1000 segments of test corpus.\\
+Parameters: Word penalty 60-120 and TDP depending on WER\\
+\begin{center}
+	\begin{tabular}{| l | c | c | c |} \toprule
+		WP/TDP      &    WER [\%]    & SER [\%]    & RTF [s]    \\ \midrule
+		80/1-0-10   &    5           &    13       & 0.026      \\
+		80/2-0-20   &\color{red}{4.2}&    11.1     & 0.039      \\
+		80 /3-0-30  &    4.27        &    11.4     & 0.044      \\ \midrule
+		80 /10-0-10 &    7.11        &    19.5     & 0.052      \\
+		100/20-0-20 &    22.56       &    52.5     & 0.048      \\
+		120/30-0-30 &    36.54       &    74.8     & 0.041      \\ \bottomrule
+		
+	\end{tabular}
+\end{center}
+Results for whole corpus 80/2-0-20:
 \begin{itemize}
-	\item[=>] WER: 4.703562\%
-	\item[=>] SER: 12.335138\%
-	\item[=>] RFT: 0.437114
+	\item WER: 4.63\% SER: 12.03\%  RTF: 0.37
 \end{itemize}
 \vfill
 
