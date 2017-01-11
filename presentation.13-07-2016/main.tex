@@ -126,28 +126,36 @@ Tunable parameters (optimized on the best performing EM setup):
 \begin{itemize}
   \item Evaluation on acoustic model (AM) score and silence ratio in resulting alignment
   \item Pruning threshold set to 200 (run with higher thresholds)
-  \item TDP format (Skip-Forward-Loop) 
+  \item TDP format (Loop-Forward-Skip) 
 \end{itemize}
 
 \begin{center}
 \begin{tabular}{| l |  c | c |} \toprule
-  TDP values & AM score     & Silence [\%] \\ \midrule
-  1-0-10     & yolo         & yolo         \\
-  2-0-20     & yolo         & yolo         \\
-  3-0-30     & \alert{yolo} & \alert{yolo} \\ \midrule
-  10-0-10    & yolo         & yolo         \\
-  20-0-20    & yolo         & yolo         \\
-  30-0-30    & yolo         & yolo         \\ \bottomrule
+  TDP values & AM score           & Silence [\%]      \\ \midrule
+  1-0-10     & \color{red}{22.68} & \color{red}{43.48}\\
+  2-0-20     & 22.73              & 53.20             \\
+  3-0-30     & 23.05              & 59.60             \\ \midrule
+  10-0-10    & 23.98              & 75.61             \\
+  20-0-20    & 24.31              & 80.35             \\
+  30-0-30    & 24.37              & 80.35             \\ \bottomrule
 \end{tabular}
 \end{center}
+\begin{itemize}
+	\item Cheaper loop transitions results in alignments with less silence
+	\item First 3 systems have similar AM scores, but differing silence ratios
+\end{itemize}
 \vfill
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \NewPage\headline{Search Results}
 \vfill
-Optimization performed on the first 1000 segments of test corpus.\\
-Parameters: Word penalty 60-120 and TDP depending on WER\\
+\begin{itemize}
+	\item Optimization performed on the first 1000 segments of test corpus
+	\item Tuning: Word penalty (WP) and TDP depending on word error rate (WER)
+	\item \color{red}{no need to show SER and RTF if you tune on WER and RTF is not given in seconds. It's a ratio :)}
+\end{itemize}
+
 \begin{center}
 	\begin{tabular}{| l | c | c | c |} \toprule
 		WP/TDP      &    WER [\%]    & SER [\%]    & RTF [s]    \\ \midrule
