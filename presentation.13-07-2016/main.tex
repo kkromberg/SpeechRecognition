@@ -116,7 +116,10 @@ Tunable parameters (optimized on the best performing EM setup):
       \item Skip and loop transitions have differing costs
       \item Due to high number of states per word, skips should cost more
     \end{itemize}
-	\item Pruning threshold
+	\item Pruning threshold (tuned on previous assignments)
+	\begin{itemize}
+		\item 200 is a good comprimise between speed and acoustic model score
+	\end{itemize}
 \end{itemize}
 \vfill
 
@@ -124,7 +127,7 @@ Tunable parameters (optimized on the best performing EM setup):
 \NewPage\headline{Alignment Results}
 \vfill
 \begin{itemize}
-  \item Evaluation on acoustic model (AM) score and silence ratio in resulting alignment
+  \item Evaluation on acoustic model (AM) score and silence ratio in alignments
   \item Pruning threshold set to 200 (run with higher thresholds)
   \item TDP format (Loop-Forward-Skip) 
 \end{itemize}
@@ -153,6 +156,7 @@ Tunable parameters (optimized on the best performing EM setup):
 \begin{itemize}
 	\item Optimization performed on the first 1000 segments of test corpus
 	\item Tuning: Word penalty (WP) and TDP depending on word error rate (WER)
+	\item Pruning threshold of 200
 	\item \color{red}{no need to show SER and RTF if you tune on WER and RTF is not given in seconds. It's a ratio :)}
 \end{itemize}
 
@@ -180,28 +184,34 @@ Results for whole corpus 80/2-0-20:
 \begin{itemize}
   \item Intel(R) Xeon(R) CPU E3-1230 v3 @ 3.30GHz, SSE2 registers
   \item Speed measurements for our best-performing models
+  \item \color{red}{also show WER and SER results in this slide for search}
 \end{itemize}
 
 \begin{table}[]
 \centering
 \textbf{
-\begin{tabular}{l | c | c | c } \toprule
-Pipeline step & Time(s) / RTF 1 thread & Time(s) 4 threads & RTF \\ \midrule
-GMM Training  &                  &                   &     \\
-GMM Search    & 215.7 /          &                   &     \\ \midrule
-NN Training   &                  &                   &     \\
-NN Search     &                  &                   &     \\ \bottomrule
+\begin{tabular}{| l | c | c | c } \toprule
+Search & RTF 1 thread & RTF 4 threads  \\ \midrule
+GMM    & 0.21         & 0.08           \\
+NN     &              &                \\ \bottomrule
 \end{tabular}
 }
 \end{table}
 
-%WER: 4.485439% (S/I/D) 1361/246/326
-%SER: 11.748113%
-%Time: 215.705943 seconds
-%RTF: 0.203942
-%
-%
-%
+\begin{table}[]
+\centering
+\textbf{
+\begin{tabular}{| l | c | c | c } \toprule
+Training & Time[s]  1 thread & Time[s] 4 threads  \\ \midrule
+GMM      &  668.1            &  668.1             \\
+NN       &                   &                    \\ \bottomrule
+\end{tabular}
+}
+\end{table}
+
+\begin{itemize}
+	\item In our experiments, GMMs clearly outperform NNs in both speed and error rates
+\end{itemize}
 \vfill
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
