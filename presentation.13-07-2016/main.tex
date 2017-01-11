@@ -7,6 +7,7 @@
 \usepackage{wasysym}
 \usepackage{amssymb}
 \usepackage{pdfpages}
+\usepackage{color}
 
 \renewcommand*{\title}{ASR Lab Results}                               % main title of the work (used for \TitlePage)
 \renewcommand*{\titleshort}{ASR Lab Results}                    % short title (used for \lfoot)
@@ -91,7 +92,6 @@ Tunable properties:
 \begin{itemize}
   \item Minimum observations per density
   \item Pooling type
-  \item Maximum approximation vs. sum approach
 \end{itemize}
 \vspace{20pt}
 Tuning is based on the likelihood of the training data
@@ -106,6 +106,7 @@ Pooling:
 \begin{itemize}
 	\item No pooling results in better model fitting than using pooling 
 	\item Global and mixture-level pooling perform similarly 
+  \item Due to the size of the data, there is little reason to use pooling
 \end{itemize}
 \vspace{20pt}
 Splitting criterion:
@@ -117,22 +118,19 @@ Splitting criterion:
 		\item Each density has, in average, $7$K data points.
 	\end{itemize}
 \end{itemize}
-\vspace{20pt}
-Mixture approximation:
-\begin{itemize}
-	\item Better results when using the maximum approximation
-\end{itemize}
 \vfill
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \NewPage\headline{GMM Tuning: Alignment Parameters}
 \vfill
-
-Tunable parameters (optimized on whole test corpus):
+Tunable parameters (optimized on the best performing EM setup):
 \begin{itemize}
-	\item TDP: symmetric vs. asymmetric
-	\item Word penalty: 60-120
-	\item AM threshold: 50-1000
+	\item Time distortion penalty (TDP) values:
+    \begin{itemize}
+      \item Forward transitions do not have costs (to enforce monotonicity)
+      \item Skip and loop transitions have differing costs
+    \end{itemize}
+	\item Pruning threshold: 50-1000 (still have to do)
 \end{itemize}
 Optimized parameter values:
 \begin{itemize}
@@ -143,9 +141,33 @@ Optimized parameter values:
 \vfill
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\NewPage\headline{Alignment Results}
+\vfill
+\begin{itemize}
+  \item Evaluation on acoustic model (AM) score and silence ratio in resulting alignment
+  \item Pruning threshold set to 200
+  \item TDP format (Skip-Forward-Loop) 
+\end{itemize}
+
+\begin{center}
+\begin{tabular}{| l |  c | c |} \toprule
+  TDP values & AM score     & Silence [\%] \\ \midrule
+  1-0-10     & yolo         & yolo         \\
+  2-0-20     & yolo         & yolo         \\
+  3-0-30     & \alert{yolo} & \alert{yolo} \\ \midrule
+  10-0-10    & yolo         & yolo         \\
+  20-0-20    & yolo         & yolo         \\
+  30-0-30    & yolo         & yolo         \\ \bottomrule
+\end{tabular}
+\end{center}
+\vfill
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \NewPage\headline{Search Results}
 \vfill
 Final results with optimized parameters on test corpus:
+Word penalty: 60-120
 \begin{itemize}
 	\item[=>] WER: 4.703562\%
 	\item[=>] SER: 12.335138\%
