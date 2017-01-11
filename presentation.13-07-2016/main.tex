@@ -46,7 +46,6 @@
 \NewPage\headline{Overview}
 \vfill
 \begin{itemize}
-  \item Testing Environment
   \item Gaussian Mixture Model (GMM) Tuning
   \begin{itemize}
     \item Expectation-Maximization (EM) Parameters
@@ -58,23 +57,8 @@
     \item Write stuff here
     \item Search Results
   \end{itemize}
+  \item Testing Environment
 \end{itemize}
-\vfill
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\NewPage\headline{Testing Environment}
-\vfill
-Hardware:
-\begin{itemize}
-  \item Intel i5-4690K @ 3.5GHz, Quad Core, SSE2 registers
-  \item 16GB DDR3 1333MHz RAM
-\end{itemize}
-\vspace{20pt}
-Parallelization with OpenMP:
-\begin{itemize}
-  \item In search
-  \item In neural network operations
-\end{itemize} 
 \vfill
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -84,6 +68,7 @@ Basic setup:
 \begin{itemize}
   \item Lexicon consists of 106 states
   \item Exact computation of the linear segmentation
+  \item Maximum approximation for GMMs
   \item 6 EM steps
   \item 4 density splits
 \end{itemize} 
@@ -129,14 +114,9 @@ Tunable parameters (optimized on the best performing EM setup):
     \begin{itemize}
       \item Forward transitions do not have costs (to enforce monotonicity)
       \item Skip and loop transitions have differing costs
+      \item Due to high number of states per word, skips should cost more
     \end{itemize}
-	\item Pruning threshold: 50-1000 (still have to do)
-\end{itemize}
-Optimized parameter values:
-\begin{itemize}
-	\item TDP : 3-0-30
-	\item Word penalty: 80
-	\item AM threshold: 200\\
+	\item Pruning threshold
 \end{itemize}
 \vfill
 
@@ -145,7 +125,7 @@ Optimized parameter values:
 \vfill
 \begin{itemize}
   \item Evaluation on acoustic model (AM) score and silence ratio in resulting alignment
-  \item Pruning threshold set to 200
+  \item Pruning threshold set to 200 (run with higher thresholds)
   \item TDP format (Skip-Forward-Loop) 
 \end{itemize}
 
@@ -173,6 +153,29 @@ Word penalty: 60-120
 	\item[=>] SER: 12.335138\%
 	\item[=>] RFT: 0.437114
 \end{itemize}
+\vfill
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\NewPage\headline{Testing Environment}
+\vfill
+Hardware:
+\begin{itemize}
+  \item Intel i5-4690K @ 3.5GHz, Quad Core, SSE2 registers
+  \item 16GB DDR3 1333MHz RAM
+\end{itemize}
+
+\begin{table}[]
+\centering
+\textbf{
+\begin{tabular}{l | c | c | c } \toprule
+Pipeline step & Time(s) 1 thread & Time(s) 4 threads & RTF \\ \midrule
+GMM Training  &                  &                   &     \\
+GMM Search    &                  &                   &     \\ \midrule
+NN Training   &                  &                   &     \\
+NN Search     &                  &                   &     \\ \bottomrule
+\end{tabular}
+}
+\end{table}
 \vfill
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
