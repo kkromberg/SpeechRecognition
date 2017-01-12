@@ -46,27 +46,28 @@
 \NewPage\headline{Overview}
 \vfill
 \begin{itemize}
-  \item Gaussian Mixture Model (GMM) Tuning
+  \item Gaussian Mixture Model (GMM) tuning
   \begin{itemize}
-    \item Expectation-Maximization (EM) Parameters
-    \item Alignment Parameters
-    \item Search Results
+    \item Expectation-Maximization (EM) parameters
+    \item Alignment parameters
+    \item Search results
   \end{itemize}
-  \item Neural Network (NN) Tuning
+  \item Neural Network (NN) tuning
   \begin{itemize}
     \item Write stuff here
-    \item Search Results
+    \item Search results
   \end{itemize}
-  \item Testing Environment
+  \item Tuned results
 \end{itemize}
 \vfill
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\NewPage\headline{GMM Tuning: EM Parameters}
+\NewPage\headline{GMM tuning: EM parameters}
 \vfill
 Basic setup:
 \begin{itemize}
-  \item Lexicon consists of 106 states
+%  \item Lexicon consists of 106 states
+  \item 0-1-2 6 state HMM topology on phoneme-level $\Rightarrow$ 106 total states
   \item Exact computation of the linear segmentation
   \item Maximum approximation for GMMs
   \item 6 EM steps
@@ -85,13 +86,13 @@ Tuning is based on the likelihood of the training data
 \includepdf[pages=-]{plots/am_score_afterSplit.pdf} 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\NewPage\headline{GMM Tuning: EM Parameters}
+\NewPage\headline{GMM tuning: EM parameters}
 \vfill
 Pooling:
 \begin{itemize}
 	\item No pooling results in better model fitting than using pooling 
 	\item Global and mixture-level pooling perform similarly 
-	\item Due to the size of data set pooling isn't necessary
+	\item We infer, that due to the size of data set, pooling isn't necessary
 \end{itemize}
 \vspace{20pt}
 Splitting criterion:
@@ -106,8 +107,14 @@ Splitting criterion:
 \vfill
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\NewPage\headline{GMM Tuning: Alignment Parameters}
+\NewPage\headline{GMM tuning: Alignment parameters}
 \vfill
+Setup:
+\begin{itemize}
+  \item Viterbi approximation
+  \item Pruning threshold of 200 (tuned on previous assignment) 
+\end{itemize}
+\vspace{20pt}
 Tunable parameters (optimized on the best performing EM setup):
 \begin{itemize}
 	\item Time distortion penalty (TDP) values:
@@ -116,25 +123,20 @@ Tunable parameters (optimized on the best performing EM setup):
       \item Skip and loop transitions have differing costs
       \item Due to high number of states per word, skips should cost more
     \end{itemize}
-	\item Pruning threshold (tuned on previous assignments)
-	\begin{itemize}
-		\item 200 is a good compromise between speed and acoustic model score
-	\end{itemize}
 \end{itemize}
 \vfill
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\NewPage\headline{Alignment Results}
+\NewPage\headline{Alignment results}
 \vfill
 \begin{itemize}
   \item Evaluation on acoustic model (AM) score and silence ratio in alignments
-  \item Pruning threshold set to 200 (run with higher thresholds)
   \item TDP format (Loop-Forward-Skip) 
 \end{itemize}
 
 \begin{center}
 \begin{tabular}{| l |  c | c |} \toprule
-  TDP values & AM score           & Silence [\%]      \\ \midrule
+  TDP        & AM score           & Silence [\%]      \\ \midrule
   1-0-10     & \color{red}{22.68} & \color{red}{43.48}\\
   2-0-20     & 22.73              & 53.20             \\
   3-0-30     & 23.05              & 59.60             \\ \midrule
@@ -143,78 +145,59 @@ Tunable parameters (optimized on the best performing EM setup):
   30-0-30    & 24.37              & 80.35             \\ \bottomrule
 \end{tabular}
 \end{center}
+\vspace{10pt}
 \begin{itemize}
 	\item Cheaper loop transitions results in alignments with less silence
 	\item First 3 systems have similar AM scores, but differing silence ratios
+  \begin{itemize}
+    \item Find best performing system based on word error rate in search
+  \end{itemize}
 \end{itemize}
 \vfill
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\NewPage\headline{Search Results}
+\NewPage\headline{Search results}
 \vfill
 Recognition setup:
 \begin{itemize}
 	\item Pruning threshold of 200
 	\item Tuning evaluated on the whole test corpus for each GMM model
 \end{itemize}
-Tunable parameters:
+\vspace{20pt}
+Tuned parameters to minimize word error rate (WER):
 \begin{itemize}	
-	\item Word penalty (WP) range 60-120
+	\item Word penalty (in range 60 to 120)
 \end{itemize}
 
+%\begin{center}
+%	\begin{tabular}{| l | c |} \toprule
+%		WP / TDP       &    WER [\%]     \\ \midrule
+%		100 / 1-0-10   &    7.29         \\
+%		80 ~~/ 2-0-20   &    5.19         \\
+%		80 ~~/ 3-0-30   &\color{red}{4.70}\\ \midrule
+%		80 ~/ 10-0-10  &    10.09        \\
+%		60 ~/ 20-0-20  &    13.35        \\
+%		60 ~/ 30-0-30  &    13.69        \\ \bottomrule		
+%	\end{tabular}
+%\end{center}
+
 \begin{center}
-	\begin{tabular}{| l | c |} \toprule
-		WP/TDP      &    WER [\%]    \\ \midrule
-		100/1-0-10  &    7.29        \\
-		80/2-0-20   &    5.19        \\
-		80 /3-0-30  &\color{red}{4.7}\\ \midrule
-		80 /10-0-10 &    10.09       \\
-		60/20-0-20  &    13.35       \\
-		60/30-0-30  &    13.69       \\ \bottomrule
-		
+	\begin{tabular}{| l | l | c |} \toprule
+		WP  &  TDP      &    WER [\%]     \\ \midrule
+		100 &  1-0-10   &    7.29         \\
+		80  &  2-0-20   &    5.19         \\
+		80  &  3-0-30   &\color{red}{4.70}\\ \midrule
+		80  &  10-0-10  &    10.09        \\
+		60  &  20-0-20  &    13.35        \\
+		60  &  30-0-30  &    13.69        \\ \bottomrule		
 	\end{tabular}
 \end{center}
+%
 %Results for whole corpus 80/2-0-20:
 %\begin{itemize}
 %	\item WER: 4.63\% SER: 12.03\%  RTF: 0.37
 %\end{itemize}
-\vfill
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\NewPage\headline{Testing Environment}
-\vfill
-\begin{itemize}
-  \item Intel(R) Xeon(R) CPU E3-1230 v3 @ 3.30GHz, SSE2 registers
-  \item Speed measurements for our best-performing models
-  \item \color{red}{also show WER and SER results in this slide for search}
-\end{itemize}
-
-\begin{table}[]
-\centering
-\textbf{
-\begin{tabular}{| l | c | c | c } \toprule
-Search & RTF 1 thread & RTF 4 threads  \\ \midrule
-GMM    & 0.21         & 0.08           \\
-NN     &              &                \\ \bottomrule
-\end{tabular}
-}
-\end{table}
-
-\begin{table}[]
-\centering
-\textbf{
-\begin{tabular}{| l | c | c | c } \toprule
-Training & Time[s]  1 thread & Time[s] 4 threads  \\ \midrule
-GMM      &  668.1            &  668.1             \\
-NN       &                   &                    \\ \bottomrule
-\end{tabular}
-}
-\end{table}
-
-\begin{itemize}
-	\item In our experiments, GMMs clearly outperform NNs in both speed and error rates
-\end{itemize}
 \vfill
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -258,6 +241,41 @@ Conclusion:
 	\item asdf
 	\item asdf
 \end{itemize}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\NewPage\headline{Tuned results}
+\vfill
+\begin{itemize}
+  \item CPU: Intel(R) Xeon(R) E3-1230 v3 @ 3.30GHz with SSE2 registers
+  \item Results for our best performing systems
+\end{itemize}
+
+\begin{table}[]
+\centering
+\textbf{
+\begin{tabular}{| l | c | c | c | c | c | } \toprule
+Search & WER [\%] & SER [\%] & RTF 1 thread & RTF 4 threads  \\ \midrule
+GMM    & 4.7      & 12.34    & 0.21         & 0.08           \\
+NN     &          &          &              &                \\ \bottomrule
+\end{tabular}
+}
+\end{table}
+
+\begin{table}[]
+\centering
+\textbf{
+\begin{tabular}{| l | c | c | c |} \toprule
+Training & Time[s]  1 thread & Time[s] 4 threads  \\ \midrule
+GMM      &  668.1            &  668.1             \\
+NN       &                   &                    \\ \bottomrule
+\end{tabular}
+}
+\end{table}
+
+\begin{itemize}
+  \item GMMs outperform NNs in both speed and error rates
+\end{itemize}
+\vfill
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \NewPage\headline{Last week}
