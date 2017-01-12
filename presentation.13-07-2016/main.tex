@@ -118,7 +118,7 @@ Tunable parameters (optimized on the best performing EM setup):
     \end{itemize}
 	\item Pruning threshold (tuned on previous assignments)
 	\begin{itemize}
-		\item 200 is a good comprimise between speed and acoustic model score
+		\item 200 is a good compromise between speed and acoustic model score
 	\end{itemize}
 \end{itemize}
 \vfill
@@ -155,13 +155,12 @@ Tunable parameters (optimized on the best performing EM setup):
 \vfill
 Recognition setup:
 \begin{itemize}
-	\item Mixture model: 3-0-30 
 	\item Pruning threshold of 200
-	\item tuning evaluated on the whole test corpus
+	\item Tuning evaluated on the whole test corpus for each GMM model
 \end{itemize}
 Tunable parameters:
 \begin{itemize}	
-	\item Word penalty (WP)
+	\item Word penalty (WP) range 60-120
 \end{itemize}
 
 \begin{center}
@@ -217,6 +216,48 @@ NN       &                   &                    \\ \bottomrule
 	\item In our experiments, GMMs clearly outperform NNs in both speed and error rates
 \end{itemize}
 \vfill
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\NewPage\headline{NN Tuning}
+\vfill
+Basic setup:
+\begin{itemize}
+	\item Outputlayer: 106
+	\item Best alignment from GMM training
+	\begin{itemize}
+		\item short: noPooling-maxApprox-6E-3A-TDP-3-0-30
+	\end{itemize}
+	\item Batch size: 32
+	\item Pruning threshold: 200
+\end{itemize}
+Tunable parameters:
+\begin{itemize}
+	\item Number of layers
+	\item Number of outputs for each layer
+	\item Context frames
+	\item TDP
+	\item Word penalty
+\end{itemize}
+\vfill
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\NewPage\headline{Search Results}
+\vfill
+\begin{center}
+\begin{tabular}{|l|l|l|l|l|l|l|} \toprule
+	Layers & Epoch & CF & TDP & WP & FER (CV) {[}\%{]} & WER {[}\%{]} \\ \midrule
+	&      &          &     &              &                   &              \\
+	&      &          &     &              &                   &              \\
+	&      &          &     &              &                   &              \\ \bottomrule
+\end{tabular}
+\end{center}
+\vfill
+Conclusion:
+\begin{itemize}
+	\item FER does not correlate with WER
+	\item asdf
+	\item asdf
+\end{itemize}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \NewPage\headline{Last week}
