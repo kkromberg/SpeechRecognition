@@ -153,22 +153,26 @@ Tunable parameters (optimized on the best performing EM setup):
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \NewPage\headline{Search Results}
 \vfill
+Recognition setup:
 \begin{itemize}
-	\item Optimization performed on the first 1000 segments of test corpus
-	\item Tuning: Word penalty (WP) and TDP depending on word error rate (WER)
+	\item Mixture model: 3-0-30 
 	\item Pruning threshold of 200
-	\item \color{red}{no need to show SER and RTF if you tune on WER and RTF is not given in seconds. It's a ratio :)}
+	\item tuning based on the first 1000 segments of test corpus
+\end{itemize}
+Tunable parameters:
+\begin{itemize}	
+	\item Word penalty (WP) \& TDP
 \end{itemize}
 
 \begin{center}
-	\begin{tabular}{| l | c | c | c |} \toprule
-		WP/TDP      &    WER [\%]    & SER [\%]    & RTF [s]    \\ \midrule
-		80/1-0-10   &    5           &    13       & 0.026      \\
-		80/2-0-20   &\color{red}{4.2}&    11.1     & 0.039      \\
-		80 /3-0-30  &    4.27        &    11.4     & 0.044      \\ \midrule
-		80 /10-0-10 &    7.11        &    19.5     & 0.052      \\
-		100/20-0-20 &    22.56       &    52.5     & 0.048      \\
-		120/30-0-30 &    36.54       &    74.8     & 0.041      \\ \bottomrule
+	\begin{tabular}{| l | c |} \toprule
+		WP/TDP      &    WER [\%]    \\ \midrule
+		80/1-0-10   &    5           \\
+		80/2-0-20   &\color{red}{4.2}\\
+		80 /3-0-30  &    4.27        \\ \midrule
+		80 /10-0-10 &    7.11        \\
+		100/20-0-20 &    22.56       \\
+		120/30-0-30 &    36.54       \\ \bottomrule
 		
 	\end{tabular}
 \end{center}
