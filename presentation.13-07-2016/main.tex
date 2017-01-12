@@ -157,29 +157,29 @@ Recognition setup:
 \begin{itemize}
 	\item Mixture model: 3-0-30 
 	\item Pruning threshold of 200
-	\item tuning based on the first 1000 segments of test corpus
+	\item tuning evaluated on the whole test corpus
 \end{itemize}
 Tunable parameters:
 \begin{itemize}	
-	\item Word penalty (WP) \& TDP
+	\item Word penalty (WP)
 \end{itemize}
 
 \begin{center}
 	\begin{tabular}{| l | c |} \toprule
 		WP/TDP      &    WER [\%]    \\ \midrule
-		80/1-0-10   &    5           \\
-		80/2-0-20   &\color{red}{4.2}\\
-		80 /3-0-30  &    4.27        \\ \midrule
-		80 /10-0-10 &    7.11        \\
-		100/20-0-20 &    22.56       \\
-		120/30-0-30 &    36.54       \\ \bottomrule
+		100/1-0-10  &    7.29        \\
+		80/2-0-20   &    5.19        \\
+		80 /3-0-30  &\color{red}{4.7}\\ \midrule
+		80 /10-0-10 &    10.09       \\
+		60/20-0-20  &    13.35       \\
+		60/30-0-30  &    13.69       \\ \bottomrule
 		
 	\end{tabular}
 \end{center}
-Results for whole corpus 80/2-0-20:
-\begin{itemize}
-	\item WER: 4.63\% SER: 12.03\%  RTF: 0.37
-\end{itemize}
+%Results for whole corpus 80/2-0-20:
+%\begin{itemize}
+%	\item WER: 4.63\% SER: 12.03\%  RTF: 0.37
+%\end{itemize}
 \vfill
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
