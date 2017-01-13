@@ -201,45 +201,48 @@ Tuned parameters to minimize word error rate (WER):
 \vfill
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\NewPage\headline{NN Tuning}
-\vfill
+\NewPage\headline{Neural Network Tuning}
 Basic setup:
 \begin{itemize}
-	\item Outputlayer: 106
-	\item Best alignment from GMM training
-	\begin{itemize}
-		\item short: noPooling-maxApprox-6E-3A-TDP-3-0-30
-	\end{itemize}
-	\item Batch size: 32
-	\item Pruning threshold: 200
+  \item Output layer 106 (number of states in the alignment)
+  \item Batch size 32 
+  \item Tanh nonlinearity
+  \item Adadelta updater
+  \item Cross-validation size 10\%
+  \item Best alignment from GMM Training
 \end{itemize}
-Tunable parameters:
+Tunable parameters
 \begin{itemize}
+	\item Number of context frames
 	\item Number of layers
-	\item Number of outputs for each layer
-	\item Context frames
-	\item TDP
-	\item Word penalty
+	\item Number of nodes on each layer
+	\item Number of epochs
 \end{itemize}
-\vfill
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \NewPage\headline{Search Results}
 \vfill
 \begin{center}
-\begin{tabular}{|l|l|l|l|l|l|l|} \toprule
-	Layers & Epoch & CF & TDP & WP & FER (CV) {[}\%{]} & WER {[}\%{]} \\ \midrule
-	&      &          &     &              &                   &              \\
-	&      &          &     &              &                   &              \\
-	&      &          &     &              &                   &              \\ \bottomrule
-\end{tabular}
+\begin{table}[]
+	\centering
+	\label{my-label}
+	\begin{tabular}{|c|c|c|c|c|c|c|c|} \toprule
+		\begin{tabular}[c]{@{}l@{}}Layers\end{tabular} & \begin{tabular}[c]{@{}l@{}}Nodes\end{tabular} & \begin{tabular}[c]{@{}l@{}}CF\end{tabular} & Epoch & TDP & WP  & FER (CV) {[}\%{]} & WER {[}\%{]} \\ \midrule
+1  &  125          &  2  &  15  &  4-0-30  &  93  &  21.93  &  \color{red}{27.23}  \\
+2  &  100-100      &  2  &  12  &  3-0-30  &  90  &  22.3   &  33.01  \\
+7  &  100 each     &  2  &  10  &  2-0-20  &  80  &  22.7   &  36.33  \\
+1  &  100          &  0  &  19  &  5-0-20  &  70  &  25.44  &  40.14  \\
+3  &  500-300-100  &  2  &  18  &  5-0-0   &  70  &  18.65  &  41.3   \\
+		 \bottomrule
+	\end{tabular}
+\end{table}
 \end{center}
-\vfill
+
 Conclusion:
 \begin{itemize}
 	\item FER does not correlate with WER
-	\item asdf
-	\item asdf
+	\item Shallow networks perform better than deeper ones
+	\item Results are still much worse than GMM
 \end{itemize}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
