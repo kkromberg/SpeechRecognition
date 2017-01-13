@@ -54,7 +54,7 @@
   \end{itemize}
   \item Neural Network (NN) tuning
   \begin{itemize}
-    \item Write stuff here
+    \item Training parameters
     \item Search results
   \end{itemize}
   \item Tuned results
@@ -208,12 +208,13 @@ Basic setup:
   \item Batch size 32 
   \item Tanh nonlinearity
   \item Adadelta updater
-  \item Cross-validation size 10\%
+  \item Cross-validation (CV) size 10\%
   \item Best alignment from GMM Training
 \end{itemize}
-Tunable parameters
+\vspace{20pt}
+Tunable parameters:
 \begin{itemize}
-	\item Number of context frames
+	\item Number of context frames (CF)
 	\item Number of layers
 	\item Number of nodes on each layer
 	\item Number of epochs
@@ -225,7 +226,7 @@ Tunable parameters
 \begin{center}
 \begin{table}[]
 	\centering
-	\label{my-label}
+\textbf{
 	\begin{tabular}{|c|c|c|c|c|c|c|c|} \toprule
 		\begin{tabular}[c]{@{}l@{}}Layers\end{tabular} & \begin{tabular}[c]{@{}l@{}}Nodes\end{tabular} & \begin{tabular}[c]{@{}l@{}}CF\end{tabular} & Epoch & TDP & WP  & FER (CV) {[}\%{]} & WER {[}\%{]} \\ \midrule
 1  &  125          &  2  &  15  &  4-0-30  &  93  &  21.93  &  \color{red}{27.23}  \\
@@ -235,12 +236,13 @@ Tunable parameters
 3  &  500-300-100  &  2  &  18  &  5-0-0   &  70  &  18.65  &  41.3   \\
 		 \bottomrule
 	\end{tabular}
+}
 \end{table}
 \end{center}
 
 Conclusion:
 \begin{itemize}
-	\item FER does not correlate with WER
+	\item Frame error rate (FER) does not correlate with WER
 	\item Shallow networks perform better than deeper ones
 	\item Results are still much worse than GMM
 \end{itemize}
@@ -251,6 +253,7 @@ Conclusion:
 \begin{itemize}
   \item CPU: Intel(R) Xeon(R) E3-1230 v3 @ 3.30GHz with SSE2 registers
   \item Results for our best performing systems
+  \item Speed results in real-time factor (RTF) or in elapsed time
 \end{itemize}
 
 \begin{table}[]
@@ -280,19 +283,5 @@ NN       &  4717.1           &  3967.4            \\ \bottomrule
 \end{itemize}
 \vfill
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\NewPage\headline{Last week}
-\vfill
-\vfill
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\NewPage\headline{Last week}
-\vfill
-\vfill
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\NewPage\headline{Last week}
-\vfill
-\vfill
 \FinalPage
 \end{document}
