@@ -218,6 +218,7 @@ Tunable parameters:
 	\item Number of layers
 	\item Number of nodes on each layer
 	\item Number of epochs
+	\item Search parameters: TDP and WP
 \end{itemize}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -229,7 +230,7 @@ Tunable parameters:
 \textbf{
 	\begin{tabular}{|c|c|c|c|c|c|c|c|} \toprule
 		\begin{tabular}[c]{@{}l@{}}Layers\end{tabular} & \begin{tabular}[c]{@{}l@{}}Nodes\end{tabular} & \begin{tabular}[c]{@{}l@{}}CF\end{tabular} & Epoch & TDP & WP  & FER (CV) {[}\%{]} & WER {[}\%{]} \\ \midrule
-1  &  125          &  2  &  15  &  4-0-30  &  93  &  21.93  &  \color{red}{27.23}  \\
+1  &  150          &  2  &  15  &  4-0-30  &  105  &  20.91  &  \color{red}{25.34}  \\
 2  &  100-100      &  2  &  12  &  3-0-30  &  90  &  22.3   &  33.01  \\
 7  &  100 each     &  2  &  10  &  2-0-20  &  80  &  22.7   &  36.33  \\
 1  &  100          &  0  &  19  &  5-0-20  &  70  &  25.44  &  40.14  \\
