@@ -54,7 +54,7 @@
   \end{itemize}
   \item Neural Network (NN) tuning
   \begin{itemize}
-    \item Write stuff here
+    \item Training parameters
     \item Search results
   \end{itemize}
   \item Tuned results
@@ -201,45 +201,51 @@ Tuned parameters to minimize word error rate (WER):
 \vfill
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\NewPage\headline{NN Tuning}
-\vfill
+\NewPage\headline{Neural Network Tuning}
 Basic setup:
 \begin{itemize}
-	\item Outputlayer: 106
-	\item Best alignment from GMM training
-	\begin{itemize}
-		\item short: noPooling-maxApprox-6E-3A-TDP-3-0-30
-	\end{itemize}
-	\item Batch size: 32
-	\item Pruning threshold: 200
+  \item Output layer 106 (number of states in the alignment)
+  \item Batch size 32 
+  \item Tanh nonlinearity
+  \item Adadelta updater
+  \item Cross-validation (CV) size 10\%
+  \item Best alignment from GMM Training
 \end{itemize}
+\vspace{20pt}
 Tunable parameters:
 \begin{itemize}
+	\item Number of context frames (CF)
 	\item Number of layers
-	\item Number of outputs for each layer
-	\item Context frames
-	\item TDP
-	\item Word penalty
+	\item Number of nodes on each layer
+	\item Number of epochs
+	\item Search parameters: TDP and WP
 \end{itemize}
-\vfill
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \NewPage\headline{Search Results}
 \vfill
 \begin{center}
-\begin{tabular}{|l|l|l|l|l|l|l|} \toprule
-	Layers & Epoch & CF & TDP & WP & FER (CV) {[}\%{]} & WER {[}\%{]} \\ \midrule
-	&      &          &     &              &                   &              \\
-	&      &          &     &              &                   &              \\
-	&      &          &     &              &                   &              \\ \bottomrule
-\end{tabular}
+\begin{table}[]
+	\centering
+\textbf{
+	\begin{tabular}{|c|c|c|c|c|c|c|c|} \toprule
+		\begin{tabular}[c]{@{}l@{}}Layers\end{tabular} & \begin{tabular}[c]{@{}l@{}}Nodes\end{tabular} & \begin{tabular}[c]{@{}l@{}}CF\end{tabular} & Epoch & TDP & WP  & FER (CV) {[}\%{]} & WER {[}\%{]} \\ \midrule
+1  &  150          &  2  &  15  &  4-0-30  &  105  &  20.91  &  \color{red}{25.34}  \\
+2  &  100-100      &  2  &  12  &  3-0-30  &  90  &  22.3   &  33.01  \\
+7  &  100 each     &  2  &  10  &  2-0-20  &  80  &  22.7   &  36.33  \\
+1  &  100          &  0  &  19  &  5-0-20  &  70  &  25.44  &  40.14  \\
+3  &  500-300-100  &  2  &  18  &  5-0-0   &  70  &  18.65  &  41.3   \\
+		 \bottomrule
+	\end{tabular}
+}
+\end{table}
 \end{center}
-\vfill
+
 Conclusion:
 \begin{itemize}
-	\item FER does not correlate with WER
-	\item asdf
-	\item asdf
+	\item Frame error rate (FER) does not correlate with WER
+	\item Shallow networks perform better than deeper ones
+	\item Results are still much worse than GMM
 \end{itemize}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -248,6 +254,7 @@ Conclusion:
 \begin{itemize}
   \item CPU: Intel(R) Xeon(R) E3-1230 v3 @ 3.30GHz with SSE2 registers
   \item Results for our best performing systems
+  \item Speed results in real-time factor (RTF) or in elapsed time
 \end{itemize}
 
 \begin{table}[]
@@ -256,7 +263,7 @@ Conclusion:
 \begin{tabular}{| l | c | c | c | c | c | } \toprule
 Search & WER [\%] & SER [\%] & RTF 1 thread & RTF 4 threads  \\ \midrule
 GMM    & 4.7      & 12.34    & 0.21         & 0.08           \\
-NN     &          &          &              &                \\ \bottomrule
+NN     & 25.34    &          & 0.31         & 0.31           \\ \bottomrule
 \end{tabular}
 }
 \end{table}
@@ -267,7 +274,7 @@ NN     &          &          &              &                \\ \bottomrule
 \begin{tabular}{| l | c | c | c |} \toprule
 Training & Time[s]  1 thread & Time[s] 4 threads  \\ \midrule
 GMM      &  668.1            &  668.1             \\
-NN       &                   &                    \\ \bottomrule
+NN       &  4717.1           &  3967.4            \\ \bottomrule
 \end{tabular}
 }
 \end{table}
@@ -277,19 +284,5 @@ NN       &                   &                    \\ \bottomrule
 \end{itemize}
 \vfill
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\NewPage\headline{Last week}
-\vfill
-\vfill
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\NewPage\headline{Last week}
-\vfill
-\vfill
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\NewPage\headline{Last week}
-\vfill
-\vfill
 \FinalPage
 \end{document}
