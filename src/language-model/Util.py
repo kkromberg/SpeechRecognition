@@ -4,7 +4,7 @@ import numpy as np
 
 
 def plotRelativeSentenceLength(relativeSentenceLength, totalSentenceLength, averageSentenceLength):
-    print totalSentenceLength
+    #print totalSentenceLength
     X = []
     x_range = []
     Y = []
