@@ -148,7 +148,6 @@ class LanguageModel():
 
             if sentenceCounter % 10000 == 0:
                 print sentenceCounter
-                break
 
         print "Outputting n-gram frequencies"
 
