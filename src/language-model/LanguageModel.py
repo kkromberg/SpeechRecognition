@@ -1,10 +1,13 @@
 import numpy as np
+import copy
 import re
 import logging
 from Util import *
 from Vocabulary import Vocabulary
+from PrefixTree import PrefixTreeNode
 import json
 import operator
+from Queue import Queue
 logging.basicConfig(level=logging.DEBUG)
 
 
@@ -15,6 +18,7 @@ class LanguageModel():
         self.punctuations = ['.', ',', ':', ';', '!', '-', '?']
         self.corpusVocabulary = Vocabulary()
 
+        self.nGramPrefixTreeRoot = PrefixTreeNode()
 
         self.numRunningWords = None
         self.wordFrequencies = None
@@ -22,8 +26,10 @@ class LanguageModel():
         self.allSentenceLength = {}
         self.sortedWordFrequencies = 0
         self.allTrigramOccurrence = self.computeNGramOccurrence(corpusFile, 3) # 2b
-        self.allBigramOccurrence = self.computeNGramOccurrence(corpusFile, 2)  # 3
-        self.allUnigramOccurrence = self.computeNGramOccurrence(corpusFile, 1)  # 3
+        #self.allBigramOccurrence = self.computeNGramOccurrence(corpusFile, 2)  # 3
+        #self.allUnigramOccurrence = self.computeNGramOccurrence(corpusFile, 1)  # 3\
+        '''
+
         self.allTrigramFrequencies = self.countNGramsFrequencies(self.allTrigramOccurrence) # 2c
         self.allBigramFrequencies = self.countNGramsFrequencies(self.allBigramOccurrence)  # 3
         self.allUnigramFrequencies = self.countNGramsFrequencies(self.allUnigramOccurrence)  # 3
@@ -34,8 +40,6 @@ class LanguageModel():
         self.initLM(corpusFile)
 
         self.averageSentenceLength = self.numRunningWords/self.numSentences
-
-        '''
         # write files
         self.writeListToFile(self.sortedWordFrequencies, 'wordFrequencies')
         self.writeListToFile(self.allTrigramOccurrence, 'trigramOccurrence')
@@ -118,37 +122,53 @@ class LanguageModel():
         :return:
         """
 
+        print "Counting n-grams"
         corpus = open(corpusFile, 'r')
-        nGram = {}
+        sentenceCounter = 0
         for line in corpus:
             currentStringWords = line.strip().split(' ')
-            currentWords = [self.corpusVocabulary.addSymbol(x) for x in currentStringWords]
+            currentWordIDs =  [self.corpusVocabulary.index("<s>")]
+            currentWordIDs += [self.corpusVocabulary.addSymbol(x) for x in currentStringWords]
+            currentWordIDs.append(self.corpusVocabulary.index("</s>"))
 
-            #currentNGram = [self.corpusVocabulary.index("<s>") for i in range(0, n)]
-            for i in range(0, len(currentWords)):
-                currentNGram = ''
-                if i < len(currentWords) -n:
-                    # add <s> for begin of the sentence
-                    if i == 0:
-                        currentNGram = '<s>'
-                    # add next n-1 elements
-                    for j in range(i, i+n):
-                        pass
-                        # TODO
-                        #currentNGram += currentWords[j] + '|'
+            for i in range(n-1, len(currentWordIDs) + 1):
+                currentNGram = currentWordIDs[i-n+1:i+1]
+                self.nGramPrefixTreeRoot.recursiveAddNGram(currentNGram)
 
-                    # add </s> for end of the sentence
-                    if i == len(currentWords) - n - 1:
-                        currentNGram += '</s>'
-                #print currentNGram
-                if currentNGram:
-                    if currentNGram not in nGram:
-                        nGram[currentNGram] = 1
-                    else:
-                        nGram[currentNGram] += 1
+            sentenceCounter += 1
 
-        return sorted(nGram.items(), key=operator.itemgetter(1), reverse=True)
+            if sentenceCounter % 10000 == 0:
+                print sentenceCounter
 
+        print "Counted n-grams. Output n-gram frequencies"
+
+        # breadth first search to get n-gram counts
+        queue = Queue()
+        wordIDQueue = Queue()
+        queue.put(self.nGramPrefixTreeRoot)
+
+        emptyList = []
+        wordIDQueue.put(emptyList)
+
+        output = open('test.3-grams', 'w')
+        while not queue.empty():
+            nextNode = queue.get()
+            nextNGram = wordIDQueue.get()
+
+            # Fill the queue
+            for childWordID, childNode in nextNode.children.items():
+                childNGram = copy.copy(nextNGram)
+                childNGram.append(childWordID)
+
+                queue.put(childNode)
+                wordIDQueue.put(childNGram)
+
+            if len(nextNGram) == n:
+                for wordID in nextNGram:
+                    output.write(self.corpusVocabulary.symbol(wordID) + ' ')
+                output.write(str(nextNode.count) + '\n')
+
+        output.close()
     def countNGramsFrequencies(self, nGramOccurrence=dict()):
 
         nGramFrequencies = {}
