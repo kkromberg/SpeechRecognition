@@ -34,3 +34,15 @@ class PrefixTreeNode:
         # Connection to the next node already exists
         childNode = self.children[nextWordID]
         return childNode.getNGramCount(nGram[1:])
+
+    def getNGramNode(self, nGram):
+        if len(nGram) == 0:
+            return self
+
+        nextWordID = nGram[0]
+        if nextWordID not in self.children:
+            return None
+
+        # Connection to the next node already exists
+        childNode = self.children[nextWordID]
+        return childNode.getNGramNode(nGram[1:])

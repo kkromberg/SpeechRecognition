@@ -19,13 +19,24 @@ class LanguageModel():
         self.corpusVocabulary = Vocabulary()
 
         self.nGramPrefixTreeRoot = PrefixTreeNode()
+        self.discountingParameters = []
 
         self.numRunningWords = None
         self.wordFrequencies = None
         self.numSentences = 0
         self.allSentenceLength = {}
         self.sortedWordFrequencies = 0
+
+        print "Counting 3-grams: "
         self.allTrigramOccurrence = self.computeNGramOccurrence(corpusFile, 3) # 2b
+
+        print "Discounting parameters: "
+        self.computeDiscountingParameters(3)
+        print self.discountingParameters
+
+        print self.score(4, [0, 3])
+        print self.score(2, [3, 4])
+
         #self.allBigramOccurrence = self.computeNGramOccurrence(corpusFile, 2)  # 3
         #self.allUnigramOccurrence = self.computeNGramOccurrence(corpusFile, 1)  # 3\
         '''
@@ -121,8 +132,6 @@ class LanguageModel():
         :param n: integer
         :return:
         """
-
-        print "Counting n-grams"
         corpus = open(corpusFile, 'r')
         sentenceCounter = 0
         for line in corpus:
@@ -139,8 +148,9 @@ class LanguageModel():
 
             if sentenceCounter % 10000 == 0:
                 print sentenceCounter
+                break
 
-        print "Counted n-grams. Output n-gram frequencies"
+        print "Outputting n-gram frequencies"
 
         # breadth first search to get n-gram counts
         queue = Queue()
@@ -150,7 +160,7 @@ class LanguageModel():
         emptyList = []
         wordIDQueue.put(emptyList)
 
-        output = open('test.3-grams', 'w')
+        output = open(str(n) + "-gram.counts", 'w')
         while not queue.empty():
             nextNode = queue.get()
             nextNGram = wordIDQueue.get()
@@ -169,6 +179,7 @@ class LanguageModel():
                 output.write(str(nextNode.count) + '\n')
 
         output.close()
+
     def countNGramsFrequencies(self, nGramOccurrence=dict()):
 
         nGramFrequencies = {}
@@ -192,6 +203,82 @@ class LanguageModel():
                 nGram[currentNGram] += 1
         return sorted(nGram.items(), key=operator.itemgetter(1), reverse=True)
 
+    def computeDiscountingParameters(self, nGramLength):
+        """
+        Compute discounting parameters up to a specified n-gram length
+        :param nGramLength: integer for the n in n-gram
+        """
+        self.discountingParameters = []
+
+        # descend into the depth nGramLength of the prefix tree
+        nextDepthQueue, currentDepthQueue = Queue(), Queue()
+        currentDepthQueue.put(self.nGramPrefixTreeRoot)
+        for i in range(0, nGramLength):
+            currentNode = None
+
+            # Count the number of singletons (n-grams that appeared only once)
+            # and doubletons (n-grams that appeared only twice) while parsing the children
+            numberOfSingletons, numberOfDoubletons = 0, 0
+
+            # Fill the queue with the children of all nodes of the current depth
+            while not currentDepthQueue.empty():
+                currentNode = currentDepthQueue.get()
+                for childWordID, childNode in currentNode.children.items():
+                    nextDepthQueue.put(childNode)
+
+                    # count
+                    if childNode.count == 1:
+                        numberOfSingletons += 1
+                    elif childNode.count == 2:
+                        numberOfDoubletons += 1
+
+            # Calculate the discounting parameter
+            discountingParameter = float(numberOfSingletons) / (numberOfSingletons + 2 * numberOfDoubletons)
+            self.discountingParameters.append(discountingParameter)
+
+            # Swap the current depth queue (empty) with the next depth queue
+            # for the next iteration
+            nextDepthQueue, currentDepthQueue = currentDepthQueue, nextDepthQueue
+
+    def score(self, wordID, wordHistory):
+        """
+        Evaluate the language model of a word given a word history
+        :param wordID: word identifier to score
+        :return The language model probability of wordID given wordHistory
+                and the new word history including wordID
+        """
+        # Recursion base case for unknown words and unigrams
+        if wordID == self.corpusVocabulary.unknownWordID() or len(wordHistory) == 0:
+            probability = self.discountingParameters[0] \
+                          * (float(self.nGramPrefixTreeRoot.numberOfFollowingContexts) / float(
+                self.nGramPrefixTreeRoot.count))
+
+            if wordID != self.corpusVocabulary.unknownWordID():
+                wordNode = self.nGramPrefixTreeRoot.getNGramNode([wordID])
+                probability += max(
+                    (wordNode.count - self.discountingParameters[0]) / float(self.nGramPrefixTreeRoot.count), 0)
+
+            return probability
+
+        # get the nodes from the prefix tree for the computation of the probabilities
+        historyNode = self.nGramPrefixTreeRoot.getNGramNode(wordHistory)
+        if historyNode == None:
+            # N-gram does not need to be scored since the history is not valid
+            # Use lower order probabilities
+            return self.score(wordID, wordHistory[1:])
+
+        # Get the probability for the current n-gram by recursively interpolating the (n-1)-gram prob.
+        currentDiscountParameter = self.discountingParameters[len(wordHistory)]
+        probability = currentDiscountParameter \
+                      * (float(historyNode.numberOfFollowingContexts) / float(historyNode.count)) \
+                      * self.score(wordID, wordHistory[1:])
+
+        # Add the probability for the n-gram, if available
+        nGramNode = historyNode.getNGramNode([wordID])
+        if nGramNode != None:
+            probability += max((nGramNode.count - currentDiscountParameter) / float(historyNode.count), 0.0)
+
+        return probability
 
 corpusFile = '../../data/lm/corpus'
 vocabulary = '../../data/lm/vocabulary'
