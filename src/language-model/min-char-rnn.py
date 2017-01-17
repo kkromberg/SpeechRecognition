@@ -10,6 +10,8 @@ data = open('../../data/lm/corpus', 'r').read() # should be simple plain text fi
 chars = list(set(data))
 data_size, vocab_size = len(data), len(chars)
 print 'data has %d characters, %d unique.' % (data_size, vocab_size)
+output = open('log.txt', 'w')
+output.write('data has %d characters, %d unique.' % (data_size, vocab_size))
 char_to_ix = { ch:i for i,ch in enumerate(chars) }
 ix_to_char = { i:ch for i,ch in enumerate(chars) }
 
@@ -96,12 +98,14 @@ while True:
     sample_ix = sample(hprev, inputs[0], 200)
     txt = ''.join(ix_to_char[ix] for ix in sample_ix)
     print '----\n %s \n----' % (txt, )
+    output.write('----\n %s \n----' % (txt,))
 
   # forward seq_length characters through the net and fetch gradient
   loss, dWxh, dWhh, dWhy, dbh, dby, hprev = lossFun(inputs, targets, hprev)
   smooth_loss = smooth_loss * 0.999 + loss * 0.001
-  if n % 100 == 0: print 'iter %d, loss: %f' % (n, smooth_loss) # print progress
-  
+  if n % 100 == 0:
+    print 'iter %d, loss: %f' % (n, smooth_loss) # print progress
+    output.write('iter %d, loss: %f' % (n, smooth_loss))
   # perform parameter update with Adagrad
   for param, dparam, mem in zip([Wxh, Whh, Why, bh, by], 
                                 [dWxh, dWhh, dWhy, dbh, dby], 
@@ -111,3 +115,4 @@ while True:
 
   p += seq_length # move data pointer
   n += 1 # iteration counter 
+output.close()
