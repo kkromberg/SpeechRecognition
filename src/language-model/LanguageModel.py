@@ -22,32 +22,32 @@ class LanguageModel():
         self.initLM(corpusFile)
         self.averageSentenceLength = self.numRunningWords / self.numSentences
 
-
         logging.debug('# words: ' +  str(self.numRunningWords))
         logging.debug('# sentences: ' + str(self.numSentences))
         logging.debug('Occurrence of all sentence lengths: ' + str(self.allSentenceLengths))
         logging.debug('Average sentence length: ' + str(self.averageSentenceLength))
 
-
-
         self.nGramPrefixTreeRoot = PrefixTreeNode()
         self.discountingParameters = []
-
-
         self.wordFrequencies = None
 
-
-        self.sortedWordFrequencies = 0
-        '''
         print "Counting 3-grams: "
         self.allTrigramOccurrence = self.computeNGramOccurrence(corpusFile, 3) # 2b
 
+        print "Number of nodes in tree: ", self.nGramPrefixTreeRoot.subtreeSize()
         print "Discounting parameters: "
         self.computeDiscountingParameters(3)
         print self.discountingParameters
 
-        print self.score(4, [0, 3])
-        print self.score(2, [3, 4])
+        print "Unknown probability: ", self.score(self.corpusVocabulary.unknownWordID(), [])
+        prob = 0.0
+        for word in range(0, self.corpusVocabulary.size()):
+            prob += self.score(word)
+
+        print prob
+
+        self.sortedWordFrequencies = 0
+        '''
 
         #self.allBigramOccurrence = self.computeNGramOccurrence(corpusFile, 2)  # 3
         #self.allUnigramOccurrence = self.computeNGramOccurrence(corpusFile, 1)  # 3\
@@ -59,9 +59,6 @@ class LanguageModel():
 
         self.recomputedBigramOccurrence = self.recomputeNGramOccurrence(self.allTrigramOccurrence) # 3
         self.recomputedUnigramOccurrence = self.recomputeNGramOccurrence(self.allBigramOccurrence) # 3
-
-
-
 
         # write files
         self.writeListToFile(self.sortedWordFrequencies, 'wordFrequencies')
@@ -150,12 +147,15 @@ class LanguageModel():
 
             for i in range(n-1, len(currentWordIDs) + 1):
                 currentNGram = currentWordIDs[i-n+1:i+1]
+                if len(currentNGram) != n:
+                    break
                 self.nGramPrefixTreeRoot.recursiveAddNGram(currentNGram)
 
             sentenceCounter += 1
 
             if sentenceCounter % 10000 == 0:
                 print sentenceCounter
+                break
 
         print "Outputting n-gram frequencies"
 
@@ -173,7 +173,7 @@ class LanguageModel():
             nextNGram = wordIDQueue.get()
 
             # Fill the queue
-            for childWordID, childNode in nextNode.children.items():
+            for childWordID, childNode in nextNode.getChildren().items():
                 childNGram = copy.copy(nextNGram)
                 childNGram.append(childWordID)
 
@@ -230,7 +230,7 @@ class LanguageModel():
             # Fill the queue with the children of all nodes of the current depth
             while not currentDepthQueue.empty():
                 currentNode = currentDepthQueue.get()
-                for childWordID, childNode in currentNode.children.items():
+                for childWordID, childNode in currentNode.getChildren().items():
                     nextDepthQueue.put(childNode)
 
                     # count
@@ -251,19 +251,22 @@ class LanguageModel():
         """
         Evaluate the language model of a word given a word history
         :param wordID: word identifier to score
+        :param wordHistory: list of word identifiers to condition the scoring of wordID
         :return The language model probability of wordID given wordHistory
                 and the new word history including wordID
         """
+
         # Recursion base case for unknown words and unigrams
         if wordID == self.corpusVocabulary.unknownWordID() or len(wordHistory) == 0:
             probability = self.discountingParameters[0] \
-                          * (float(self.nGramPrefixTreeRoot.numberOfFollowingContexts) / float(
-                self.nGramPrefixTreeRoot.count))
+                          * (float(self.nGramPrefixTreeRoot.getNumberOfChildren())
+                          / float(self.nGramPrefixTreeRoot.count))
 
             if wordID != self.corpusVocabulary.unknownWordID():
                 wordNode = self.nGramPrefixTreeRoot.getNGramNode([wordID])
-                probability += max(
-                    (wordNode.count - self.discountingParameters[0]) / float(self.nGramPrefixTreeRoot.count), 0)
+                if wordNode != None:
+                    probability += max((wordNode.count - self.discountingParameters[0]) /
+                                       float(self.nGramPrefixTreeRoot.count), 0)
 
             return probability
 
@@ -277,7 +280,7 @@ class LanguageModel():
         # Get the probability for the current n-gram by recursively interpolating the (n-1)-gram prob.
         currentDiscountParameter = self.discountingParameters[len(wordHistory)]
         probability = currentDiscountParameter \
-                      * (float(historyNode.numberOfFollowingContexts) / float(historyNode.count)) \
+                      * (float(historyNode.getNumberOfChildren()) / float(historyNode.count)) \
                       * self.score(wordID, wordHistory[1:])
 
         # Add the probability for the n-gram, if available
@@ -287,7 +290,7 @@ class LanguageModel():
 
         return probability
 
-corpusFile = '../../data/lm/corpus'
+corpusFile = 'testCorpus'
 vocabulary = '../../data/lm/vocabulary'
 lm = LanguageModel(corpusFile)
 #voc = Vocabulary(vocabulary)
