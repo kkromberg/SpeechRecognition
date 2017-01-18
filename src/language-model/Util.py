@@ -24,8 +24,28 @@ def plotAllSentenceLengths(sentenceLengths, averageSentenceLength):
     #plt.savefig('plots/allSentenceLengthsOccurrence.svg', format='svg', dpi=1200)
     plt.show()
 
-def plotDict(data=dict()):
+def plotCountCountsFromFile(nGramOccurrencesFile):
+    print "here"
+    nGramOccurrences = open(nGramOccurrencesFile, 'r')
+    nGramFrequencies = {}
+    # collect n-gram frequencies
+    for line in nGramOccurrences:
+        lineSplitted = line.strip().split(' ')
+        count = int(lineSplitted[-1])
 
+        if count not in nGramFrequencies:
+            nGramFrequencies[count] = 1
+        else:
+            nGramFrequencies[count] += 1
+
+        #print currentNGram
+    nGramOccurrences.close()
+    print "plotting"
+    plotDict(nGramFrequencies)
+
+
+
+def plotDict(data=dict()):
     X = []
     x_range = []
     Y = []
@@ -36,9 +56,9 @@ def plotDict(data=dict()):
         x_range.append(counter)
         counter += 1
     plt.title('Count-counts')
-    plt.xlabel('# nGrams')
-    plt.ylabel('Counts')
-    plt.xticks(x_range, X, rotation=90)
-    plt.plot(x_range, Y)
-    plt.plot(x_range, Y, 'or')
+    plt.xlabel('# nGrams frequency')
+    plt.ylabel('Count-counts in logspace')
+    plt.xticks(np.arange(0, counter, 50), rotation=90)
+    plt.semilogy(x_range, Y)
+    plt.semilogy(x_range, Y, 'or')
     plt.show()
