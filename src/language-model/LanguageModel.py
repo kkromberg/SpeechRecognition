@@ -42,9 +42,9 @@ class LanguageModel():
         print "Unknown probability: ", self.score(self.corpusVocabulary.unknownWordID(), [])
         prob = 0.0
         for word in range(0, self.corpusVocabulary.size()):
-            prob += self.score(word)
+            prob += self.score(word, [])
 
-        print prob
+        print "Sum of unigram probabilities:", prob
 
         self.sortedWordFrequencies = 0
         '''
