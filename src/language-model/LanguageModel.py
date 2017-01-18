@@ -8,14 +8,17 @@ from PrefixTree import PrefixTreeNode
 import json
 import operator
 from Queue import Queue
+import string
 logging.basicConfig(level=logging.DEBUG)
 
 
 class LanguageModel():
 
-    def __init__(self, corpusFile):
+    def __init__(self, corpusFile, vocabulayyFile=None):
         ######################## 1 ##########################
         self.corpusVocabulary = Vocabulary()
+        if vocabulayyFile:
+            self.givenVocabulary  = Vocabulary(vocabulayyFile)
         self.numRunningWords = 0      # 1a
         self.numSentences = 0         # 1b
         self.allSentenceLengths = {}  # 1c
@@ -28,43 +31,51 @@ class LanguageModel():
         logging.debug('Occurrence of all sentence lengths: ' + str(self.allSentenceLengths))
         logging.debug('Average sentence length: ' + str(self.averageSentenceLength))
 
-
-
+        ######################## 2 ##########################
+        # 2a
+        self.sortedWordFrequencies = {}
+        for word_idx in range(0, self.corpusVocabulary.size()):
+            self.sortedWordFrequencies[self.corpusVocabulary.int2word[word_idx]] = self.corpusVocabulary.wordFrequencies[word_idx]
+        self.sortedWordFrequencies = sorted(self.sortedWordFrequencies.items(), key=operator.itemgetter(1), reverse=True)
+        self.writeListToFile(self.sortedWordFrequencies, 'sortedWordFrequencies')
+        # 2b
+        self.oov = 0.0
         self.nGramPrefixTreeRoot = PrefixTreeNode()
         self.discountingParameters = []
 
-
-        self.wordFrequencies = None
-
-
-        self.sortedWordFrequencies = 0
-        '''
         print "Counting 3-grams: "
-        self.allTrigramOccurrence = self.computeNGramOccurrence(corpusFile, 3) # 2b
+        self.allTrigramOccurrence = self.computeNGramOccurrence(corpusFile, 3, self.corpusVocabulary) # 2b
+        #self.allBigramOccurrence = self.computeNGramOccurrence(corpusFile, 2, self.corpusVocabulary)  # 3
 
+        logging.debug('Out of vocabulary rate: ' + str(self.oov))
+        print self.oov
         print "Discounting parameters: "
         self.computeDiscountingParameters(3)
         print self.discountingParameters
 
+        '''
+        ######################## 3 ##########################
         print self.score(4, [0, 3])
         print self.score(2, [3, 4])
 
-        #self.allBigramOccurrence = self.computeNGramOccurrence(corpusFile, 2)  # 3
-        #self.allUnigramOccurrence = self.computeNGramOccurrence(corpusFile, 1)  # 3\
+        print "Counting 2-grams: "
+        self.allBigramOccurrence = self.computeNGramOccurrence(corpusFile, 2)  # 3
+
+        print "Counting 1-grams: "
+        self.allUnigramOccurrence = self.computeNGramOccurrence(corpusFile, 1)  # 3\
 
 
-        self.allTrigramFrequencies = self.countNGramsFrequencies(self.allTrigramOccurrence) # 2c
-        self.allBigramFrequencies = self.countNGramsFrequencies(self.allBigramOccurrence)  # 3
-        self.allUnigramFrequencies = self.countNGramsFrequencies(self.allUnigramOccurrence)  # 3
+        #self.allTrigramFrequencies = self.countNGramsFrequencies(self.allTrigramOccurrence) # 2c
+        #self.allBigramFrequencies = self.countNGramsFrequencies(self.allBigramOccurrence)  # 3
+        #self.allUnigramFrequencies = self.countNGramsFrequencies(self.allUnigramOccurrence)  # 3
 
-        self.recomputedBigramOccurrence = self.recomputeNGramOccurrence(self.allTrigramOccurrence) # 3
-        self.recomputedUnigramOccurrence = self.recomputeNGramOccurrence(self.allBigramOccurrence) # 3
-
+        #self.recomputedBigramOccurrence = self.recomputeNGramOccurrence(self.allTrigramOccurrence) # 3
+        #self.recomputedUnigramOccurrence = self.recomputeNGramOccurrence(self.allBigramOccurrence) # 3
 
 
 
         # write files
-        self.writeListToFile(self.sortedWordFrequencies, 'wordFrequencies')
+
         self.writeListToFile(self.allTrigramOccurrence, 'trigramOccurrence')
         self.writeDictToFile(self.allTrigramFrequencies, 'trigramFrequencies')
 
@@ -105,8 +116,6 @@ class LanguageModel():
             self.numRunningWords += elem[0] * elem[1]
 
         corpus.close()
-        # 2a (sort)
-        #self.sortedWordFrequencies = sorted(wordFrequencies.items(), key=operator.itemgetter(1), reverse=True)
 
     def writeListToFile(self, data, outputFile):
         """
@@ -133,29 +142,41 @@ class LanguageModel():
             output.write(str(elem[0]) + ' ' + str(elem[1]) + '\n')
         output.close()
 
-    def computeNGramOccurrence(self, corpusFile, n):
+    def computeNGramOccurrence(self, corpusFile, n, vocabulary=Vocabulary()):
         """
         Identify and compute n-grams from the given corpus file
         :param corpusFile: path to the corpus
         :param n: integer
         :return:
         """
+
         corpus = open(corpusFile, 'r')
         sentenceCounter = 0
+        unknownWords = 0.0
+        unknowWordId = vocabulary.index('<unk>')
+        print unknowWordId
         for line in corpus:
             currentStringWords = line.strip().split(' ')
-            currentWordIDs =  [self.corpusVocabulary.index("<s>")]
-            currentWordIDs += [self.corpusVocabulary.addSymbol(x) for x in currentStringWords]
-            currentWordIDs.append(self.corpusVocabulary.index("</s>"))
+            currentWordIDs =  [vocabulary.index("<s>")]
+            for word_idx in range(0, len(currentStringWords)):
+                currentWordID = vocabulary.index(currentStringWords[word_idx])
+                currentWordIDs.append(currentWordID)
+                # count amount of unknown words
+                if currentWordID == unknowWordId:
+
+                    unknownWords += 1
+                    #print unknownWords
+            currentWordIDs.append(vocabulary.index("</s>"))
 
             for i in range(n-1, len(currentWordIDs) + 1):
                 currentNGram = currentWordIDs[i-n+1:i+1]
                 self.nGramPrefixTreeRoot.recursiveAddNGram(currentNGram)
-
             sentenceCounter += 1
 
             if sentenceCounter % 10000 == 0:
                 print sentenceCounter
+        # 2e
+        self.oov = unknownWords / self.numRunningWords
 
         print "Outputting n-gram frequencies"
 
@@ -182,7 +203,7 @@ class LanguageModel():
 
             if len(nextNGram) == n:
                 for wordID in nextNGram:
-                    output.write(self.corpusVocabulary.symbol(wordID) + ' ')
+                    output.write(vocabulary.symbol(wordID) + ' ')
                 output.write(str(nextNode.count) + '\n')
 
         output.close()
@@ -288,10 +309,13 @@ class LanguageModel():
         return probability
 
 corpusFile = '../../data/lm/corpus'
+smallCorpus = 'smallCorpus'
 vocabulary = '../../data/lm/vocabulary'
-lm = LanguageModel(corpusFile)
+lm = LanguageModel(smallCorpus)
 #voc = Vocabulary(vocabulary)
 
 ######################## plots ##########################
-plotAllSentenceLengths(lm.allSentenceLengths, lm.averageSentenceLength)
+#plotAllSentenceLengths(lm.allSentenceLengths, lm.averageSentenceLength)
+#plotCountCountsFromFile('3-gram.counts')
+
 #plotDict(lm.allTrigramFrequencies)
