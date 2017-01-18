@@ -14,19 +14,31 @@ logging.basicConfig(level=logging.DEBUG)
 class LanguageModel():
 
     def __init__(self, corpusFile):
-
-        self.punctuations = ['.', ',', ':', ';', '!', '-', '?']
+        ######################## 1 ##########################
         self.corpusVocabulary = Vocabulary()
+        self.numRunningWords = 0      # 1a
+        self.numSentences = 0         # 1b
+        self.allSentenceLengths = {}  # 1c
+        self.initLM(corpusFile)
+        self.averageSentenceLength = self.numRunningWords / self.numSentences
+
+
+        logging.debug('# words: ' +  str(self.numRunningWords))
+        logging.debug('# sentences: ' + str(self.numSentences))
+        logging.debug('Occurrence of all sentence lengths: ' + str(self.allSentenceLengths))
+        logging.debug('Average sentence length: ' + str(self.averageSentenceLength))
+
+
 
         self.nGramPrefixTreeRoot = PrefixTreeNode()
         self.discountingParameters = []
 
-        self.numRunningWords = None
-        self.wordFrequencies = None
-        self.numSentences = 0
-        self.allSentenceLength = {}
-        self.sortedWordFrequencies = 0
 
+        self.wordFrequencies = None
+
+
+        self.sortedWordFrequencies = 0
+        '''
         print "Counting 3-grams: "
         self.allTrigramOccurrence = self.computeNGramOccurrence(corpusFile, 3) # 2b
 
@@ -39,7 +51,7 @@ class LanguageModel():
 
         #self.allBigramOccurrence = self.computeNGramOccurrence(corpusFile, 2)  # 3
         #self.allUnigramOccurrence = self.computeNGramOccurrence(corpusFile, 1)  # 3\
-        '''
+
 
         self.allTrigramFrequencies = self.countNGramsFrequencies(self.allTrigramOccurrence) # 2c
         self.allBigramFrequencies = self.countNGramsFrequencies(self.allBigramOccurrence)  # 3
@@ -48,9 +60,9 @@ class LanguageModel():
         self.recomputedBigramOccurrence = self.recomputeNGramOccurrence(self.allTrigramOccurrence) # 3
         self.recomputedUnigramOccurrence = self.recomputeNGramOccurrence(self.allBigramOccurrence) # 3
 
-        self.initLM(corpusFile)
 
-        self.averageSentenceLength = self.numRunningWords/self.numSentences
+
+
         # write files
         self.writeListToFile(self.sortedWordFrequencies, 'wordFrequencies')
         self.writeListToFile(self.allTrigramOccurrence, 'trigramOccurrence')
@@ -67,10 +79,6 @@ class LanguageModel():
 
 
         # Testing output
-        logging.debug('# words: ' +  str(self.numRunningWords))
-        logging.debug('# sentences: ' + str(self.numSentences))
-        logging.debug('Occurrence of all sentence length: ' + str(self.allSentenceLength))
-        logging.debug('Average sentence length: ' + str(self.averageSentenceLength))
         #print json.dumps(self.wordFrequencies, indent=2)
         #logging.debug('Word frequencies: ' + str(self.wordFrequencies))
         '''
@@ -87,13 +95,13 @@ class LanguageModel():
             self.numSentences += 1
             # 1c
             sentenceLength = len(currentWords)
-            if sentenceLength not in self.allSentenceLength:
-                self.allSentenceLength[sentenceLength] = 1
+            if sentenceLength not in self.allSentenceLengths:
+                self.allSentenceLengths[sentenceLength] = 1
             else:
-                self.allSentenceLength[sentenceLength] += 1
+                self.allSentenceLengths[sentenceLength] += 1
 
         # compute total sentence length
-        for elem in self.allSentenceLength.iteritems():
+        for elem in self.allSentenceLengths.iteritems():
             self.numRunningWords += elem[0] * elem[1]
 
         corpus.close()
@@ -284,6 +292,6 @@ vocabulary = '../../data/lm/vocabulary'
 lm = LanguageModel(corpusFile)
 #voc = Vocabulary(vocabulary)
 
-
-#plotRelativeSentenceLength(lm.allSentenceLength, lm.totalSentenceLength, lm.averageSentenceLength)
+######################## plots ##########################
+plotAllSentenceLengths(lm.allSentenceLengths, lm.averageSentenceLength)
 #plotDict(lm.allTrigramFrequencies)
