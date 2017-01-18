@@ -14,11 +14,11 @@ logging.basicConfig(level=logging.DEBUG)
 
 class LanguageModel():
 
-    def __init__(self, corpusFile, vocabulayyFile=None):
+    def __init__(self, corpusFile, testCorpusFile, vocabularyFile=None):
         ######################## 1 ##########################
         self.corpusVocabulary = Vocabulary()
-        if vocabulayyFile:
-            self.givenVocabulary  = Vocabulary(vocabulayyFile)
+        if vocabularyFile:
+            self.givenVocabulary  = Vocabulary(vocabularyFile)
         self.numRunningWords = 0      # 1a
         self.numSentences = 0         # 1b
         self.allSentenceLengths = {}  # 1c
@@ -37,7 +37,7 @@ class LanguageModel():
         self.nGramPrefixTreeRoot = PrefixTreeNode()
         self.discountingParameters = []
 
-        print "Counting 3-grams: "
+        #print "Counting 3-grams: "
         self.allTrigramOccurrence = self.computeNGramOccurrence(corpusFile, 3, self.corpusVocabulary) # 2b
         #self.allBigramOccurrence = self.computeNGramOccurrence(corpusFile, 2, self.corpusVocabulary)  # 3
 
@@ -47,31 +47,31 @@ class LanguageModel():
         self.discountingParameters = []
         self.wordFrequencies = None
 
-        print "Counting 3-grams: "
-        self.allTrigramOccurrence = self.computeNGramOccurrence(corpusFile, 2) # 2b
+        #print "Counting 3-grams: "
+        #self.allTrigramOccurrence = self.computeNGramOccurrence(corpusFile, 2) # 2b
 
-        print "Number of nodes in tree: ", self.nGramPrefixTreeRoot.subtreeSize()
-        print "Discounting parameters: "
-        self.computeDiscountingParameters(2)
+        #print "Number of nodes in tree: ", self.nGramPrefixTreeRoot.subtreeSize()
+        #print "Discounting parameters: "
+        self.computeDiscountingParameters(3)
         print self.discountingParameters
 
 
         ######################## 3 ##########################
-        print self.score(4, [0, 3])
-        print self.score(2, [3, 4])
+        #print self.score(4, [0, 3])
+        #print self.score(2, [3, 4])
 
-        print "Unknown probability: ", self.score(self.corpusVocabulary.unknownWordID(), [])
-        print "Size of vocabulary:", self.corpusVocabulary.size()
+        #print "Unknown probability: ", self.score(self.corpusVocabulary.unknownWordID(), [])
+        #print "Size of vocabulary:", self.corpusVocabulary.size()
         unigramProbabilities, bigramProbabilities = 0.0, 0.0
         for word in range(0, self.corpusVocabulary.size()):
             unigramProbabilities += self.score(word, [])
             #print "p(", self.corpusVocabulary.symbol(word), ") =", self.score(word, [])
             bigramProbabilities  += self.score(word, [5])
-            print "p(", self.corpusVocabulary.symbol(word), "|", self.corpusVocabulary.symbol(5), ") =", self.score(word, [5])
+            #print "p(", self.corpusVocabulary.symbol(word), "|", self.corpusVocabulary.symbol(5), ") =", self.score(word, [5])
 
-        print "Sum of unigram probabilities:", unigramProbabilities
-        print "Sum of bigram probabilities:", bigramProbabilities
-
+        #print "Sum of unigram probabilities:", unigramProbabilities
+        #print "Sum of bigram probabilities:", bigramProbabilities
+        print (self.perplexity(testCorpusFile))
         ######################## 4 ##########################
 
         #self.recomputedBigramOccurrence = self.recomputeNGramOccurrence(self.allTrigramOccurrence) # 3
@@ -145,7 +145,7 @@ class LanguageModel():
         sentenceCounter = 0
         unknownWords = 0.0
         unknowWordId = vocabulary.index('<unk>')
-        print unknowWordId
+        #print unknowWordId
         for line in corpus:
             currentStringWords = line.strip().split(' ')
             currentWordIDs =  [vocabulary.index("<s>")]
@@ -167,10 +167,11 @@ class LanguageModel():
             sentenceCounter += 1
 
             if sentenceCounter % 10000 == 0:
-                print sentenceCounter
+                pass
+                #print sentenceCounter
 
         self.oov = unknownWords / self.numRunningWords
-        print "Outputting n-gram frequencies"
+        #print "Outputting n-gram frequencies"
 
         # breadth first search to get n-gram counts
         queue = Queue()
@@ -253,6 +254,7 @@ class LanguageModel():
                         numberOfDoubletons += 1
 
             # Calculate the discounting parameter
+            print (numberOfSingletons)
             discountingParameter = float(numberOfSingletons) / (numberOfSingletons + 2 * numberOfDoubletons)
             self.discountingParameters.append(discountingParameter)
 
@@ -289,7 +291,6 @@ class LanguageModel():
             # N-gram does not need to be scored since the history is not valid
             # Use lower order probabilities
             return self.score(wordID, wordHistory[1:])
-
         # Get the probability for the current n-gram by recursively interpolating the (n-1)-gram prob.
         probability = self.discountingParameters[len(wordHistory)]
         probability *= historyNode.getNumberOfChildren() / float(historyNode.count)
@@ -300,13 +301,32 @@ class LanguageModel():
         if nGramNode != None:
             discountedCount = nGramNode.count - self.discountingParameters[len(wordHistory)]
             probability += max(discountedCount / float(historyNode.count), 0.0)
-
         return probability
+    def perplexity (self, testCorpusFile):
+        LL = 0.0
+        corpus = open(testCorpusFile, 'r')
+        sentenceCounter = 0
+        unknowWordId = vocabulary.index('<unk>')
+        #print unknowWordId
+        numRunningWords = 0;
+        for line in corpus:
+            currentStringWords = line.strip().split(' ')
+            currentWordIDs = [vocabulary.index("<s>")]
+            for word_idx in range(0, len(currentStringWords)):
+                currentWordID = vocabulary.index(currentStringWords[word_idx])
 
-corpusFile = '../../data/lm/corpus'
-smallCorpus = 'smallCorpus'
+                currentWordIDs.append(currentWordID)
+            currentWordIDs.append(vocabulary.index("</s>"))
+            for word_idx in range(1,len(currentWordIDs)):
+                LL+=np.log(self.score(currentWordIDs[word_idx]),[currentWordIDs[word_idx-1]])
+            numRunningWords += len(currentStringWords)
+        PP = np.exp(-LL/numRunningWords)
+        return PP
 vocabulary = '../../data/lm/vocabulary'
-lm = LanguageModel(smallCorpus)
+testCorpus = '../../data/lm/test'
+corpusFile = '../../data/lm/test'
+lm = LanguageModel(corpusFile, testCorpus)
+
 #voc = Vocabulary(vocabulary)
 
 ######################## plots ##########################
