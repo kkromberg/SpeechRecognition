@@ -41,15 +41,6 @@ class LanguageModel():
         self.allTrigramOccurrence = self.computeNGramOccurrence(corpusFile, 3, self.corpusVocabulary) # 2b
         #self.allBigramOccurrence = self.computeNGramOccurrence(corpusFile, 2, self.corpusVocabulary)  # 3
 
-
-
-        self.nGramPrefixTreeRoot = PrefixTreeNode()
-        self.discountingParameters = []
-        self.wordFrequencies = None
-
-        print "Counting 3-grams: "
-        self.allTrigramOccurrence = self.computeNGramOccurrence(corpusFile, 2) # 2b
-
         print "Number of nodes in tree: ", self.nGramPrefixTreeRoot.subtreeSize()
         print "Discounting parameters: "
         self.computeDiscountingParameters(2)
@@ -57,25 +48,27 @@ class LanguageModel():
 
 
         ######################## 3 ##########################
-        print self.score(4, [0, 3])
-        print self.score(2, [3, 4])
-
         print "Unknown probability: ", self.score(self.corpusVocabulary.unknownWordID(), [])
         print "Size of vocabulary:", self.corpusVocabulary.size()
         unigramProbabilities, bigramProbabilities = 0.0, 0.0
         for word in range(0, self.corpusVocabulary.size()):
             unigramProbabilities += self.score(word, [])
             #print "p(", self.corpusVocabulary.symbol(word), ") =", self.score(word, [])
-            bigramProbabilities  += self.score(word, [5])
-            print "p(", self.corpusVocabulary.symbol(word), "|", self.corpusVocabulary.symbol(5), ") =", self.score(word, [5])
+            bigramProbabilities  += self.score(word, [1])
+            print "p(", self.corpusVocabulary.symbol(word), "|", self.corpusVocabulary.symbol(1), ") =", self.score(word, [1])
 
         print "Sum of unigram probabilities:", unigramProbabilities
         print "Sum of bigram probabilities:", bigramProbabilities
 
         ######################## 4 ##########################
 
-        #self.recomputedBigramOccurrence = self.recomputeNGramOccurrence(self.allTrigramOccurrence) # 3
-        #self.recomputedUnigramOccurrence = self.recomputeNGramOccurrence(self.allBigramOccurrence) # 3
+        print "Computing lower n-gram counts from 3-gram counts..."
+        self.recomputeNGramOccurrence(3)
+
+        print "Computing 2-gram counts..."
+        self.nGramPrefixTreeRoot = PrefixTreeNode()
+        self.computeNGramOccurrence(corpusFile, 2, self.corpusVocabulary)
+
         ######################## Outputs ##########################
         logging.debug('# words: ' +  str(self.numRunningWords))
         logging.debug('# sentences: ' + str(self.numSentences))
@@ -145,7 +138,6 @@ class LanguageModel():
         sentenceCounter = 0
         unknownWords = 0.0
         unknowWordId = vocabulary.index('<unk>')
-        print unknowWordId
         for line in corpus:
             currentStringWords = line.strip().split(' ')
             currentWordIDs =  [vocabulary.index("<s>")]
@@ -161,8 +153,8 @@ class LanguageModel():
 
             for i in range(n-1, len(currentWordIDs) + 1):
                 currentNGram = currentWordIDs[i-n+1:i+1]
-                if len(currentNGram) != n:
-                    break
+                #if len(currentNGram) != n:
+                    #break
                 self.nGramPrefixTreeRoot.recursiveAddNGram(currentNGram)
             sentenceCounter += 1
 
@@ -175,10 +167,9 @@ class LanguageModel():
         # breadth first search to get n-gram counts
         queue = Queue()
         wordIDQueue = Queue()
-        queue.put(self.nGramPrefixTreeRoot)
 
-        emptyList = []
-        wordIDQueue.put(emptyList)
+        queue.put(self.nGramPrefixTreeRoot)
+        wordIDQueue.put([])
 
         output = open(str(n) + "-gram.counts", 'w')
         while not queue.empty():
@@ -200,28 +191,45 @@ class LanguageModel():
 
         output.close()
 
-    def countNGramsFrequencies(self, nGramOccurrence=dict()):
+    def recomputeNGramOccurrence(self, maxNGramLength):
+        """
+        Compute counts for the lower n-grams in a prefix tree and output them to a file
+        :param maxNGramLength: integer for the maximum n-gram length
+        """
 
-        nGramFrequencies = {}
-        for elem in nGramOccurrence:
-            if elem[1] not in nGramFrequencies:
-                nGramFrequencies[elem[1]] = 1
-            else:
-                nGramFrequencies[elem[1]] += 1
-        #print nGramFrequencies
-        return nGramFrequencies
+        self.discountingParameters = []
 
-    def recomputeNGramOccurrence(self, nGramOccurrence=dict()):
-        nGram = {}
-        sep = '|'
-        for elem in nGramOccurrence:
-            currentNGram = elem[0].split(sep, 1)[1]
-            #print currentNGram
-            if currentNGram not in nGram:
-                nGram[currentNGram] = 1
-            else:
-                nGram[currentNGram] += 1
-        return sorted(nGram.items(), key=operator.itemgetter(1), reverse=True)
+        # descend into the depth nGramLength of the prefix tree
+        nextDepthQueue, currentDepthQueue = Queue(), Queue()
+        wordIDQueue = Queue()
+        wordIDQueue.put([])
+        currentDepthQueue.put(self.nGramPrefixTreeRoot)
+        for i in range(0, maxNGramLength - 1):
+
+            # Open the output stream
+            with open(str(i+1) + '-gram.recomputed.counts', 'w') as output:
+
+                # BFS search
+                while not currentDepthQueue.empty():
+                    currentNode = currentDepthQueue.get()
+                    currentNGram = wordIDQueue.get()
+
+                    # Fill the queue with the children of all nodes of the current depth
+                    for childWordID, childNode in currentNode.getChildren().items():
+                        childNGram = copy.copy(currentNGram)
+                        childNGram.append(childWordID)
+
+                        wordIDQueue.put(childNGram)
+                        nextDepthQueue.put(childNode)
+
+                        # write the counts to the output stream
+                        for wordID in childNGram:
+                            output.write(self.corpusVocabulary.symbol(wordID) + ' ')
+                        output.write(str(childNode.count) + '\n')
+
+            # Swap the current depth queue (empty) with the next depth queue
+            # for the next iteration
+            nextDepthQueue, currentDepthQueue = currentDepthQueue, nextDepthQueue
 
     def computeDiscountingParameters(self, nGramLength):
         """
@@ -304,9 +312,9 @@ class LanguageModel():
         return probability
 
 corpusFile = '../../data/lm/corpus'
-smallCorpus = 'smallCorpus'
+#smallCorpus = 'smallCorpus'
 vocabulary = '../../data/lm/vocabulary'
-lm = LanguageModel(smallCorpus)
+lm = LanguageModel(corpusFile)
 #voc = Vocabulary(vocabulary)
 
 ######################## plots ##########################
