@@ -23,6 +23,18 @@ class Vocabulary:
     def unknownWordString(self):
         return "<unk>"
 
+    def startSymbolWordID(self):
+        return self.word2int["<s>"]
+
+    def startSymbolWordString(self):
+        return "<s>"
+
+    def endSymbolWordID(self):
+        return self.word2int["</s>"]
+
+    def endSymbolWordString(self):
+        return "</s>"
+
     def size(self):
         return self.nextID + 1
 
