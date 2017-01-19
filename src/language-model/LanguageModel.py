@@ -69,10 +69,10 @@ class LanguageModel():
             bigramProbabilities  += self.score(word, [5])
             #print "p(", self.corpusVocabulary.symbol(word), "|", self.corpusVocabulary.symbol(5), ") =", self.score(word, [5])
 
-        #print "Sum of unigram probabilities:", unigramProbabilities
-        #print "Sum of bigram probabilities:", bigramProbabilities
+        print "Sum of unigram probabilities:", unigramProbabilities
+        print "Sum of bigram probabilities:", bigramProbabilities
         print "Perplexity: "
-        print (self.perplexity(testCorpusFile))
+        print (self.perplexity(testCorpusFile, self.corpusVocabulary))
         ######################## 4 ##########################
 
         #self.recomputedBigramOccurrence = self.recomputeNGramOccurrence(self.allTrigramOccurrence) # 3
@@ -317,15 +317,16 @@ class LanguageModel():
                 currentWordID = vocabulary.index(currentStringWords[word_idx])
                 currentWordIDs.append(currentWordID)
             currentWordIDs.append(vocabulary.index("</s>"))
+            #print currentWordIDs
             for word_idx in range(1,len(currentWordIDs)):
                 LL+=np.log(self.score(currentWordIDs[word_idx],[currentWordIDs[word_idx-1]]))
             numRunningWords += len(currentStringWords)-1
-            print len(currentStringWords)
+            #print len(currentStringWords)
         PP = np.exp(-LL/numRunningWords)
         return PP
 vocabulary = '../../data/lm/vocabulary'
 testCorpus = '../../data/lm/test'
-corpusFile = '../../data/lm/test'
+corpusFile = '../../data/lm/corpus'
 lm = LanguageModel(corpusFile, testCorpus)
 
 #voc = Vocabulary(vocabulary)
