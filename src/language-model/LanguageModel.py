@@ -71,8 +71,7 @@ class LanguageModel():
 
         print "Sum of unigram probabilities:", unigramProbabilities
         print "Sum of bigram probabilities:", bigramProbabilities
-        print "Perplexity: "
-        print (self.perplexity(testCorpusFile, self.corpusVocabulary))
+        print "Perplexity: ", self.perplexity(testCorpusFile, self.corpusVocabulary)
         ######################## 4 ##########################
 
         #self.recomputedBigramOccurrence = self.recomputeNGramOccurrence(self.allTrigramOccurrence) # 3
@@ -316,10 +315,10 @@ class LanguageModel():
             for word_idx in range(0, len(currentStringWords)):
                 currentWordID = vocabulary.index(currentStringWords[word_idx])
                 currentWordIDs.append(currentWordID)
+                #if word_idx != 0:
+                LL += np.log(self.score(currentWordIDs[word_idx + 1], [currentWordIDs[word_idx]]))
             currentWordIDs.append(vocabulary.index("</s>"))
-            #print currentWordIDs
-            for word_idx in range(1,len(currentWordIDs)):
-                LL+=np.log(self.score(currentWordIDs[word_idx],[currentWordIDs[word_idx-1]]))
+            LL += np.log(self.score(currentWordIDs[len(currentWordIDs)-1], [currentWordIDs[len(currentWordIDs) - 2]]))
             numRunningWords += len(currentStringWords)-1
             #print len(currentStringWords)
         PP = np.exp(-LL/numRunningWords)
