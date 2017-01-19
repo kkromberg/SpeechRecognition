@@ -24,6 +24,12 @@ class LanguageModel():
         self.allSentenceLengths = {}  # 1c
         self.initLM(corpusFile)
         self.averageSentenceLength = self.numRunningWords / self.numSentences
+        print 'Number of running words: ' + str(self.numRunningWords)
+        print 'Number of sentences: '     + str(self.numSentences)
+        print 'Average sentence length: ' + str(self.averageSentenceLength)
+        print 'Statistics for occurring sentence lengths...'
+        print 'All sentence lengths: '    + str(self.allSentenceLengths)
+        #plotAllSentenceLengths(self.allSentenceLengths, self.averageSentenceLength)
 
         ######################## 2 ##########################
         # 2a
@@ -32,20 +38,37 @@ class LanguageModel():
             self.sortedWordFrequencies[self.corpusVocabulary.int2word[word_idx]] = self.corpusVocabulary.wordFrequencies[word_idx]
         self.sortedWordFrequencies = sorted(self.sortedWordFrequencies.items(), key=operator.itemgetter(1), reverse=True)
         self.writeListToFile(self.sortedWordFrequencies, 'sortedWordFrequencies')
-        # 2b
+
+        # 2d + 2e
         self.oov = 0.0
         self.nGramPrefixTreeRoot = PrefixTreeNode()
-        self.discountingParameters = []
-        self.wordFrequencies = None
+        print 'Counting 3-grams and OOV with given vocabulary: '
+        self.allTrigramOccurrenceVoc = self.computeNGramOccurrence(corpusFile, 3, self.givenVocabulary, 'nGrams/givenVocabulary/')
+        print 'OOV: ' + str(self.oov)
+        print 'Statistics for trigram count-counts (write to file + plot) ...'
+        #plotCountCountsFromFile('nGrams/givenVocabulary/3-gram.counts')
 
-        print "Counting 3-grams: "
-        self.allTrigramOccurrence = self.computeNGramOccurrence(corpusFile, 3, self.corpusVocabulary) # 2b
-        print "Number of nodes in tree: ", self.nGramPrefixTreeRoot.subtreeSize()
-        print "Discounting parameters: "
-        self.computeDiscountingParameters(3)
-        print self.discountingParameters
+        # 2b + part of 3
+        print 'Counting 1-grams with corpus vocabulary: '
+        self.allTrigramOccurrence = self.computeNGramOccurrence(corpusFile, 1, self.corpusVocabulary, 'nGrams/')
+        print 'Counting 2-grams with corpus vocabulary: '
+        self.allTrigramOccurrence = self.computeNGramOccurrence(corpusFile, 2, self.corpusVocabulary, 'nGrams/')
+        print 'Counting 3-grams with corpus vocabulary: '
+        self.allTrigramOccurrence = self.computeNGramOccurrence(corpusFile, 3, self.corpusVocabulary, 'nGrams/')
+        # 2c
+        print 'Statistics for trigram count-counts (write to file + plot) ...'
+        #plotCountCountsFromFile('nGrams/3-gram.counts')
 
         ######################## 3 ##########################
+        print 'Recompute 1-grams and 2-grams from previously computed 3-grams'
+        self.recomputeNGramOccurrence(3)
+
+        ######################## 4 ##########################
+        #print "Number of nodes in tree: ", self.nGramPrefixTreeRoot.subtreeSize()
+        print 'Computing discounting parameters: '
+        self.discountingParameters = []
+        self.computeDiscountingParameters(3)
+        print self.discountingParameters
         print "Unknown probability: ", self.score(self.corpusVocabulary.unknownWordID(), [])
         print "Size of vocabulary:", self.corpusVocabulary.size()
 
@@ -53,27 +76,14 @@ class LanguageModel():
         for word in range(0, self.corpusVocabulary.size()):
             unigramProbabilities += self.score(word, [])
             bigramProbabilities  += self.score(word, [5])
-
         print "Sum of unigram probabilities:", unigramProbabilities
         print "Sum of bigram probabilities:", bigramProbabilities
-        print "Perplexity: ", self.perplexity(testCorpusFile)
-        ######################## 4 ##########################
 
-        print "Computing lower n-gram counts from 3-gram counts..."
-        self.recomputeNGramOccurrence(3)
+        ######################## 5 ##########################
+        print "Perplexity for test corpus: ", self.perplexity(testCorpusFile)
+        print "Perplexity for train corpus: ", self.perplexity(corpusFile)
 
-        print "Computing 2-gram counts..."
-        self.nGramPrefixTreeRoot = PrefixTreeNode()
-        self.computeNGramOccurrence(corpusFile, 2, self.corpusVocabulary)
 
-        ######################## Outputs ##########################
-        """
-        logging.debug('# words: ' +  str(self.numRunningWords))
-        logging.debug('# sentences: ' + str(self.numSentences))
-        logging.debug('Occurrence of all sentence lengths: ' + str(self.allSentenceLengths))
-        logging.debug('Average sentence length: ' + str(self.averageSentenceLength))
-        logging.debug('Out of vocabulary rate: ' + str(self.oov))
-        """
     def initLM(self, corpusFile):
         """
         Iterate through corpus file, create corpus vocabulary
@@ -124,14 +134,15 @@ class LanguageModel():
             output.write(str(elem[0]) + ' ' + str(elem[1]) + '\n')
         output.close()
 
-    def computeNGramOccurrence(self, corpusFile, n, vocabulary=Vocabulary()):
+    def computeNGramOccurrence(self, corpusFile, n, vocabulary, outputPath):
         """
         Identify and compute n-grams from the given corpus file
         :param corpusFile: path to the corpus
         :param n: integer
         :return:
         """
-
+        # build new prefix tree for each n-gram computation
+        self.nGramPrefixTreeRoot = PrefixTreeNode()
         corpus = open(corpusFile, 'r')
         sentenceCounter = 0
         unknownWords = 0.0
@@ -164,7 +175,7 @@ class LanguageModel():
         queue.put(self.nGramPrefixTreeRoot)
         wordIDQueue.put([])
 
-        output = open(str(n) + "-gram.counts", 'w')
+        output = open(outputPath + str(n) + "-gram.counts", 'w')
         while not queue.empty():
             nextNode = queue.get()
             nextNGram = wordIDQueue.get()
@@ -200,7 +211,7 @@ class LanguageModel():
         for i in range(0, maxNGramLength - 1):
 
             # Open the output stream
-            with open(str(i+1) + '-gram.recomputed.counts', 'w') as output:
+            with open('nGrams/' + str(i+1) + '-gram.recomputed.counts', 'w') as output:
 
                 # BFS search
                 while not currentDepthQueue.empty():
@@ -335,12 +346,4 @@ class LanguageModel():
 vocabulary = '../../data/lm/vocabulary'
 testCorpus = '../../data/lm/test'
 corpusFile = '../../data/lm/corpus'
-lm = LanguageModel(corpusFile, testCorpus)
-
-#voc = Vocabulary(vocabulary)
-
-######################## plots ##########################
-#plotAllSentenceLengths(lm.allSentenceLengths, lm.averageSentenceLength)
-#plotCountCountsFromFile('3-gram.counts')
-
-
+lm = LanguageModel(corpusFile, testCorpus, vocabulary)
