@@ -54,8 +54,8 @@ class LanguageModel():
         for word in range(0, self.corpusVocabulary.size()):
             unigramProbabilities += self.score(word, [])
             #print "p(", self.corpusVocabulary.symbol(word), ") =", self.score(word, [])
-            bigramProbabilities  += self.score(word, [1])
-            print "p(", self.corpusVocabulary.symbol(word), "|", self.corpusVocabulary.symbol(1), ") =", self.score(word, [1])
+            bigramProbabilities  += self.score(word, [5])
+            print "p(", self.corpusVocabulary.symbol(word), "|", self.corpusVocabulary.symbol(5), ") =", self.score(word, [5])
 
         print "Sum of unigram probabilities:", unigramProbabilities
         print "Sum of bigram probabilities:", bigramProbabilities
@@ -151,10 +151,8 @@ class LanguageModel():
                     #print unknownWords
             currentWordIDs.append(vocabulary.index("</s>"))
 
-            for i in range(n-1, len(currentWordIDs) + 1):
-                currentNGram = currentWordIDs[i-n+1:i+1]
-                #if len(currentNGram) != n:
-                    #break
+            for i in range(0, len(currentWordIDs)):
+                currentNGram = currentWordIDs[i:i+n]
                 self.nGramPrefixTreeRoot.recursiveAddNGram(currentNGram)
             sentenceCounter += 1
 
@@ -314,7 +312,7 @@ class LanguageModel():
 corpusFile = '../../data/lm/corpus'
 #smallCorpus = 'smallCorpus'
 vocabulary = '../../data/lm/vocabulary'
-lm = LanguageModel(corpusFile)
+lm = LanguageModel('testCorpus')
 #voc = Vocabulary(vocabulary)
 
 ######################## plots ##########################
