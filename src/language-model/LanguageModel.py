@@ -330,8 +330,8 @@ class LanguageModel():
         PP = np.exp(-LL/numRunningWords)
         return PP
 vocabulary = '../../data/lm/vocabulary'
-testCorpus = 'testCorpus'
-corpusFile = 'testCorpus'
+testCorpus = '../../data/lm/test'
+corpusFile = '../../data/lm/corpus'
 lm = LanguageModel(corpusFile, testCorpus)
 
 #voc = Vocabulary(vocabulary)
