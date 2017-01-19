@@ -235,7 +235,6 @@ class LanguageModel():
         nextDepthQueue, currentDepthQueue = Queue(), Queue()
         currentDepthQueue.put(self.nGramPrefixTreeRoot)
         for i in range(0, nGramLength):
-            currentNode = None
 
             # Count the number of singletons (n-grams that appeared only once)
             # and doubletons (n-grams that appeared only twice) while parsing the children
@@ -280,8 +279,8 @@ class LanguageModel():
             if wordID != self.corpusVocabulary.unknownWordID():
                 wordNode = self.nGramPrefixTreeRoot.getNGramNode([wordID])
                 if wordNode != None:
-                    probability += max((wordNode.count - self.discountingParameters[0]) /
-                                       float(self.nGramPrefixTreeRoot.count), 0.0)
+                    discountedCount = wordNode.count - self.discountingParameters[0]
+                    probability += max(discountedCount / float(self.nGramPrefixTreeRoot.count), 0.0)
 
             return probability
 
@@ -298,9 +297,9 @@ class LanguageModel():
         probability *= self.score(wordID, wordHistory[1:])
 
         # Add the probability for the n-gram, if available
-        nGramNode = historyNode.getNGramNode([wordID])
-        if nGramNode != None:
-            discountedCount = nGramNode.count - self.discountingParameters[len(wordHistory)]
+        wordNode = historyNode.getNGramNode([wordID])
+        if wordNode != None:
+            discountedCount = wordNode.count - self.discountingParameters[len(wordHistory)]
             probability += max(discountedCount / float(historyNode.count), 0.0)
 
         return probability
@@ -318,6 +317,7 @@ class LanguageModel():
         for line in corpus:
             currentStringWords = line.strip().split(' ')
             currentWordIDs = [self.corpusVocabulary.startSymbolWordID()]
+
             for word_idx in range(0, len(currentStringWords)):
 
                 currentWordID = self.corpusVocabulary.index(currentStringWords[word_idx])
@@ -327,7 +327,7 @@ class LanguageModel():
 
             currentWordIDs.append(self.corpusVocabulary.endSymbolWordID())
             LL += np.log(self.score(currentWordIDs[len(currentWordIDs)-1], [currentWordIDs[len(currentWordIDs) - 2]]))
-            numRunningWords += len(currentStringWords)-1
+            numRunningWords += len(currentStringWords)+1
 
         PP = np.exp(-LL/numRunningWords)
         return PP
