@@ -74,7 +74,7 @@ class LanguageModel():
 
         print "Sum of unigram probabilities:", unigramProbabilities
         print "Sum of bigram probabilities:", bigramProbabilities
-        print "Perplexity: ", self.perplexity(testCorpusFile, self.corpusVocabulary)
+        print "Perplexity: ", self.perplexity(testCorpusFile)
         ######################## 4 ##########################
 
         print "Computing lower n-gram counts from 3-gram counts..."
@@ -153,11 +153,10 @@ class LanguageModel():
         corpus = open(corpusFile, 'r')
         sentenceCounter = 0
         unknownWords = 0.0
-        unknowWordId = vocabulary.index('<unk>')
-
+        unknowWordId = vocabulary.unknownWordID()
         for line in corpus:
             currentStringWords = line.strip().split(' ')
-            currentWordIDs =  [vocabulary.index("<s>")]
+            currentWordIDs =  [vocabulary.startSymbolWordID()]
             for word_idx in range(0, len(currentStringWords)):
                 currentWordID = vocabulary.index(currentStringWords[word_idx])
                 currentWordIDs.append(currentWordID)
@@ -166,7 +165,7 @@ class LanguageModel():
 
                     unknownWords += 1
                     #print unknownWords
-            currentWordIDs.append(vocabulary.index("</s>"))
+            currentWordIDs.append(vocabulary.endSymbolWordID())
 
             for i in range(0, len(currentWordIDs)):
                 currentNGram = currentWordIDs[i:i+n]
@@ -325,26 +324,30 @@ class LanguageModel():
             discountedCount = nGramNode.count - self.discountingParameters[len(wordHistory)]
             probability += max(discountedCount / float(historyNode.count), 0.0)
         return probability
-    def perplexity (self, testCorpusFile, vocabulary=Vocabulary()):
+
+    def perplexity(self, testCorpusFile):
+        """
+        Computes perplexity based on the vocabulary of the 'train corpus'
+        :param testCorpusFile:
+        :return:
+        """
         LL = 0.0
         corpus = open(testCorpusFile, 'r')
-        unknowWordId = vocabulary.index('<unk>')
-        #print unknowWordId
-        numRunningWords = 0;
+        numRunningWords = 0
         for line in corpus:
             currentStringWords = line.strip().split(' ')
-            currentWordIDs = [vocabulary.index("<s>")]
+            currentWordIDs = [self.corpusVocabulary.startSymbolWordID()]
             for word_idx in range(0, len(currentStringWords)):
-                currentWordID = vocabulary.index(currentStringWords[word_idx])
+                currentWordID = self.corpusVocabulary.index(currentStringWords[word_idx])
                 currentWordIDs.append(currentWordID)
-                #if word_idx != 0:
                 LL += np.log(self.score(currentWordIDs[word_idx + 1], [currentWordIDs[word_idx]]))
-            currentWordIDs.append(vocabulary.index("</s>"))
+            currentWordIDs.append(self.corpusVocabulary.endSymbolWordID())
             LL += np.log(self.score(currentWordIDs[len(currentWordIDs)-1], [currentWordIDs[len(currentWordIDs) - 2]]))
             numRunningWords += len(currentStringWords)-1
-            #print len(currentStringWords)
+
         PP = np.exp(-LL/numRunningWords)
         return PP
+
 vocabulary = '../../data/lm/vocabulary'
 testCorpus = '../../data/lm/test'
 corpusFile = '../../data/lm/corpus'
