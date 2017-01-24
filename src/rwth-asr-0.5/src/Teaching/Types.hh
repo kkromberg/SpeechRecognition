@@ -16,9 +16,11 @@ namespace Teaching
     typedef std::vector<Mixture> MixtureSequence;
     typedef float Score;
 
-    static const Word  invalidWord  = std::numeric_limits<Word>::max();
-    static const Index invalidIndex = std::numeric_limits<Index>::max();
-    static const Score maxScore     = std::numeric_limits<Score>::max();
+    static const Word  invalidWord    = std::numeric_limits<Word>::max();
+    static const Index invalidIndex   = std::numeric_limits<Index>::max();
+    static const Score maxScore       = std::numeric_limits<Score>::max();
+    static const Score invalidPhoneme = std::numeric_limits<Phoneme>::max();
+
 }
 
 #endif // _TEACHING_TYPES_HH

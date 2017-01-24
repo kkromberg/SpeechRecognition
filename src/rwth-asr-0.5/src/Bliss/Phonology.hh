@@ -23,87 +23,87 @@
 
 namespace Bliss {
 
-    /**
-     * Abstract base class for all types of allophones.
-     *
-     * This class is currently empty and is here for purely structural
-     * reasons.
-     *
-     * We could have used the term "phone" but it's too easily
-     * confusable with "phoneme".
-     */
+/**
+ * Abstract base class for all types of allophones.
+ *
+ * This class is currently empty and is here for purely structural
+ * reasons.
+ *
+ * We could have used the term "phone" but it's too easily
+ * confusable with "phoneme".
+ */
 
-    class Allophone {};
-
-
-    /**
-     * Abstract base-class for all phonological models.
-     *
-     * We use the term "phonology" for any mapping from phonemes
-     * (broad, word-discriminating acoustic units) to allopohnes
-     * (narrow, sound-oriented units).
-     *
-     * Currently @c Phonology is empty and serves purely structural
-     * purposes.
-     */
-
-    class Phonology {};
+class Allophone {};
 
 
-    /**
-     * Phonology for context dependent phonemes.
-     *
-     * The @c ContextPhonology allophone is the @c PhonemeInContext.
-     * A phoneme in context is defined by its underlying phoneme and
-     * its left and right context phonemes.  Such units are commonly
-     * referred to as "n-phones" (e.g. triphone, quinphone,...).
-     *
-     * The conversion from a phoneme graph to a context-dependent
-     * phoneme graph involves replication of vertices and edges
-     * according to the various contexts in which they occur.  The
-     * current implementation proceeds as follows:
-     * -# Determine all left contexts (histories) of each vertex.
-     * -# Determine all right contexts (futures) of each vertex.
-     * -# For each phoneme graph vertex build the cartesian product of
-     * left and right contexts and create an allophone graph vertex
-     * for each context.
-     */
+/**
+ * Abstract base-class for all phonological models.
+ *
+ * We use the term "phonology" for any mapping from phonemes
+ * (broad, word-discriminating acoustic units) to allopohnes
+ * (narrow, sound-oriented units).
+ *
+ * Currently @c Phonology is empty and serves purely structural
+ * purposes.
+ */
 
-    class ContextPhonology :
-	public Phonology,
-	public Core::ReferenceCounted
-    {
-    public:
+class Phonology {};
+
+
+/**
+ * Phonology for context dependent phonemes.
+ *
+ * The @c ContextPhonology allophone is the @c PhonemeInContext.
+ * A phoneme in context is defined by its underlying phoneme and
+ * its left and right context phonemes.  Such units are commonly
+ * referred to as "n-phones" (e.g. triphone, quinphone,...).
+ *
+ * The conversion from a phoneme graph to a context-dependent
+ * phoneme graph involves replication of vertices and edges
+ * according to the various contexts in which they occur.  The
+ * current implementation proceeds as follows:
+ * -# Determine all left contexts (histories) of each vertex.
+ * -# Determine all right contexts (futures) of each vertex.
+ * -# For each phoneme graph vertex build the cartesian product of
+ * left and right contexts and create an allophone graph vertex
+ * for each context.
+ */
+
+class ContextPhonology :
+		public Phonology,
+		public Core::ReferenceCounted
+		{
+		public:
 	class SemiContext :
-	    public std::basic_string<Phoneme::Id, Phoneme::Id_char_traits>
+			public std::basic_string<Phoneme::Id, Phoneme::Id_char_traits>
 	{
 	public:
-	    typedef std::basic_string<Phoneme::Id, Phoneme::Id_char_traits> Precursor;
-	    SemiContext() {};
-	    SemiContext(Phoneme::Id p) : Precursor(1, p) {}
-	    SemiContext(size_t s, Phoneme::Id p = Phoneme::term) : Precursor(s, p) {}
-	    SemiContext(const SemiContext &o) : Precursor(o) {}
+		typedef std::basic_string<Phoneme::Id, Phoneme::Id_char_traits> Precursor;
+		SemiContext() {};
+		SemiContext(Phoneme::Id p) : Precursor(1, p) {}
+		SemiContext(size_t s, Phoneme::Id p = Phoneme::term) : Precursor(s, p) {}
+		SemiContext(const SemiContext &o) : Precursor(o) {}
 
-	    bool empty() const;
+		bool empty() const;
 
-	    struct Hash { u32 operator() (const SemiContext &sc) const; };
+		struct Hash { u32 operator() (const SemiContext &sc) const; };
 	};
 	struct Context {
-	    SemiContext history, future;
-	    Context() {}
-	    Context(const SemiContext &h, const SemiContext &f) : history(h), future(f) {}
-	    bool operator== (const Context &rhs) const {
-		return history == rhs.history
-		    && future  == rhs.future;
-	    }
-	    struct Hash {
-		SemiContext::Hash sch;
-		u32 operator() (const Context &c) const;
-	    };
+		SemiContext history, future;
+		Context() {}
+		Context(const SemiContext &h, const SemiContext &f) : history(h), future(f) {}
+		bool operator== (const Context &rhs) const {
+			return history == rhs.history
+					&& future  == rhs.future;
+		}
+		struct Hash {
+			SemiContext::Hash sch;
+			u32 operator() (const Context &c) const;
+		};
 	};
 	class PhonemeInContext;
 	typedef PhonemeInContext Allophone;
-    private:
+			private:
 	PhonemeInventoryRef pi_;
 	s32 maximumHistoryLength_;
 	s32 maximumFutureLength_;
@@ -125,10 +125,10 @@ namespace Bliss {
 	 */
 	static void push(SemiContext&, Phoneme::Id, s32 maximumLength);
 
-    public:
+			public:
 	ContextPhonology(PhonemeInventoryRef,
-			 u32 maximumHistoryLength = 1,
-			 u32 maximumFutureLength  = 1);
+			u32 maximumHistoryLength = 1,
+			u32 maximumFutureLength  = 1);
 
 	PhonemeInventoryRef getPhonemeInventory() const { return pi_; }
 	s32 maximumHistoryLength() const { return maximumHistoryLength_; }
@@ -145,30 +145,30 @@ namespace Bliss {
 
 	Allophone allophone(const Pronunciation&, int i) const;
 	Allophone operator() (const Pronunciation &p, int i) const;
-    };
-    typedef Core::Ref<const ContextPhonology> ContextPhonologyRef;
+		};
+typedef Core::Ref<const ContextPhonology> ContextPhonologyRef;
 
 
-    class ContextPhonology::PhonemeInContext :
-	public Bliss::Allophone
-    {
-    private:
+class ContextPhonology::PhonemeInContext :
+		public Bliss::Allophone
+		{
+		private:
 	friend class ContextPhonology;
 	Phoneme::Id phoneme_;
 	Context context_;
 
-    public:
+		public:
 	PhonemeInContext() : phoneme_(Phoneme::term) {};
 	PhonemeInContext(Phoneme::Id phoneme, const SemiContext &history = SemiContext(), const SemiContext &future = SemiContext()) :
-	    phoneme_(phoneme), context_(history, future) {}
+		phoneme_(phoneme), context_(history, future) {}
 
 	bool operator== (const PhonemeInContext &rhs) const {
-	    return phoneme_ == rhs.phoneme_
-		&& context_ == rhs.context_;
+		return phoneme_ == rhs.phoneme_
+				&& context_ == rhs.context_;
 	}
 
 	bool operator!= (const PhonemeInContext &rhs) const {
-	    return !(this->operator==(rhs));
+		return !(this->operator==(rhs));
 	}
 
 	Phoneme::Id central() const { return phoneme_; }
@@ -177,32 +177,32 @@ namespace Bliss {
 	void setPhoneme(s16 pos = 0, Phoneme::Id = Phoneme::term);
 
 	const Context &context() const {
-	    return context_;
+		return context_;
 	}
 	const SemiContext &history() const {
-	    return context_.history;
+		return context_.history;
 	}
 	void setHistory(const SemiContext &history) {
-	    context_.history = history;
+		context_.history = history;
 	}
 	const SemiContext &future() const {
-	    return context_.future;
+		return context_.future;
 	}
 	void setFuture(const SemiContext &future) {
-	    context_.future = future;
+		context_.future = future;
 	}
 
-    private:
+		private:
 	std::string formatPhoneme(Core::Ref<const PhonemeInventory>, Phoneme::Id) const;
-    public:
+		public:
 	std::string format(Core::Ref<const PhonemeInventory>) const;
 
 	struct Hash {
-	    Context::Hash ch;
-	    u32 operator() (const PhonemeInContext&) const;
+		Context::Hash ch;
+		u32 operator() (const PhonemeInContext&) const;
 	};
 	friend class PhonemeInContext::Hash;
-    };
+		};
 
 } // namespace Bliss
 

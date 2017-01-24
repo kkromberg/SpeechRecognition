@@ -23,68 +23,68 @@
 #include <Am/ClassicHmmTopologySet.hh>
 
 namespace Am {
-    typedef ClassicHmmTopologySet HmmTopologySet;
-    typedef ClassicHmmTopologySetRef HmmTopologySetRef;
+typedef ClassicHmmTopologySet HmmTopologySet;
+typedef ClassicHmmTopologySetRef HmmTopologySetRef;
 
 
 
-    class Phonology : public Bliss::ContextPhonology {
+class Phonology : public Bliss::ContextPhonology {
 	typedef Bliss::ContextPhonology Precursor;
-    public:
+public:
 	static const Core::ParameterInt  paramHistoryLength;
 	static const Core::ParameterInt  paramFutureLength;
 	static const Core::ParameterBool paramCrossWord;
-    private:
+private:
 	bool isCrossWord_;
-    public:
+public:
 	Phonology(const Core::Configuration &config, Bliss::PhonemeInventoryRef pi);
 	bool isCrossWord() const { return isCrossWord_; }
 	void setCrossWord(bool isCrossWord);
-    };
-    typedef Core::Ref<const Phonology> ConstPhonologyRef;
+};
+typedef Core::Ref<const Phonology> ConstPhonologyRef;
 
 
-    struct Allophone: public Phonology::Allophone {
+struct Allophone: public Phonology::Allophone {
 	typedef Phonology::Allophone Precursor;
 	u8 boundary;
 	static const u8 isWithinPhone;
 	static const u8 isInitialPhone;
 	static const u8 isFinalPhone;
 	Allophone() :
-	    Precursor() {}
+		Precursor() {}
 	Allophone(Bliss::Phoneme::Id phoneme, s16 b) :
-	    Precursor(phoneme), boundary(b) {}
+		Precursor(phoneme), boundary(b) {}
 	Allophone(const Phonology::Allophone &a, s16 b) :
-	    Precursor(a), boundary(b) {}
+		Precursor(a), boundary(b) {}
 
 	bool operator== (const Allophone &allo) const {
-	    return (boundary == allo.boundary)
-		&& Precursor::operator==(allo);
+		return (boundary == allo.boundary)
+				&& Precursor::operator==(allo);
 	}
 
 	struct Hash {
-	    Phonology::Allophone::Hash ah;
-	    u32 operator()(const Allophone &a) const {
-		return ah(a) ^ (u32(a.boundary) << 13);
-	    }
+		Phonology::Allophone::Hash ah;
+		u32 operator()(const Allophone &a) const {
+			return ah(a) ^ (u32(a.boundary) << 13);
+		}
 	};
 
 	bool hasBoundary() { return boundary != 0; }
-    };
-    typedef Fsa::LabelId AllophoneIndex;
+};
+typedef Fsa::LabelId AllophoneIndex;
 
 
-    class ClassicTransducerBuilder;
+class ClassicTransducerBuilder;
 
-    /*
+/*
       The first 26 bits of the allphone state id are used for the allophone index;
       the latter 6 bits for the state
       => the max. id for the allophone index is 2^26
-    */
-    class AllophoneAlphabet : public Fsa::Alphabet, public Core::Component {
+ */
+class AllophoneAlphabet : public Fsa::Alphabet, public Core::Component {
 	typedef Fsa::Alphabet Precursor;
 	friend class ClassicTransducerBuilder;
-    public:
+public:
 	static const Fsa::LabelId MaxId             = 0x03ffffff;
 	static const Fsa::LabelId DisambiguatorFlag = 0x40000000;
 
@@ -96,19 +96,19 @@ namespace Am {
 	static const Core::ParameterBool paramAddFromLexicon;
 	static const Core::ParameterBool paramAddAll;
 
-    private:
+private:
 	struct AllophonePtrHash {
-	    Allophone::Hash h;
-	    size_t operator()(const Allophone* const a) const { return h(*a); }
+		Allophone::Hash h;
+		size_t operator()(const Allophone* const a) const { return h(*a); }
 	};
 	struct AllophonePtrEq {
-	    bool operator()(const Allophone* const a, const Allophone* const b) const { return *a == *b; }
+		bool operator()(const Allophone* const a, const Allophone* const b) const { return *a == *b; }
 	};
 	typedef Core::hash_map<const Allophone*, Fsa::LabelId, AllophonePtrHash, AllophonePtrEq> AllophoneMap;
-    public:
+public:
 	typedef std::vector<const Allophone*> AllophoneList;
 
-    private:
+private:
 	ConstPhonologyRef phonology_;
 	Core::Ref<const Bliss::PhonemeInventory> pi_;
 	bool isCrossWord_;
@@ -119,10 +119,10 @@ namespace Am {
 
 	mutable Fsa::LabelId nDisambiguators_;
 
-    protected:
+protected:
 	/*
 	  takes ownership
-	*/
+	 */
 	std::pair<AllophoneMap::iterator, bool> insert(const Allophone *allo) const;
 	std::pair<AllophoneMap::iterator, bool> insert(const Allophone &allo) const;
 	std::pair<AllophoneMap::iterator, bool> createAndInsert
@@ -130,33 +130,33 @@ namespace Am {
 
 	/*
 	  reset
-	*/
+	 */
 	void clear();
 
 	/*
 	  Index all allophones
-	*/
+	 */
 	void add(Core::Ref<const Bliss::PhonemeInventory> pi);
 	/*
 	  Index allophones in lexicon
-	*/
+	 */
 	void add(Bliss::LexiconRef lexicon);
 	/*
 	  Index allophones listed in file
-	*/
+	 */
 	void load(const std::string &filename);
 
 	/*
 	  Store list of allophones in alphabet
-	*/
+	 */
 	void store(const std::string &filename);
 
 	/*
 	  Remember silence phonemes from lexicon
-	*/
+	 */
 	void setSilence(Bliss::LexiconRef lexicon);
 
-    public:
+public:
 	AllophoneAlphabet(const Core::Configuration &config, ConstPhonologyRef phonology, Bliss::LexiconRef lexicon);
 	virtual ~AllophoneAlphabet();
 
@@ -165,9 +165,9 @@ namespace Am {
 	bool hasIndex(const Allophone*) const;
 
 	const Allophone * allophone(const Allophone &allo) const
-	    { return allophone(index(&allo)); }
+	{ return allophone(index(&allo)); }
 	Fsa::LabelId index(const Allophone &allo) const
-	    { return index(&allo); }
+	{ return index(&allo); }
 
 	virtual std::string symbol(Fsa::LabelId) const;
 	virtual Fsa::LabelId index(const std::string &symbol) const;
@@ -176,21 +176,21 @@ namespace Am {
 	std::string toString(const Allophone &allo) const;
 
 	bool isSilence(const Allophone &allo) const
-	    { return silPhonemes_.find(allo.central()) != silPhonemes_.end(); }
+	{ return silPhonemes_.find(allo.central()) != silPhonemes_.end(); }
 
 	const AllophoneList & allophones() const {
-	    return allophones_;
+		return allophones_;
 	}
 
 	ConstPhonologyRef phonology() const {
-	    return phonology_;
+		return phonology_;
 	}
 	Fsa::LabelId nClasses() const {
-	    return allophones_.size();
+		return allophones_.size();
 	}
 
 	Fsa::LabelId nDisambiguators() const {
-	    return nDisambiguators_;
+		return nDisambiguators_;
 	}
 	Fsa::LabelId disambiguator(Fsa::LabelId d) const;
 	virtual bool isDisambiguator(Fsa::LabelId id) const;
@@ -201,99 +201,99 @@ namespace Am {
 	virtual void writeXml(Core::XmlWriter &os) const;
 	void dump(Core::XmlWriter &xml) const;
 	void dumpPlain(std::ostream &os) const;
-    };
-    typedef Core::Ref<const AllophoneAlphabet> ConstAllophoneAlphabetRef;
+};
+typedef Core::Ref<const AllophoneAlphabet> ConstAllophoneAlphabetRef;
 
 
-    class AllophoneState {
+class AllophoneState {
 	friend class AllophoneStateAlphabet;
-    private:
+private:
 	const Allophone *allo_;
 	s16 state_;
-    private:
+private:
 	AllophoneState(const Allophone *allo, s16 state) :
-	    allo_(allo), state_(state) {}
-    public:
+		allo_(allo), state_(state) {}
+public:
 	AllophoneState() :
-	    allo_(0), state_(0) {}
+		allo_(0), state_(0) {}
 
 	operator const Allophone*() const {
-	    require(allo_);
-	    return allo_;
+		require(allo_);
+		return allo_;
 	}
 
 	operator const Allophone&() const {
-	    require(allo_);
-	    return *allo_;
+		require(allo_);
+		return *allo_;
 	}
 
 	AllophoneState & operator= (const AllophoneState &alloState) {
-	    allo_ = alloState.allo_;
-	    state_ = alloState.state_;
-	    return *this;
+		allo_ = alloState.allo_;
+		state_ = alloState.state_;
+		return *this;
 	}
 
 	bool operator== (const AllophoneState &alloState) const {
-	    return (allo_ == alloState.allo_)
-		&& (state_ == alloState.state_);
+		return (allo_ == alloState.allo_)
+				&& (state_ == alloState.state_);
 	}
 
 	const Allophone *allophone() const { require(allo_); return allo_; }
 	s16 state() const { return state_; }
 
 	struct Hash {
-	    Allophone::Hash ah;
-	    u32 operator()(const AllophoneState &alloState) const {
-		return ah(alloState) ^ (u32(alloState.state()) << 21);
-	    }
+		Allophone::Hash ah;
+		u32 operator()(const AllophoneState &alloState) const {
+			return ah(alloState) ^ (u32(alloState.state()) << 21);
+		}
 	};
-    };
-    typedef Fsa::LabelId AllophoneStateIndex;
+};
+typedef Fsa::LabelId AllophoneStateIndex;
 
 
-    class AllophoneStateAlphabet;
-    typedef Core::Ref<const AllophoneStateAlphabet> ConstAllophoneStateAlphabetRef;
+class AllophoneStateAlphabet;
+typedef Core::Ref<const AllophoneStateAlphabet> ConstAllophoneStateAlphabetRef;
 
 
-    class AllophoneStateIterator {
+class AllophoneStateIterator {
 	friend class AllophoneStateAlphabet;
-    private:
+private:
 	ConstAllophoneStateAlphabetRef asAlphabet_;
 	mutable AllophoneAlphabet::AllophoneList::const_iterator itAllo_, endAllo_;
 	mutable s16 state_, endState_;
-    private:
+private:
 	AllophoneStateIterator(ConstAllophoneStateAlphabetRef asAlphabet);
 	void resetState() const;
-    public:
+public:
 	void operator++ () const
-	    { if (++state_ == endState_) { ++itAllo_; resetState(); } }
+	{ if (++state_ == endState_) { ++itAllo_; resetState(); } }
 	bool operator!= (const AllophoneStateIterator &it) const
-	    { return (itAllo_ != it.itAllo_) || (state_ != it.state_); }
+	    		{ return (itAllo_ != it.itAllo_) || (state_ != it.state_); }
 	AllophoneState operator* () const
-	    { return allophoneState(); }
+	    		{ return allophoneState(); }
 	Fsa::LabelId id() const;
 	AllophoneState allophoneState () const;
-    };
+};
 
 
-    class AllophoneStateAlphabet : public Fsa::Alphabet, public Core::Component {
+class AllophoneStateAlphabet : public Fsa::Alphabet, public Core::Component {
 	friend class AllophoneStateIterator;
-    public:
+public:
 	static const s16 MaxStateId = 0x000f;
 	static const Fsa::LabelId StateMask = 0x3c000000;
 
-    private:
+private:
 	ConstAllophoneAlphabetRef allophoneAlphabet_;
 	HmmTopologySetRef hmmTopologies_;
 
-    public:
+public:
 	AllophoneStateAlphabet(
-	    const Core::Configuration &config,
-	    ConstAllophoneAlphabetRef allophoneAlphabet,
-	    ClassicHmmTopologySetRef hmmTopologies);
+			const Core::Configuration &config,
+			ConstAllophoneAlphabetRef allophoneAlphabet,
+			ClassicHmmTopologySetRef hmmTopologies);
 
 	bool isSilence(const AllophoneState &alloState) const
-	    { return allophoneAlphabet_->isSilence(alloState); }
+	{ return allophoneAlphabet_->isSilence(alloState); }
 
 	AllophoneState allophoneState(Fsa::LabelId) const;
 	AllophoneState allophoneState(const Allophone *allo, s16 state) const;
@@ -312,13 +312,13 @@ namespace Am {
 	Fsa::LabelId nClasses() const;
 
 	Fsa::LabelId nDisambiguators() const {
-	    return allophoneAlphabet_->nDisambiguators();
+		return allophoneAlphabet_->nDisambiguators();
 	}
 	Fsa::LabelId disambiguator(Fsa::LabelId d) const {
-	    return allophoneAlphabet_->disambiguator(d);
+		return allophoneAlphabet_->disambiguator(d);
 	}
 	virtual bool isDisambiguator(Fsa::LabelId id) const {
-	    return allophoneAlphabet_->isDisambiguator(id);
+		return allophoneAlphabet_->isDisambiguator(id);
 	}
 
 	virtual const_iterator begin() const;
@@ -327,12 +327,12 @@ namespace Am {
 	virtual void writeXml(Core::XmlWriter &os) const;
 	void dump(Core::XmlWriter &xml) const;
 	void dumpPlain(std::ostream &os) const;
-    };
+};
 
 
-    class ClassicStateModel : public Core::ReferenceCounted {
+class ClassicStateModel : public Core::ReferenceCounted {
 	friend class ClassicAcousticModel;
-    private:
+private:
 	ConstPhonologyRef phonologyRef_;
 	Core::Ref<const Bliss::PhonemeInventory> piRef_;
 	ConstAllophoneAlphabetRef allophoneAlphabetRef_;
@@ -340,13 +340,13 @@ namespace Am {
 	HmmTopologySetRef hmmTopologySetRef_;
 	std::vector<std::string> conditions_;
 
-    public:
+public:
 	ClassicStateModel(
-	    ConstPhonologyRef phonologyRef,
-	    ConstAllophoneAlphabetRef allophoneAlphabetRef,
-	    ConstAllophoneStateAlphabetRef allophoneStateAlphabetRef,
-	    HmmTopologySetRef hmmTopologySetRef,
-	    std::vector<std::string> conditions = std::vector<std::string>());
+			ConstPhonologyRef phonologyRef,
+			ConstAllophoneAlphabetRef allophoneAlphabetRef,
+			ConstAllophoneStateAlphabetRef allophoneStateAlphabetRef,
+			HmmTopologySetRef hmmTopologySetRef,
+			std::vector<std::string> conditions = std::vector<std::string>());
 
 	const Phonology & phonology() const { return *phonologyRef_; }
 	ConstPhonologyRef getPhonology() const { return phonologyRef_; }
@@ -366,8 +366,8 @@ namespace Am {
 	const ClassicHmmTopology * hmmTopology(const Allophone *allo) const;
 
 	const std::vector<std::string> & conditions() const { return conditions_; }
-    };
-    typedef Core::Ref<const ClassicStateModel> ClassicStateModelRef;
+};
+typedef Core::Ref<const ClassicStateModel> ClassicStateModelRef;
 
 } // namespace Am
 
