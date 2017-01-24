@@ -1,0 +1,4 @@
+*.linux-x86_64-standard
+*.a
+.build
+Modules.hh
