@@ -223,7 +223,13 @@ TreeLexicon::TreeLexicon(const Lexicon &lexicon) {
 			queue.push(*iter);
 
 			// Define the node
-			output << childrenBegin + childNumber << " [label=\"" << childrenBegin + childNumber << "\"] \n";
+			if ((*iter)->endingWord != invalidWord){
+				std::cout << "Ending word: " << lexicon.symbol((*iter)->endingWord) << std::endl;
+				output << childrenBegin + childNumber << " [label=\"" << lexicon.symbol((*iter)->endingWord) << "\"] \n";
+			}
+			else{
+				output << childrenBegin + childNumber << " [label=\"" << childrenBegin + childNumber << "\"] \n";
+			}
 
 			// Define the edge
 			output << nodeIndex << "->" << childrenBegin + childNumber << " [label=\"" << lexicon.format(*(*iter)->allophone) << "\"] \n";
