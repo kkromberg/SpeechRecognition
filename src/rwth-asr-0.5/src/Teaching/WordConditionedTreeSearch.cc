@@ -224,7 +224,6 @@ TreeLexicon::TreeLexicon(const Lexicon &lexicon) {
 
 			// Define the node
 			if ((*iter)->endingWord != invalidWord){
-				std::cout << "Ending word: " << lexicon.symbol((*iter)->endingWord) << std::endl;
 				output << childrenBegin + childNumber << " [label=\"" << lexicon.symbol((*iter)->endingWord) << "\"] \n";
 			}
 			else{
@@ -252,9 +251,6 @@ TreeLexicon::TreeLexicon(const Lexicon &lexicon) {
 	std::cout << "Number of words / phonemes in lexicon: " << lexicon.nWords() << " " << nPhonemes << std::endl;
 	std::cout << "Compression factor: " << ((float)nPhonemes) / (treeLexiconArcs_.size() - 1) << std::endl;
 	std::cout << "Done with BFS" << std::endl;
-
-	int *p = 0;
-	*p = 0;
 }
 
 // -------------------------------------------------------------------------------------------------
