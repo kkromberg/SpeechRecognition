@@ -43,32 +43,38 @@ private:
 	const Mixture silenceMixture_;
 
 	struct PrefixTreeNode;
-	typedef std::set<PrefixTreeNode> PrefixTree;
-	typedef std::set<PrefixTreeNode>::const_iterator PrefixTreeIterator;
+	typedef std::vector<PrefixTreeNode*> PrefixTree;
+	typedef std::vector<PrefixTreeNode*>::const_iterator PrefixTreeIterator;
 
 	struct PrefixTreeNode {
-
-		MixtureSequence mixtures;
-
 		Word endingWord;
-		// arcs
-		Am::Allophone allophone;
+
+		const Am::Allophone* allophone;
+
 		PrefixTree children;
 
+		MixtureSequence mixtures;
 		// root node
-		PrefixTreeNode(Am::Allophone allophone) : endingWord(invalidWord), allophone(allophone), phoneme(invalidPhoneme) {
+		PrefixTreeNode(const Am::Allophone* allophone) : endingWord(invalidWord), allophone(allophone) {
 		}
 
-		PrefixTreeNode(Word word, MixtureSequence mixtures, Am::Allophone allophone)
+		PrefixTreeNode(Word word, MixtureSequence mixtures, const Am::Allophone* allophone)
 		: endingWord(word), allophone(allophone), mixtures(mixtures) {
 		}
+
 
 		bool operator==(const PrefixTreeNode &other){
 			return other.allophone == allophone;
 		}
 
-		void addChild(const PrefixTreeNode &prefixTreeNode){
-			children.insert(prefixTreeNode);
+		bool operator==(const PrefixTreeNode *other){
+			return other->allophone == allophone;
+		}
+
+		~PrefixTreeNode() {
+			for (PrefixTreeIterator iter = children.begin(); iter != children.end(); iter++) {
+				delete *iter;
+			}
 		}
 	};
 
@@ -144,57 +150,105 @@ public:
 	inline Mixture silenceMixture() const {
 		return silenceMixture_;
 	}
+
+	bool prefixTreeNodeComparator(const PrefixTreeNode* x, const PrefixTreeNode* y) {
+		return *x == *y;
+	}
 };
+
 
 TreeLexicon::TreeLexicon(const Lexicon &lexicon) {
 	//TODO
-	PrefixTreeNode rootNode = PrefixTreeNode(Am::Allophone());
+	std::cout << "Constructing a tree lexicon" << std::endl;
+	PrefixTreeNode* rootNode =  new PrefixTreeNode(NULL);
 	nWords_ = lexicon.nWords();
-	unsigned int current_phoneme = 0;
+
+	unsigned nPhonemes = 0;
 	// parse words
 	for (size_t word = 0; word < nWords_; word++) {
 		// parse phonemes
-		PrefixTreeNode currentNode = rootNode;
+		PrefixTreeNode* currentNode = rootNode;
 		for (size_t phoneme_pos = 0; phoneme_pos < lexicon.nPhonemes(word); phoneme_pos++){
-			current_phoneme = lexicon.getPhoneme(word, phoneme_pos);
+			//current_phoneme = lexicon.getPhoneme(word, phoneme_pos);
 
-			MixtureSequence sequences = *lexicon.mixtures(word, current_phoneme);
-			Am::Allophone allophone = lexicon.allophone(word, phoneme_pos);
+			MixtureSequence sequences = *lexicon.mixtures(word, phoneme_pos);
 
-			PrefixTreeNode newNode(invalidWord, sequences, allophone);
+			const Am::Allophone* allophone = lexicon.allophone(word, phoneme_pos);
+
+			PrefixTreeNode* newNode = new PrefixTreeNode(invalidWord, sequences, allophone);
 			if (phoneme_pos == lexicon.nPhonemes(word) - 1) {
-				newNode.endingWord = word;
+				newNode->endingWord = word;
 			}
-			currentNode.addChild(newNode);
-			currentNode = newNode;
+
+			PrefixTreeIterator child =  currentNode->children.begin();
+			for (; child != currentNode->children.end(); child++) {
+				if (**child == *newNode) {
+					break;
+				}
+			}
+
+			if (child == currentNode->children.end()) {
+				// node has NOT been found
+				currentNode->children.push_back(newNode);
+				currentNode = *currentNode->children.rbegin();
+			} else {
+				// node has been found
+				currentNode = *child;
+				delete newNode;
+			}
+
+			nPhonemes++;
 		}
 	}
 
+	std::cout << "Built the prefix tree. \nStarting BFS" << std::endl;
+
 	//breadth first search
-	std::queue<const PrefixTreeNode*> queue;
-	const PrefixTreeNode* currentNode = rootNode;
+	std::queue<PrefixTreeNode*> queue;
+	PrefixTreeNode* currentNode = rootNode;
 	queue.push(currentNode);
 
 	unsigned int childrenBegin = 1;
 	unsigned int nodeIndex = 0;
+
+	std::ofstream output("prefix-tree.dot");
+	output << "digraph graphname {" << std::endl;
+	output << "0 [ label=\"ROOT\"]" << std::endl;
 	while (!queue.empty()) {
 		currentNode = queue.front();
 		queue.pop();
 
-		treeLexiconArcs_.resize(treeLexiconArcs_.size() + currentNode->children.size());
-		for (PrefixTreeIterator iter = currentNode->children.begin(); iter != currentNode->children.end(); iter++) {
-			queue.push(&*iter);
+		unsigned childNumber = 0;
+		for (PrefixTreeIterator iter = currentNode->children.begin(); iter != currentNode->children.end(); childNumber++, iter++) {
+			queue.push(*iter);
+
+			// Define the node
+			output << childrenBegin + childNumber << " [label=\"" << childrenBegin + childNumber << "\"] \n";
+
+			// Define the edge
+			output << nodeIndex << "->" << childrenBegin + childNumber << " [label=\"" << lexicon.format(*(*iter)->allophone) << "\"] \n";
+
 		}
 
 		TreeLexiconArc currentArc(childrenBegin,
 															childrenBegin + currentNode->children.size(),
 															currentNode->endingWord,
 															currentNode->mixtures);
-		treeLexiconArcs_[nodeIndex] = currentArc;
+		treeLexiconArcs_.push_back(currentArc);
 
 		childrenBegin += currentNode->children.size();
 		nodeIndex++;
 	}
+	output << "}" << std::endl;
+	output.close();
+
+	std::cout << "Arcs in prefix tree: " << treeLexiconArcs_.size() << std::endl;
+	std::cout << "Number of words / phonemes in lexicon: " << lexicon.nWords() << " " << nPhonemes << std::endl;
+	std::cout << "Compression factor: " << ((float)nPhonemes) / (treeLexiconArcs_.size() - 1) << std::endl;
+	std::cout << "Done with BFS" << std::endl;
+
+	int *p = 0;
+	*p = 0;
 }
 
 // -------------------------------------------------------------------------------------------------
