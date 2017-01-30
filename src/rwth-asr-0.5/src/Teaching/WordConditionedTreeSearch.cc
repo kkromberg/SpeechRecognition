@@ -247,6 +247,7 @@ TreeLexicon::TreeLexicon(const Lexicon &lexicon) {
 	output << "}" << std::endl;
 	output.close();
 
+  delete rootNode;
 	std::cout << "Arcs in prefix tree: " << treeLexiconArcs_.size() << std::endl;
 	std::cout << "Number of words / phonemes in lexicon: " << lexicon.nWords() << " " << nPhonemes << std::endl;
 	std::cout << "Compression factor: " << ((float)nPhonemes) / (treeLexiconArcs_.size() - 1) << std::endl;
@@ -918,6 +919,44 @@ void WordConditionedTreeSearch::SearchSpace::initTimeAlignment(Node nodes[], Hmm
 //TimeAlignAndUpdate_HypArr
 void WordConditionedTreeSearch::SearchSpace::computeTimeAlignment(const Arc arc, const AcousticModelScorer &amScorer, Score amThreshold) {
 	//TODO
+
+	// The number of states for a word also includes 2 virtual states
+	const size_t nStates = stateHypotheses_.size() - 2; // Use treeLexicon_.nStates() maybe?
+	const StateHypotheses::const_iterator stateHypothesesBegin = stateHypotheses_.begin();
+	const bool isSilence = treeLexicon_.silence() == treeLexicon_.endingWord(arc);
+
+	int stateIndex = -1;
+	for (StateHypotheses::const_iterator hyp = stateHypothesesBegin; hyp != stateHypotheses_.end(); hyp++, stateIndex++) {
+		// Do not expand pruned hypotheses
+		if (hyp->score > amThreshold) {
+			continue;
+		}
+
+		for (size_t jump = 0; jump <= maxSkip_; jump++) {
+			const int newStateIndex = stateIndex + jump;
+
+			if (newStateIndex < 1) {
+				// Check if we are expanding into a virtual state
+				continue;
+			}
+
+			if (newStateIndex > nStates) {
+				// Check if the new state index is larger than the max. number of states
+				break;
+			}
+
+			double newScore = hyp->score + transitionScores_[isSilence][jump];
+			const MixtureSequence& mixtures = treeLexicon_.mixtures(arc);
+			for (MixtureSequence::const_iterator mixture = mixtures.begin(); mixture != mixtures.end(); mixture++) {
+				newScore += amScorer(*mixture);
+			}
+
+			if (newScore < newStateHypotheses_[newStateIndex].score) {
+				newStateHypotheses_[newStateIndex].score = newScore;
+				newStateHypotheses_[newStateIndex].backpointer = hyp - stateHypothesesBegin;
+			}
+		}
+	}
 }
 
 //Update_AllArcArr
