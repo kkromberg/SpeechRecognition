@@ -919,44 +919,44 @@ void WordConditionedTreeSearch::SearchSpace::initTimeAlignment(Node nodes[], Hmm
 //TimeAlignAndUpdate_HypArr
 void WordConditionedTreeSearch::SearchSpace::computeTimeAlignment(const Arc arc, const AcousticModelScorer &amScorer, Score amThreshold) {
 	//TODO
-
+	const size_t nStates = treeLexicon_.nStates(arc);
+	HmmState maxState;
 	// The number of states for a word also includes 2 virtual states
-	const size_t nStates = stateHypotheses_.size() - 2; // Use treeLexicon_.nStates() maybe?
+	Node nodes[nStates + 2];
+	initTimeAlignment(nodes, maxState, arc, nStates);
+
 	const StateHypotheses::const_iterator stateHypothesesBegin = stateHypotheses_.begin();
 	const bool isSilence = treeLexicon_.silence() == treeLexicon_.endingWord(arc);
 
-	int stateIndex = -1;
-	for (StateHypotheses::const_iterator hyp = stateHypothesesBegin; hyp != stateHypotheses_.end(); hyp++, stateIndex++) {
-		// Do not expand pruned hypotheses
-		if (hyp->score > amThreshold) {
-			continue;
-		}
-
-		for (size_t jump = 0; jump <= maxSkip_; jump++) {
-			const int newStateIndex = stateIndex + jump;
-
-			if (newStateIndex < 1) {
-				// Check if we are expanding into a virtual state
+	std::vector<StateHypothesis> newStateHypotheses;
+	for (size_t stateIndex = 1; stateIndex < nStates; stateIndex++) {
+		bool createdNewState = false;
+		for (int prevStateIndex = stateIndex - maxSkip_; prevStateIndex <= stateIndex; prevStateIndex++) {
+			// Do not expand pruned hypotheses
+			if (nodes[prevStateIndex].score > amThreshold) {
 				continue;
 			}
 
-			if (newStateIndex > nStates) {
-				// Check if the new state index is larger than the max. number of states
-				break;
+			if (!createdNewState) {
+				newStateHypotheses.push_back(StateHypothesis(stateIndex, maxScore, nodes[prevStateIndex].backpointer));
+				createdNewState = true;
 			}
 
-			double newScore = hyp->score + transitionScores_[isSilence][jump];
+			double newScore = nodes[prevStateIndex].score + transitionScores_[isSilence][stateIndex - prevStateIndex];
 			const MixtureSequence& mixtures = treeLexicon_.mixtures(arc);
-			for (MixtureSequence::const_iterator mixture = mixtures.begin(); mixture != mixtures.end(); mixture++) {
-				newScore += amScorer(*mixture);
-			}
 
-			if (newScore < newStateHypotheses_[newStateIndex].score) {
-				newStateHypotheses_[newStateIndex].score = newScore;
-				newStateHypotheses_[newStateIndex].backpointer = hyp - stateHypothesesBegin;
+			// Compute the mixture index based on the 6-state HMM topology.
+			const size_t mixtureIndex = (stateIndex + 1) / 2 - 1;
+			newScore += amScorer(mixtures[mixtureIndex]);
+			StateHypothesis& newHypothesis = *newStateHypotheses.rbegin();
+			if (newScore < newHypothesis.score) {
+				newHypothesis.score = newScore;
+				newHypothesis.backpointer = prevStateIndex;
 			}
 		}
 	}
+
+	newStateHypotheses_.insert(newStateHypotheses_.begin() + newStateHypotheses_.size(), newStateHypotheses.begin(), newStateHypotheses.end());
 }
 
 //Update_AllArcArr
@@ -986,7 +986,13 @@ void WordConditionedTreeSearch::SearchSpace::writeBackTreeHypothesis(TreeHypothe
 
 //shiftAndPruneAndReportWordEnds
 void WordConditionedTreeSearch::SearchSpace::pruneStatesAndFindWordEnds(Score acousticPruningThreshold) {
-	//TODO
+	treeHypotheses_.clear();
+	arcHypotheses_.clear();
+	stateHypotheses_.clear();
+	for (TreeHypotheses::const_iterator treeHyp = treeHypotheses_.begin(); treeHyp != treeHypotheses_.end(); ++treeHyp) {
+		for (ArcIndexIterator arc = activeArcs_->begin(); arc != activeArcs_->end(); ++arc) {
+		}
+	}
 }
 
 //BigramRecombination
