@@ -998,6 +998,30 @@ void WordConditionedTreeSearch::SearchSpace::pruneStatesAndFindWordEnds(Score ac
 //BigramRecombination
 void WordConditionedTreeSearch::SearchSpace::bigramRecombination(const LanguageModelScorer &lmScore) {
 	//TODO
+	WordHypotheses newWordHypotheses;
+	std::vector<Word> newWordHypothesesWordIndices(treeLexicon_.nWords(), invalidWord);
+
+	for(WordHypotheses::iterator iter = wordHypotheses_.begin(); iter != wordHypotheses_.end(); iter++) {
+		Word currentWord = iter->word;
+		Word previousWord = nonSilencePredecessorWord(iter->backpointer);
+
+		// log(p(silence | h)) is always 0
+		if (previousWord != treeLexicon_.silence()) {
+			iter->score += lmScore(currentWord, previousWord);
+		}
+
+		if (newWordHypothesesWordIndices[currentWord] == invalidWord) {
+			newWordHypothesesWordIndices[currentWord] = newWordHypotheses.size();
+			newWordHypotheses.push_back(*iter);
+		}
+
+		WordHypothesis& wordHypothesis = newWordHypotheses[ newWordHypothesesWordIndices[currentWord] ];
+		if (iter->score < wordHypothesis.score) {
+			wordHypothesis.score = iter->score;
+			wordHypothesis.backpointer = iter->backpointer;
+		}
+	}
+	newWordHypotheses.swap(wordHypotheses_);
 }
 
 void WordConditionedTreeSearch::SearchSpace::addBookKeepingEntries(Time time) {
