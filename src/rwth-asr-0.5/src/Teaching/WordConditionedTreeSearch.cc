@@ -987,7 +987,78 @@ void WordConditionedTreeSearch::SearchSpace::writeBackTreeHypothesis(TreeHypothe
 //shiftAndPruneAndReportWordEnds
 void WordConditionedTreeSearch::SearchSpace::pruneStatesAndFindWordEnds(Score acousticPruningThreshold) {
 	//TODO
+
+	//hypotheses from last time frame are now obsolete, since expansion to new time frame is completed,
+	//therefore, these can be cleared.
+	stateHypotheses_.clear();
+	arcHypotheses_.clear();
+	treeHypotheses_.clear();
+	wordHypotheses_.clear();
+
+	//loop over all (new) active trees
+	for (TreeHypotheses::iterator treeHypIn = newTreeHypotheses_.begin(); treeHypIn != newTreeHypotheses_.end();
+	++treeHypIn) {
+
+		//add arcs after pruning at current end of arc array
+		const Index arcBegin = arcHypotheses_.size();
+
+		//loop over all (new) active arcs of tree
+		for (ArcHypotheses::iterator arcHypIn = newArcHypotheses_.begin() + treeHypIn->arcHypBegin;
+				arcHypIn != newArcHypotheses_.begin() + treeHypIn->arcHypEnd; ++arcHypIn) {
+
+			//add states after pruning at current end of state array
+			const Index stateBegin = stateHypotheses_.size();
+
+			//loop over all (new) active states
+			for (StateHypotheses::iterator stateHypIn = newStateHypotheses_.begin() + arcHypIn->stateHypBegin;
+					stateHypIn != newStateHypotheses_.begin() + arcHypIn->stateHypEnd; ++stateHypIn) {
+
+				//states' score within threshold?
+				if (stateHypIn->score < acousticPruningThreshold) {
+
+					//copy state back into original state array
+					stateHypotheses_.push_back(*stateHypIn);
+
+					//arc end represents valid word end?
+					if (treeLexicon_.endingWord(arcHypIn->arc) != invalidWord
+							&& stateHypIn->state == treeLexicon_.nStates(arcHypIn->arc))
+
+						//hypothesis for last state of the arc/word?
+						wordHypotheses_.push_back(WordHypothesis(treeLexicon_.endingWord(arcHypIn->arc), stateHypIn->score
+								+ transitionScores_[treeLexicon_.endingWord(arcHypIn->arc) == treeLexicon_.silence()]
+								                    [Am::StateTransitionModel::exit], stateHypIn->backpointer));
+					//add word ("exit") penalty (heuristic parameter)
+				}
+			}
+
+		// state hypotheses after pruning
+		const Index stateEnd = stateHypotheses_.size();
+
+		//did at least one state survive pruning?
+		if (stateBegin - stateEnd > 0)
+
+			//store arc back into original arc array
+			arcHypotheses_.push_back(ArcHypothesis(arcHypIn->arc, stateBegin, stateEnd));
+		}
+		const Index arcEnd = arcHypotheses_.size();
+
+		//did at least one arc survive pruning?
+		if (arcEnd - arcBegin > 0) {
+
+		//set tree active
+		activeTrees_.setActive(treeHypIn->predecessorWord);
+
+		//copy tree back into original tree array
+		treeHypotheses_.push_back(TreeHypothesis(treeHypIn->predecessorWord, arcBegin, arcEnd));
+		}
+	}
+
+	//clear intermediate arrays of states, arcs, and trees after expansion/before pruning
+	newStateHypotheses_.clear();
+	newArcHypotheses_.clear();
+	newTreeHypotheses_.clear();
 }
+
 
 //BigramRecombination
 void WordConditionedTreeSearch::SearchSpace::bigramRecombination(const LanguageModelScorer &lmScore) {
