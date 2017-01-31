@@ -870,7 +870,7 @@ void WordConditionedTreeSearch::SearchSpace::startNewTrees() {
 
 void WordConditionedTreeSearch::SearchSpace::expand(Time time, Score acousticPruningThreshold, AcousticModelScorer &amScorer) {
 
-	std::cout << "OLDSTATEHyptohesis size before  " << stateHypotheses_.size() << std::endl;
+	//std::cout << "OLDSTATEHyptohesis size before  " << stateHypotheses_.size() << std::endl;
 	for (TreeHypotheses::const_iterator treeHyp = treeHypotheses_.begin(); treeHyp != treeHypotheses_.end(); ++treeHyp) {
 		activeArcs_->initialize(*treeHyp, activeTrees_.wordHyp(treeHyp->predecessorWord), bestScore_, acousticPruningThreshold);
 
@@ -881,7 +881,7 @@ void WordConditionedTreeSearch::SearchSpace::expand(Time time, Score acousticPru
 
 		writeBackTreeHypothesis(*treeHyp);
 	}
-	std::cout << "NEWSTATEHyptohesis size before  " << newStateHypotheses_.size() << std::endl;
+	//std::cout << "NEWSTATEHyptohesis size before  " << newStateHypotheses_.size() << std::endl;
 }
 
 void WordConditionedTreeSearch::SearchSpace::initTimeAlignment(Node nodes[], HmmState &maxState, const Arc arc, const HmmState nStates) {
@@ -933,6 +933,8 @@ void WordConditionedTreeSearch::SearchSpace::computeTimeAlignment(const Arc arc,
 	std::vector<StateHypothesis> newStateHypotheses;
 	for (size_t stateIndex = 1; stateIndex <= maxState; stateIndex++) {
 		bool createdNewState = false;
+		const double amScore = amScorer( treeLexicon_.mixtures(arc)[stateIndex-1] );
+
 		for (int prevStateIndex = stateIndex - maxSkip_; prevStateIndex <= stateIndex; prevStateIndex++) {
 			// Do not expand pruned hypotheses
 			if (nodes[prevStateIndex].score == maxScore) {
@@ -944,17 +946,17 @@ void WordConditionedTreeSearch::SearchSpace::computeTimeAlignment(const Arc arc,
 				createdNewState = true;
 			}
 
-			double newScore = nodes[prevStateIndex].score + transitionScores_[isSilence][stateIndex - prevStateIndex];
-			const MixtureSequence& mixtures = treeLexicon_.mixtures(arc);
+			double newScore = nodes[prevStateIndex].score + amScore;
+			if (prevStateIndex < 1) {
+				// Don't score transitions coming from a virtual state
+				newScore += transitionScores_[isSilence][stateIndex - prevStateIndex];
+			}
 
-			// Compute the mixture index based on the 6-state HMM topology.
-			const size_t mixtureIndex = (stateIndex + 1) / 2 - 1;
-			newScore += amScorer(mixtures[mixtureIndex]);
 			StateHypothesis& newHypothesis = *newStateHypotheses.rbegin();
 			if (newScore < newHypothesis.score) {
 				newHypothesis.score = newScore;
-				newHypothesis.backpointer = prevStateIndex;
-
+				newHypothesis.backpointer = nodes[prevStateIndex].backpointer;
+				newHypothesis.state = stateIndex;
 				bestScore_ = std::min(bestScore_, (Score) newScore);
 			}
 		}
@@ -1035,7 +1037,6 @@ void WordConditionedTreeSearch::SearchSpace::pruneStatesAndFindWordEnds(Score ac
 						wordHypotheses_.push_back(WordHypothesis(treeLexicon_.endingWord(arcHypIn->arc), stateHypIn->score + wordExitPenalty, stateHypIn->backpointer));
 					}
 				} else {
-					//std::cout << "Score of pruned hyp.: " << stateHypIn->score << std::endl;
 					nPruned++;
 				}
 			}
@@ -1067,7 +1068,7 @@ void WordConditionedTreeSearch::SearchSpace::pruneStatesAndFindWordEnds(Score ac
 	newArcHypotheses_.clear();
 	newTreeHypotheses_.clear();
 
-	std::cout << "Number of pruned hypotheses: " << nPruned << std::endl;
+	//std::cout << "Number of pruned hypotheses: " << nPruned << std::endl;
 }
 
 
@@ -1082,24 +1083,30 @@ void WordConditionedTreeSearch::SearchSpace::bigramRecombination(const LanguageM
 		Word currentWord = iter->word;
 		Word previousWord = nonSilencePredecessorWord(iter->backpointer);
 
+		/*
+		if (currentWord == treeLexicon_.silence()) {
+			currentWord = previousWord;
+		}
+		*/
 		// log(p(silence | h)) is always 0
-		if (previousWord != treeLexicon_.silence() && previousWord != invalidWord) {
-			//std::cout << "CURRENT WORD: " << currentWord << std::endl;
-			//std::cout << "PREIOUS WORD: " << previousWord << std::endl;
+		if (currentWord != treeLexicon_.silence()) {
+			//std::cout << "CURRENT WORD:  " << currentWord  << std::endl;
+			//std::cout << "PREVIOUS WORD: " << previousWord << std::endl;
 			iter->score += lmScore(currentWord, previousWord);
+		} else {
+			currentWord = previousWord;
 		}
 
 		if (newWordHypothesesWordIndices[currentWord] == invalidWord) {
 			newWordHypothesesWordIndices[currentWord] = newWordHypotheses.size();
 			newWordHypotheses.push_back(*iter);
 		}
-
 		WordHypothesis& wordHypothesis = newWordHypotheses[ newWordHypothesesWordIndices[currentWord] ];
 		if (iter->score < wordHypothesis.score) {
-			wordHypothesis.score = iter->score;
-			wordHypothesis.backpointer = iter->backpointer;
+			wordHypothesis = *iter;
 		}
 	}
+	//wordHypotheses_ = newWordHypotheses;
 	newWordHypotheses.swap(wordHypotheses_);
 	//std::cout << "WORDHyptohesis size after bigram recombination " << wordHypotheses_.size() << std::endl;
 }
