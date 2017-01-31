@@ -869,6 +869,8 @@ void WordConditionedTreeSearch::SearchSpace::startNewTrees() {
 }
 
 void WordConditionedTreeSearch::SearchSpace::expand(Time time, Score acousticPruningThreshold, AcousticModelScorer &amScorer) {
+
+	std::cout << "OLDSTATEHyptohesis size before  " << stateHypotheses_.size() << std::endl;
 	for (TreeHypotheses::const_iterator treeHyp = treeHypotheses_.begin(); treeHyp != treeHypotheses_.end(); ++treeHyp) {
 		activeArcs_->initialize(*treeHyp, activeTrees_.wordHyp(treeHyp->predecessorWord), bestScore_, acousticPruningThreshold);
 
@@ -879,6 +881,7 @@ void WordConditionedTreeSearch::SearchSpace::expand(Time time, Score acousticPru
 
 		writeBackTreeHypothesis(*treeHyp);
 	}
+	std::cout << "NEWSTATEHyptohesis size before  " << newStateHypotheses_.size() << std::endl;
 }
 
 void WordConditionedTreeSearch::SearchSpace::initTimeAlignment(Node nodes[], HmmState &maxState, const Arc arc, const HmmState nStates) {
@@ -925,15 +928,14 @@ void WordConditionedTreeSearch::SearchSpace::computeTimeAlignment(const Arc arc,
 	Node nodes[nStates + 2];
 	initTimeAlignment(nodes, maxState, arc, nStates);
 
-	const StateHypotheses::const_iterator stateHypothesesBegin = stateHypotheses_.begin();
 	const bool isSilence = treeLexicon_.silence() == treeLexicon_.endingWord(arc);
 
 	std::vector<StateHypothesis> newStateHypotheses;
-	for (size_t stateIndex = 1; stateIndex < nStates; stateIndex++) {
+	for (size_t stateIndex = 1; stateIndex <= maxState; stateIndex++) {
 		bool createdNewState = false;
 		for (int prevStateIndex = stateIndex - maxSkip_; prevStateIndex <= stateIndex; prevStateIndex++) {
 			// Do not expand pruned hypotheses
-			if (nodes[prevStateIndex].score > amThreshold) {
+			if (nodes[prevStateIndex].score == maxScore) {
 				continue;
 			}
 
@@ -952,6 +954,8 @@ void WordConditionedTreeSearch::SearchSpace::computeTimeAlignment(const Arc arc,
 			if (newScore < newHypothesis.score) {
 				newHypothesis.score = newScore;
 				newHypothesis.backpointer = prevStateIndex;
+
+				bestScore_ = std::min(bestScore_, (Score) newScore);
 			}
 		}
 	}
@@ -995,9 +999,10 @@ void WordConditionedTreeSearch::SearchSpace::pruneStatesAndFindWordEnds(Score ac
 	treeHypotheses_.clear();
 	wordHypotheses_.clear();
 
+	int nPruned = 0;
+
 	//loop over all (new) active trees
-	for (TreeHypotheses::iterator treeHypIn = newTreeHypotheses_.begin(); treeHypIn != newTreeHypotheses_.end();
-	++treeHypIn) {
+	for (TreeHypotheses::iterator treeHypIn = newTreeHypotheses_.begin(); treeHypIn != newTreeHypotheses_.end(); ++treeHypIn) {
 
 		//add arcs after pruning at current end of arc array
 		const Index arcBegin = arcHypotheses_.size();
@@ -1014,42 +1019,46 @@ void WordConditionedTreeSearch::SearchSpace::pruneStatesAndFindWordEnds(Score ac
 					stateHypIn != newStateHypotheses_.begin() + arcHypIn->stateHypEnd; ++stateHypIn) {
 
 				//states' score within threshold?
-				if (stateHypIn->score < acousticPruningThreshold) {
+				if (stateHypIn->score < bestScore_ + acousticPruningThreshold) {
 
 					//copy state back into original state array
 					stateHypotheses_.push_back(*stateHypIn);
 
 					//arc end represents valid word end?
-					if (treeLexicon_.endingWord(arcHypIn->arc) != invalidWord
-							&& stateHypIn->state == treeLexicon_.nStates(arcHypIn->arc))
-
+					if (treeLexicon_.endingWord(arcHypIn->arc) != invalidWord	&& stateHypIn->state == treeLexicon_.nStates(arcHypIn->arc)) {
 						//hypothesis for last state of the arc/word?
-						wordHypotheses_.push_back(WordHypothesis(treeLexicon_.endingWord(arcHypIn->arc), stateHypIn->score
-								+ transitionScores_[treeLexicon_.endingWord(arcHypIn->arc) == treeLexicon_.silence()]
-								                    [Am::StateTransitionModel::exit], stateHypIn->backpointer));
-					//add word ("exit") penalty (heuristic parameter)
+						const bool isSilence = treeLexicon_.endingWord(arcHypIn->arc) == treeLexicon_.silence();
+
+						//add word ("exit") penalty (heuristic parameter)
+						const double wordExitPenalty = transitionScores_[isSilence][Am::StateTransitionModel::exit];
+
+						wordHypotheses_.push_back(WordHypothesis(treeLexicon_.endingWord(arcHypIn->arc), stateHypIn->score + wordExitPenalty, stateHypIn->backpointer));
+					}
+				} else {
+					//std::cout << "Score of pruned hyp.: " << stateHypIn->score << std::endl;
+					nPruned++;
 				}
 			}
 
-		// state hypotheses after pruning
-		const Index stateEnd = stateHypotheses_.size();
+			// state hypotheses after pruning
+			const Index stateEnd = stateHypotheses_.size();
 
-		//did at least one state survive pruning?
-		if (stateBegin - stateEnd > 0)
-
-			//store arc back into original arc array
-			arcHypotheses_.push_back(ArcHypothesis(arcHypIn->arc, stateBegin, stateEnd));
+			//did at least one state survive pruning?
+			if (stateBegin - stateEnd > 0){
+				//store arc back into original arc array
+				arcHypotheses_.push_back(ArcHypothesis(arcHypIn->arc, stateBegin, stateEnd));
+			}
 		}
 		const Index arcEnd = arcHypotheses_.size();
 
 		//did at least one arc survive pruning?
 		if (arcEnd - arcBegin > 0) {
 
-		//set tree active
-		activeTrees_.setActive(treeHypIn->predecessorWord);
+			//set tree active
+			activeTrees_.setActive(treeHypIn->predecessorWord);
 
-		//copy tree back into original tree array
-		treeHypotheses_.push_back(TreeHypothesis(treeHypIn->predecessorWord, arcBegin, arcEnd));
+			//copy tree back into original tree array
+			treeHypotheses_.push_back(TreeHypothesis(treeHypIn->predecessorWord, arcBegin, arcEnd));
 		}
 	}
 
@@ -1058,12 +1067,14 @@ void WordConditionedTreeSearch::SearchSpace::pruneStatesAndFindWordEnds(Score ac
 	newArcHypotheses_.clear();
 	newTreeHypotheses_.clear();
 
+	std::cout << "Number of pruned hypotheses: " << nPruned << std::endl;
 }
 
 
 //BigramRecombination
 void WordConditionedTreeSearch::SearchSpace::bigramRecombination(const LanguageModelScorer &lmScore) {
 	//TODO
+	//std::cout << "WORDHyptohesis size before bigram recombination " << wordHypotheses_.size() << std::endl;
 	WordHypotheses newWordHypotheses;
 	std::vector<Word> newWordHypothesesWordIndices(treeLexicon_.nWords(), invalidWord);
 
@@ -1072,7 +1083,9 @@ void WordConditionedTreeSearch::SearchSpace::bigramRecombination(const LanguageM
 		Word previousWord = nonSilencePredecessorWord(iter->backpointer);
 
 		// log(p(silence | h)) is always 0
-		if (previousWord != treeLexicon_.silence()) {
+		if (previousWord != treeLexicon_.silence() && previousWord != invalidWord) {
+			//std::cout << "CURRENT WORD: " << currentWord << std::endl;
+			//std::cout << "PREIOUS WORD: " << previousWord << std::endl;
 			iter->score += lmScore(currentWord, previousWord);
 		}
 
@@ -1088,6 +1101,7 @@ void WordConditionedTreeSearch::SearchSpace::bigramRecombination(const LanguageM
 		}
 	}
 	newWordHypotheses.swap(wordHypotheses_);
+	//std::cout << "WORDHyptohesis size after bigram recombination " << wordHypotheses_.size() << std::endl;
 }
 
 void WordConditionedTreeSearch::SearchSpace::addBookKeepingEntries(Time time) {
