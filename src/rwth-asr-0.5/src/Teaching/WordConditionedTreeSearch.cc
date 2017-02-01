@@ -994,69 +994,65 @@ void WordConditionedTreeSearch::SearchSpace::pruneStatesAndFindWordEnds(Score ac
 	wordHypotheses_.clear();
 
 	//loop over all (new) active trees
-	for (TreeHypotheses::iterator treeHypIn = newTreeHypotheses_.begin(); treeHypIn != newTreeHypotheses_.end(); ++treeHypIn) {
+	for (TreeHypotheses::iterator treeHypIter = newTreeHypotheses_.begin(); treeHypIter != newTreeHypotheses_.end(); ++treeHypIter) {
 
 		//add arcs after pruning at current end of arc array
-		const Index arcBegin = arcHypotheses_.size();
+		const Index numArcsUnpruned = arcHypotheses_.size();
 
 		//loop over all (new) active arcs of tree
-		for (ArcHypotheses::iterator arcHypIn = newArcHypotheses_.begin() + treeHypIn->arcHypBegin;
-				arcHypIn != newArcHypotheses_.begin() + treeHypIn->arcHypEnd; ++arcHypIn) {
+		for (ArcHypotheses::iterator arcHypIter = newArcHypotheses_.begin() + treeHypIter->arcHypBegin;
+				arcHypIter != newArcHypotheses_.begin() + treeHypIter->arcHypEnd; ++arcHypIter) {
 
 			//add states after pruning at current end of state array
-			const Index stateBegin = stateHypotheses_.size();
-
+			const Index numStatesUnpruned = stateHypotheses_.size();
 			//loop over all (new) active states
-			for (StateHypotheses::iterator stateHypIn = newStateHypotheses_.begin() + arcHypIn->stateHypBegin;
-					stateHypIn != newStateHypotheses_.begin() + arcHypIn->stateHypEnd; ++stateHypIn) {
+			for (StateHypotheses::iterator stateHypIter = newStateHypotheses_.begin() + arcHypIter->stateHypBegin;
+					stateHypIter != newStateHypotheses_.begin() + arcHypIter->stateHypEnd; ++stateHypIter) {
 
 				//states' score within threshold?
-				if (stateHypIn->score < bestScore_ + acousticPruningThreshold) {
+				if (stateHypIter->score < bestScore_ + acousticPruningThreshold) {
 
 					//copy state back into original state array
-					stateHypotheses_.push_back(*stateHypIn);
+					stateHypotheses_.push_back(*stateHypIter);
 
 					//arc end represents valid word end?
-					if (treeLexicon_.endingWord(arcHypIn->arc) != invalidWord	&& stateHypIn->state == treeLexicon_.nStates(arcHypIn->arc)) {
+					Word possibleEndingWord = treeLexicon_.endingWord(arcHypIter->arc);
+					if (possibleEndingWord != invalidWord	&& stateHypIter->state == treeLexicon_.nStates(arcHypIter->arc)) {
 						//hypothesis for last state of the arc/word?
-						const bool isSilence = treeLexicon_.endingWord(arcHypIn->arc) == treeLexicon_.silence();
+						const bool isSilence = possibleEndingWord == treeLexicon_.silence();
 
-						//add word ("exit") penalty (heuristic parameter)
+						//add word ("exit") penalty
 						const double wordExitPenalty = transitionScores_[isSilence][Am::StateTransitionModel::exit];
-
-						wordHypotheses_.push_back(WordHypothesis(treeLexicon_.endingWord(arcHypIn->arc), stateHypIn->score + wordExitPenalty, stateHypIn->backpointer));
+						wordHypotheses_.push_back(WordHypothesis(possibleEndingWord, stateHypIter->score + wordExitPenalty, stateHypIter->backpointer));
 					}
 				}
 			}
 
 			// state hypotheses after pruning
-			const Index stateEnd = stateHypotheses_.size();
+			const Index numStatesPruned = stateHypotheses_.size();
 
 			//did at least one state survive pruning?
-			if (stateBegin - stateEnd > 0){
+			if (numStatesUnpruned - numStatesPruned > 0){
 				//store arc back into original arc array
-				arcHypotheses_.push_back(ArcHypothesis(arcHypIn->arc, stateBegin, stateEnd));
+				arcHypotheses_.push_back(ArcHypothesis(arcHypIter->arc, numStatesUnpruned, numStatesPruned));
 			}
 		}
-		const Index arcEnd = arcHypotheses_.size();
+		const Index numArcsPruned = arcHypotheses_.size();
 
 		//did at least one arc survive pruning?
-		if (arcEnd - arcBegin > 0) {
+		if (numArcsPruned - numArcsUnpruned > 0) {
 
 			//set tree active
-			activeTrees_.setActive(treeHypIn->predecessorWord);
+			activeTrees_.setActive(treeHypIter->predecessorWord);
 
 			//copy tree back into original tree array
-			treeHypotheses_.push_back(TreeHypothesis(treeHypIn->predecessorWord, arcBegin, arcEnd));
+			treeHypotheses_.push_back(TreeHypothesis(treeHypIter->predecessorWord, numArcsUnpruned, numArcsPruned));
 		}
 	}
-
 	//clear intermediate arrays of states, arcs, and trees after expansion/before pruning
 	newStateHypotheses_.clear();
 	newArcHypotheses_.clear();
 	newTreeHypotheses_.clear();
-
-	//std::cout << "Number of pruned hypotheses: " << nPruned << std::endl;
 }
 
 
