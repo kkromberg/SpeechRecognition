@@ -1082,7 +1082,7 @@ void WordConditionedTreeSearch::SearchSpace::bigramRecombination(const LanguageM
 			//std::cout << "PREVIOUS WORD: " << previousWord << std::endl;
 			iter->score += lmScore(currentWord, previousWord);
 		} else {
-			//currentWord = previousWord;
+			currentWord = previousWord;
 		}
 
 		if (newWordHypothesesWordIndices[currentWord] == invalidWord) {
