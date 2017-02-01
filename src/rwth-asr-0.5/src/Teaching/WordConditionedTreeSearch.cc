@@ -993,8 +993,6 @@ void WordConditionedTreeSearch::SearchSpace::pruneStatesAndFindWordEnds(Score ac
 	treeHypotheses_.clear();
 	wordHypotheses_.clear();
 
-	int nPruned = 0;
-
 	//loop over all (new) active trees
 	for (TreeHypotheses::iterator treeHypIn = newTreeHypotheses_.begin(); treeHypIn != newTreeHypotheses_.end(); ++treeHypIn) {
 
@@ -1028,8 +1026,6 @@ void WordConditionedTreeSearch::SearchSpace::pruneStatesAndFindWordEnds(Score ac
 
 						wordHypotheses_.push_back(WordHypothesis(treeLexicon_.endingWord(arcHypIn->arc), stateHypIn->score + wordExitPenalty, stateHypIn->backpointer));
 					}
-				} else {
-					nPruned++;
 				}
 			}
 
