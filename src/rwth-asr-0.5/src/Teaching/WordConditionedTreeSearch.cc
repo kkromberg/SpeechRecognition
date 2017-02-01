@@ -429,7 +429,7 @@ public:
 	 * recombination (only keep the best word hypothesis for a specific word
 	 * and arbitrary predecessor word).
 	 */
-	void bigramRecombination(const LanguageModelScorer &lmScore);
+	void bigramRecombination(const LanguageModelScorer &lmScore, const float lmPruningThreshold, const bool doLmPruning);
 
 	/**
 	 * Trace back word sequence in book keeping.
@@ -1065,12 +1065,13 @@ void WordConditionedTreeSearch::SearchSpace::pruneStatesAndFindWordEnds(Score ac
 
 
 //BigramRecombination
-void WordConditionedTreeSearch::SearchSpace::bigramRecombination(const LanguageModelScorer &lmScore) {
+void WordConditionedTreeSearch::SearchSpace::bigramRecombination(const LanguageModelScorer &lmScore, const float lmPruningThreshold, const bool doLmPruning) {
 	//TODO
 	//std::cout << "WORDHyptohesis size before bigram recombination " << wordHypotheses_.size() << std::endl;
 	WordHypotheses newWordHypotheses;
 	std::vector<Word> newWordHypothesesWordIndices(treeLexicon_.nWords(), invalidWord);
 
+	Score bestLMScore = maxScore;
 	for(WordHypotheses::iterator iter = wordHypotheses_.begin(); iter != wordHypotheses_.end(); iter++) {
 		Word currentWord = iter->word;
 		Word previousWord = nonSilencePredecessorWord(iter->backpointer);
@@ -1092,10 +1093,22 @@ void WordConditionedTreeSearch::SearchSpace::bigramRecombination(const LanguageM
 		if (iter->score < wordHypothesis.score) {
 			wordHypothesis = *iter;
 		}
+
+		bestLMScore = std::min(bestLMScore, wordHypothesis.score);
 	}
-	//wordHypotheses_ = newWordHypotheses;
 	newWordHypotheses.swap(wordHypotheses_);
+	newWordHypotheses.clear();
 	//std::cout << "WORDHyptohesis size after bigram recombination " << wordHypotheses_.size() << std::endl;
+
+	if (doLmPruning) {
+		for(WordHypotheses::iterator iter = wordHypotheses_.begin(); iter != wordHypotheses_.end(); iter++) {
+			if (iter->score < bestLMScore + lmPruningThreshold) {
+				newWordHypotheses.push_back(*iter);
+			}
+		}
+		newWordHypotheses.swap(wordHypotheses_);
+		newWordHypotheses.clear();
+	}
 }
 
 void WordConditionedTreeSearch::SearchSpace::addBookKeepingEntries(Time time) {
@@ -1164,11 +1177,20 @@ inline bool WordConditionedTreeSearch::SearchSpace::isSilence(const Mixture mixt
 
 const Core::ParameterFloat WordConditionedTreeSearch::paramAcousticPruningThreshold_(
 		"acoustic-pruning", "acoustic pruning threshold", maxScore, 0.);
+const Core::ParameterFloat WordConditionedTreeSearch::paramLanguageModelPruningThreshold_(
+		"lm-pruning", "language model pruning threshold", maxScore, 0.);
 
 WordConditionedTreeSearch::WordConditionedTreeSearch(const Core::Configuration &config) : Core::Component(config), SearchInterface(config), amScorer_(new AcousticModelScorer(this)), lmScorer_(new LanguageModelScorer(this)) {
 	acousticPruningThreshold_ = paramAcousticPruningThreshold_(config);
 	if (paramAcousticPruningThreshold_(config) > maxScore)
 		acousticPruningThreshold_ = maxScore;
+
+	languageModelPruningThreshold_ = paramLanguageModelPruningThreshold_(config);
+	if (paramLanguageModelPruningThreshold_(config) > maxScore) {
+		languageModelPruningThreshold_ = maxScore;
+	}
+
+	doLmPruning_ = languageModelPruningThreshold_ == maxScore ? false : true;
 }
 
 WordConditionedTreeSearch::~WordConditionedTreeSearch() {
@@ -1194,7 +1216,7 @@ void WordConditionedTreeSearch::processFrame(Time time) {
 	searchSpace_->startNewTrees();
 	searchSpace_->expand(time, acousticPruningThreshold_, *amScorer_);
 	searchSpace_->pruneStatesAndFindWordEnds(acousticPruningThreshold_);
-	searchSpace_->bigramRecombination(*lmScorer_);
+	searchSpace_->bigramRecombination(*lmScorer_, languageModelPruningThreshold_, doLmPruning_);
 	searchSpace_->addBookKeepingEntries(time);
 }
 

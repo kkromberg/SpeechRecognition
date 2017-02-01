@@ -73,8 +73,13 @@ private:
 
     /** score offset relative to best state hypothesis for acoustic pruning */
     Score acousticPruningThreshold_;
+    Score languageModelPruningThreshold_;
+
+    bool doLmPruning_;
 
     static const Core::ParameterFloat paramAcousticPruningThreshold_;
+    static const Core::ParameterFloat paramLanguageModelPruningThreshold_;
+
     static const Core::ParameterInt paramAcousticPruningLimit_;
 };
 
