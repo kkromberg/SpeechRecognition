@@ -24,7 +24,9 @@ for recording in corpus.findall('recording'):
 		# Get the values for the WER computation
 		statistic = segment.find('evaluation').find('statistic')
 		numberOfEdits += float(statistic.find('cost').text)
-		referenceLength += float(statistic.find('count').text)
+		#print statistic.find('cost').text
+		referenceLength += float(statistic.findall('count')[1].text)
+		#print statistic.findall('count')[1].text
 
 
 
